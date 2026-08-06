@@ -3,8 +3,9 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// Maintains a single sticky PPE selection and notifies the preview controller.
-/// Grip once: select + preview. Grip again: equip current selection.
-/// Right-hand B / left-hand Y (SecondaryButton) clears the current selection.
+/// Grip once: select + preview. Grip again (via XRInteractionConfirmRouter): equip.
+/// Right-hand B (SecondaryButton) clears the current selection.
+/// Left-hand Y is reserved for PPE checklist visibility toggle.
 /// </summary>
 public class PPESelectionManager : MonoBehaviour
 {
@@ -17,18 +18,21 @@ public class PPESelectionManager : MonoBehaviour
     PPEPreviewController previewController;
 
     [Header("Cancel Input")]
-    [Tooltip("Clears selection. Defaults to XR SecondaryButton (Quest B / Y).")]
+    [Tooltip("Clears selection. Defaults to Right-hand SecondaryButton (Quest B).")]
     [SerializeField]
     InputActionProperty cancelAction;
 
-    [Header("Equip Confirm (Grip)")]
-    [Tooltip("Second Grip press equips the currently selected PPE. Defaults to XR GripButton.")]
+    [Header("Equip Confirm (legacy — owned by XRInteractionConfirmRouter when present)")]
+    [Tooltip("Kept for Inspector reference handoff to the router. Not subscribed when router owns confirm.")]
     [SerializeField]
     InputActionProperty equipConfirmAction;
 
     [SerializeField]
     [Min(0f)]
     float equipConfirmDelay = 0.3f;
+
+    [SerializeField]
+    bool equipConfirmInputOwnedByRouter = true;
 
     InputAction ownedCancelAction;
     InputAction ownedEquipConfirmAction;
@@ -37,6 +41,9 @@ public class PPESelectionManager : MonoBehaviour
     float selectedAtTime = -999f;
 
     public PPEOutlineHighlight CurrentSelectedPPE => currentSelectedPPE;
+    public float SelectedAtTime => selectedAtTime;
+    public float EquipConfirmDelay => equipConfirmDelay;
+    public InputActionProperty EquipConfirmActionProperty => equipConfirmAction;
 
     void Awake()
     {
@@ -52,16 +59,17 @@ public class PPESelectionManager : MonoBehaviour
         if (previewController == null)
             previewController = GetComponent<PPEPreviewController>();
         if (previewController == null)
-            previewController = FindFirstObjectByType<PPEPreviewController>();
+            previewController = FindAnyObjectByType<PPEPreviewController>();
 
         EnsureCancelAction();
-        EnsureEquipConfirmAction();
+        // Only build fallback action if router is absent at Awake.
+        if (!equipConfirmInputOwnedByRouter)
+            EnsureEquipConfirmAction();
     }
 
     void OnEnable()
     {
         EnsureCancelAction();
-        EnsureEquipConfirmAction();
 
         var cancel = GetCancelAction();
         if (cancel != null)
@@ -71,12 +79,19 @@ public class PPESelectionManager : MonoBehaviour
             cancelSubscribed = true;
         }
 
-        var equipConfirm = GetEquipConfirmAction();
-        if (equipConfirm != null)
+        // Prefer shared router when present; otherwise keep legacy Grip subscription.
+        var routerPresent = XRInteractionConfirmRouter.Instance != null
+            || FindAnyObjectByType<XRInteractionConfirmRouter>() != null;
+        equipConfirmInputOwnedByRouter = routerPresent;
+
+        if (!equipConfirmInputOwnedByRouter)
         {
-            equipConfirm.performed += OnEquipConfirmPerformed;
-            equipConfirm.Enable();
-            equipConfirmSubscribed = true;
+            EnsureEquipConfirmAction();
+            WireLegacyEquipConfirm(true);
+        }
+        else
+        {
+            WireLegacyEquipConfirm(false);
         }
     }
 
@@ -91,16 +106,7 @@ public class PPESelectionManager : MonoBehaviour
         }
 
         cancelSubscribed = false;
-
-        var equipConfirm = GetEquipConfirmAction();
-        if (equipConfirm != null && equipConfirmSubscribed)
-        {
-            equipConfirm.performed -= OnEquipConfirmPerformed;
-            if (ownedEquipConfirmAction != null)
-                equipConfirm.Disable();
-        }
-
-        equipConfirmSubscribed = false;
+        WireLegacyEquipConfirm(false);
     }
 
     void OnDestroy()
@@ -121,6 +127,57 @@ public class PPESelectionManager : MonoBehaviour
         }
     }
 
+    public void SetEquipConfirmInputOwnedByRouter(bool owned)
+    {
+        equipConfirmInputOwnedByRouter = owned;
+        if (owned)
+            WireLegacyEquipConfirm(false);
+        else if (isActiveAndEnabled)
+        {
+            EnsureEquipConfirmAction();
+            WireLegacyEquipConfirm(true);
+        }
+    }
+
+    /// <summary>True when sticky PPE selection can be equipped after confirm delay.</summary>
+    public bool HasValidEquipSelection(float confirmDelayOverride = -1f)
+    {
+        if (currentSelectedPPE == null)
+            return false;
+
+        var delay = confirmDelayOverride >= 0f ? confirmDelayOverride : equipConfirmDelay;
+        if (Time.unscaledTime - selectedAtTime < delay)
+            return false;
+
+        var equipable = currentSelectedPPE.GetComponent<PPEEquipable>();
+        if (equipable == null)
+            equipable = currentSelectedPPE.GetComponentInParent<PPEEquipable>();
+
+        return equipable != null && equipable.CanEquip();
+    }
+
+    void WireLegacyEquipConfirm(bool subscribe)
+    {
+        var equipConfirm = GetEquipConfirmAction();
+        if (equipConfirm == null)
+            return;
+
+        if (equipConfirmSubscribed)
+        {
+            equipConfirm.performed -= OnEquipConfirmPerformed;
+            if (ownedEquipConfirmAction != null)
+                equipConfirm.Disable();
+            equipConfirmSubscribed = false;
+        }
+
+        if (!subscribe || equipConfirmInputOwnedByRouter)
+            return;
+
+        equipConfirm.performed += OnEquipConfirmPerformed;
+        equipConfirm.Enable();
+        equipConfirmSubscribed = true;
+    }
+
     void OnCancelPerformed(InputAction.CallbackContext context)
     {
         if (!context.performed)
@@ -134,7 +191,6 @@ public class PPESelectionManager : MonoBehaviour
         if (!context.performed)
             return;
 
-        // Ignore the same Grip pulse that just selected / started preview.
         if (Time.unscaledTime - selectedAtTime < equipConfirmDelay)
             return;
 
@@ -169,9 +225,7 @@ public class PPESelectionManager : MonoBehaviour
             type: InputActionType.Button);
 
         ownedCancelAction.AddBinding("<XRController>{RightHand}/{SecondaryButton}");
-        ownedCancelAction.AddBinding("<XRController>{LeftHand}/{SecondaryButton}");
         ownedCancelAction.AddBinding("<OculusTouchController>{RightHand}/secondaryButton");
-        ownedCancelAction.AddBinding("<OculusTouchController>{LeftHand}/secondaryButton");
     }
 
     void EnsureEquipConfirmAction()
@@ -179,7 +233,6 @@ public class PPESelectionManager : MonoBehaviour
         if (GetEquipConfirmAction() != null)
             return;
 
-        // Same physical button as XRI Select (Grip) — used as "confirm equip".
         ownedEquipConfirmAction = new InputAction(
             name: "PPE Equip Confirm",
             type: InputActionType.Button);
@@ -190,19 +243,21 @@ public class PPESelectionManager : MonoBehaviour
         ownedEquipConfirmAction.AddBinding("<OculusTouchController>{LeftHand}/gripPressed");
     }
 
-    /// <summary>
-    /// Selects <paramref name="target"/> as the only selected PPE.
-    /// Selecting the same target again attempts to equip it.
-    /// </summary>
     public void SelectPPE(PPEOutlineHighlight target)
     {
         if (target == null)
             return;
 
+        var isBag = IsResponseBagHighlight(target);
+
+        // Wearable PPE and response-bag preview/panel are mutually exclusive.
+        if (!isBag)
+            CloseResponseBagContentsPanelIfOpen();
+
         if (currentSelectedPPE == target)
         {
+            // Keep sticky highlight — equip only via XRInteractionConfirmRouter Grip confirm.
             currentSelectedPPE.SetSelected(true);
-            TryEquipCurrentSelection();
             return;
         }
 
@@ -217,11 +272,49 @@ public class PPESelectionManager : MonoBehaviour
 
         if (previewController != null)
             previewController.HandleSelectionChanged(previous, currentSelectedPPE);
+
+        var response = ResponseEquipmentManager.Instance != null
+            ? ResponseEquipmentManager.Instance
+            : FindAnyObjectByType<ResponseEquipmentManager>();
+
+        // Bag preview stays empty inside — contents UI opens with Y while selected.
+        if (response != null)
+        {
+            response.HideGearPanel();
+            response.HideBagContents();
+        }
+
+        if (isBag && response != null && !response.ResponseBagPrepared)
+        {
+            var feedback = FindAnyObjectByType<PPEEquipFeedbackUI>(FindObjectsInactive.Include);
+            feedback?.ShowMessage(
+                "Y\uB85C \uB0B4\uBD80 \uD655\uC778 \uD6C4 Grip\uC73C\uB85C \uC900\uBE44\uD558\uC138\uC694.");
+        }
     }
 
-    /// <summary>
-    /// Equips the current sticky selection via <see cref="PPEEquipmentManager"/>.
-    /// </summary>
+    static bool IsResponseBagHighlight(PPEOutlineHighlight target)
+    {
+        if (target == null)
+            return false;
+        return target.GetComponent<ResponseBagPrepareInteractable>() != null
+            || target.GetComponentInParent<ResponseBagPrepareInteractable>() != null;
+    }
+
+    static void CloseResponseBagContentsPanelIfOpen()
+    {
+        var manager = ResponseEquipmentManager.Instance != null
+            ? ResponseEquipmentManager.Instance
+            : FindAnyObjectByType<ResponseEquipmentManager>();
+        if (manager != null)
+            manager.HideGearPanel();
+
+        var panel = manager != null ? manager.ContentsPanel : null;
+        if (panel == null)
+            panel = FindAnyObjectByType<ResponseBagContentsPanel>(FindObjectsInactive.Include);
+        if (panel != null && panel.IsOpen)
+            panel.HidePanel();
+    }
+
     public bool TryEquipCurrentSelection()
     {
         if (currentSelectedPPE == null)
@@ -241,7 +334,7 @@ public class PPESelectionManager : MonoBehaviour
 
         var manager = PPEEquipmentManager.Instance != null
             ? PPEEquipmentManager.Instance
-            : FindFirstObjectByType<PPEEquipmentManager>();
+            : FindAnyObjectByType<PPEEquipmentManager>();
 
         if (manager == null)
         {
@@ -252,26 +345,32 @@ public class PPESelectionManager : MonoBehaviour
         return manager.Equip(equipable);
     }
 
-    /// <summary>
-    /// Clears the current sticky selection and restores hover/none visuals.
-    /// </summary>
     public void ClearSelection()
     {
         if (currentSelectedPPE == null)
             return;
 
         var previous = currentSelectedPPE;
+        var wasBag = IsResponseBagHighlight(previous);
         currentSelectedPPE = null;
         previous.SetSelected(false);
 
         if (previewController != null)
             previewController.HandleSelectionCleared(previous);
+
+        if (wasBag)
+        {
+            var response = ResponseEquipmentManager.Instance != null
+                ? ResponseEquipmentManager.Instance
+                : FindAnyObjectByType<ResponseEquipmentManager>();
+            if (response != null)
+            {
+                response.HideGearPanel();
+                response.HideBagContents();
+            }
+        }
     }
 
-    /// <summary>
-    /// Clears sticky selection for an equipped item without playing the return animation.
-    /// Instantly restores slot parenting so the root can be deactivated safely.
-    /// </summary>
     public void NotifyEquipped(PPEOutlineHighlight target)
     {
         if (target == null)
@@ -287,9 +386,6 @@ public class PPESelectionManager : MonoBehaviour
             previewController.PrepareForEquipDeactivate(target);
     }
 
-    /// <summary>
-    /// Called when a selected highlight component is destroyed.
-    /// </summary>
     public void NotifyTargetDestroyed(PPEOutlineHighlight target)
     {
         if (currentSelectedPPE != target)
@@ -297,7 +393,6 @@ public class PPESelectionManager : MonoBehaviour
 
         currentSelectedPPE = null;
 
-        // Do not animate/reparent — the GameObject is already being destroyed.
         if (previewController != null)
             previewController.AbandonPreviewWithoutRestore(target);
     }

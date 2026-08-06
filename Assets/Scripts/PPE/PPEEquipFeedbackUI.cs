@@ -95,7 +95,7 @@ public class PPEEquipFeedbackUI : MonoBehaviour
 
         var manager = PPEEquipmentManager.Instance != null
             ? PPEEquipmentManager.Instance
-            : FindFirstObjectByType<PPEEquipmentManager>();
+            : FindAnyObjectByType<PPEEquipmentManager>();
 
         if (manager == null)
             return;
@@ -245,7 +245,7 @@ public class PPEEquipFeedbackUI : MonoBehaviour
         if (xrCamera != null)
             return;
 
-        var origin = FindFirstObjectByType<XROrigin>();
+        var origin = FindAnyObjectByType<XROrigin>();
         if (origin != null && origin.Camera != null)
             xrCamera = origin.Camera;
         else

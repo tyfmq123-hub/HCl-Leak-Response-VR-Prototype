@@ -1,5 +1,16 @@
 {
   "dependencies": {
+    "com.senghwan.vr-hand-pose-tool": {
+      "version": "file:C:/Users/user/Downloads/fianl VR hand Tools/com.senghwan.vr-hand-pose-tool-0.2.0.tgz",
+      "depth": 0,
+      "source": "local-tarball",
+      "dependencies": {
+        "com.unity.inputsystem": "1.19.0",
+        "com.unity.xr.core-utils": "2.4.0",
+        "com.unity.xr.interaction.toolkit": "3.4.1",
+        "com.unity.xr.hands": "1.7.3"
+      }
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.12",
       "depth": 0,

@@ -1,0 +1,277 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ecd52e4f3a885d048a59b0e31803e281, type: 3}
+  m_Name: Left_Open
+  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.XRHandPoseAsset
+  poseName: Left_Open
+  handedness: 1
+  sourceHandName: Left Hand Tracking
+  sourceSkeletonName: LeftHand.fbx
+  targetName: 
+  capturedAtIso8601: 2026-08-04T06:31:02.4703153Z
+  rootWorldPosition: {x: 0, y: 0, z: 0}
+  rootWorldRotation: {x: -0, y: -0, z: -0, w: 1}
+  hasTargetRelativePose: 0
+  targetRelativePosition: {x: 0, y: 0, z: 0}
+  targetRelativeRotation: {x: 0, y: 0, z: 0, w: 0}
+  bones:
+  - boneName: L_Wrist
+    parentBoneName: Left Hand Tracking
+    localPosition: {x: -0.05715536, y: 1.1463512, z: 0.24847953}
+    localRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_Palm
+    parentBoneName: L_Wrist
+    localPosition: {x: 0.0031620164, y: -0.0044466583, z: 0.06388324}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_ThumbMetacarpal
+    parentBoneName: L_Wrist
+    localPosition: {x: 0.032054637, y: -0.011071601, z: 0.031784546}
+    localRotation: {x: -0.10151076, y: 0.50115854, z: -0.5123791, w: 0.68993}
+    localScale: {x: 1.0000204, y: 1.0000343, z: 0.9999787}
+  - boneName: L_ThumbProximal
+    parentBoneName: L_ThumbMetacarpal
+    localPosition: {x: -0.000000027939677, y: -9.313226e-10, z: 0.03227949}
+    localRotation: {x: 0.07125345, y: -0.06409632, z: 0.08314231, w: 0.9919183}
+    localScale: {x: 0.9999928, y: 0.999997, z: 0.9999632}
+  - boneName: L_ThumbDistal
+    parentBoneName: L_ThumbProximal
+    localPosition: {x: 0.000000028871, y: -0.000000020489097, z: 0.033550378}
+    localRotation: {x: -0.14523679, y: 0.07163344, z: -0.08476704, w: 0.98315287}
+    localScale: {x: 0.9999879, y: 0.9999645, z: 1.0000014}
+  - boneName: L_ThumbTip
+    parentBoneName: L_ThumbDistal
+    localPosition: {x: -0.000665538, y: 0.0010195966, z: 0.0244142}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_IndexMetacarpal
+    parentBoneName: L_Wrist
+    localPosition: {x: 0.020703599, y: -0.006988587, z: 0.03495363}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_IndexProximal
+    parentBoneName: L_IndexMetacarpal
+    localPosition: {x: 0.002677941, y: -0.00027533527, z: 0.060353287}
+    localRotation: {x: -0.099589735, y: -0.00016009809, z: -0.02636464, w: 0.9946793}
+    localScale: {x: 1.0000446, y: 1.0000408, z: 0.999991}
+  - boneName: L_IndexIntermediate
+    parentBoneName: L_IndexProximal
+    localPosition: {x: 0.0000000021900632, y: -0.000000009080395, z: 0.037654966}
+    localRotation: {x: 0.0055570607, y: -0.007057466, z: 0.025863873, w: 0.99962515}
+    localScale: {x: 0.99995506, y: 0.9999494, z: 0.9999497}
+  - boneName: L_IndexDistal
+    parentBoneName: L_IndexIntermediate
+    localPosition: {x: 0.000000030374395, y: 0.000000008920324, z: 0.024129173}
+    localRotation: {x: -0.028287204, y: -0.02648625, z: 0.016306551, w: 0.9991158}
+    localScale: {x: 1.0000451, y: 1.0000081, z: 1.0000004}
+  - boneName: L_IndexTip
+    parentBoneName: L_IndexDistal
+    localPosition: {x: -0.00029349714, y: 0.0010177101, z: 0.02220282}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_MiddleMetacarpal
+    parentBoneName: L_Wrist
+    localPosition: {x: 0.004610613, y: -0.006368398, z: 0.03280673}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_MiddleProximal
+    parentBoneName: L_MiddleMetacarpal
+    localPosition: {x: -0.0028971098, y: 0.003843511, z: 0.062153097}
+    localRotation: {x: -0.06999741, y: -0.09145648, z: -0.0011668355, w: 0.99334526}
+    localScale: {x: 0.9999646, y: 1.0000069, z: 1.000008}
+  - boneName: L_MiddleIntermediate
+    parentBoneName: L_MiddleProximal
+    localPosition: {x: -0.000000039675797, y: -0.000000012514647, z: 0.042618737}
+    localRotation: {x: -0.0005089641, y: -0.0043623005, z: 0.011237727, w: 0.9999272}
+    localScale: {x: 1.0000315, y: 0.99999595, z: 1.000038}
+  - boneName: L_MiddleDistal
+    parentBoneName: L_MiddleIntermediate
+    localPosition: {x: 0.00000009824362, y: 0.000000018364517, z: 0.027351832}
+    localRotation: {x: -0.051283628, y: -0.0027915093, z: 0.03854151, w: 0.9979363}
+    localScale: {x: 0.9999718, y: 1.0000138, z: 0.99996346}
+  - boneName: L_MiddleTip
+    parentBoneName: L_MiddleDistal
+    localPosition: {x: -0.00030648054, y: 0.0011291255, z: 0.024785658}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_RingMetacarpal
+    parentBoneName: L_Wrist
+    localPosition: {x: -0.014884722, y: -0.0059725903, z: 0.034525808}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: L_RingProximal
+    parentBoneName: L_RingMetacarpal
+    localPosition: {x: -0.00245512, y: -0.0005098479, z: 0.05353113}
+    localRotation: {x: -0.0233396, y: -0.13046765, z: 0.044254407, w: 0.9901894}
+    localScale: {x: 0.99998975, y: 1.0000367, z: 1.0000347}
+  - boneName: L_RingIntermediate
+    parentBoneName: L_RingProximal
+    localPosition: {x: 0.000000029598596, y: 0.000000015832484, z: 0.03871613}
+    localRotation: {x: 0.005676091, y: -0.0027897956, z: 0.033632535, w: 0.99941427}
+    localScale: {x: 1.0000359, y: 0.9999273, z: 0.99994177}
+  - boneName: L_RingDistal
+    parentBoneName: L_RingIntermediate
+    localPosition: {x: -0.00000007641211, y: -0.0000000030267984, z: 0.026382556}
+    localRotation: {x: 0.0065551107, y: 0.02933474, z: 0.004960463, w: 0.99953586}
+    localScale: {x: 0.9999347, y: 0.9999719, z: 1.0000098}
+  - boneName: L_RingTip
+    parentBoneName: L_RingDistal
+    localPosition: {x: -0.00025602724, y: 0.0015966148, z: 0.02415147}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1.0000552, z: 1}
+  - boneName: L_LittleMetacarpal
+    parentBoneName: L_Wrist
+    localPosition: {x: -0.022833467, y: -0.009352203, z: 0.03382887}
+    localRotation: {x: 0.01831177, y: -0.14034283, z: 0.20703602, w: 0.96804166}
+    localScale: {x: 1.0000185, y: 1.0000081, z: 0.9999589}
+  - boneName: L_LittleProximal
+    parentBoneName: L_LittleMetacarpal
+    localPosition: {x: 0.0000022521708, y: -0.0000009946525, z: 0.045322806}
+    localRotation: {x: -0.016892614, y: -0.047982283, z: -0.09427847, w: 0.9942454}
+    localScale: {x: 0.9999562, y: 1.0000366, z: 1.0000681}
+  - boneName: L_LittleIntermediate
+    parentBoneName: L_LittleProximal
+    localPosition: {x: -0.00000003806781, y: -0.000000010244548, z: 0.030499792}
+    localRotation: {x: -0.0132794995, y: -0.04293746, z: 0.03761724, w: 0.998281}
+    localScale: {x: 1.0000147, y: 1.0000129, z: 0.99994457}
+  - boneName: L_LittleDistal
+    parentBoneName: L_LittleIntermediate
+    localPosition: {x: 0.000000021769665, y: 0.000000009546056, z: 0.02016556}
+    localRotation: {x: -0.009528279, y: 0.049172133, z: -0.00069493055, w: 0.99874467}
+    localScale: {x: 1.0000222, y: 0.99996865, z: 0.9999735}
+  - boneName: L_LittleTip
+    parentBoneName: L_LittleDistal
+    localPosition: {x: 0.0002446774, y: 0.0012073421, z: 0.021764947}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  joints:
+  - jointId: 1
+    poseValid: 1
+    trackingPosition: {x: -0.05715536, y: 1.1463512, z: 0.24847953}
+    trackingRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+  - jointId: 2
+    poseValid: 1
+    trackingPosition: {x: -0.014183626, y: 1.1909609, z: 0.23191911}
+    trackingRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+  - jointId: 3
+    poseValid: 1
+    trackingPosition: {x: -0.05736541, y: 1.187247, z: 0.22639276}
+    trackingRotation: {x: 0.52416325, y: -0.72008485, z: -0.42782015, w: -0.15395015}
+  - jointId: 4
+    poseValid: 1
+    trackingPosition: {x: -0.06468577, y: 1.2123451, z: 0.20745961}
+    trackingRotation: {x: 0.42166644, y: -0.7784615, z: -0.41945085, w: -0.20063925}
+  - jointId: 5
+    poseValid: 1
+    trackingPosition: {x: -0.066073306, y: 1.2399322, z: 0.18841606}
+    trackingRotation: {x: 0.53973734, y: -0.683056, z: -0.4782325, w: -0.11580929}
+  - jointId: 6
+    poseValid: 1
+    trackingPosition: {x: -0.075419165, y: 1.2593107, z: 0.17681164}
+    trackingRotation: {x: 0.53973734, y: -0.683056, z: -0.4782325, w: -0.11580929}
+  - jointId: 7
+    poseValid: 1
+    trackingPosition: {x: -0.047074962, y: 1.1826414, z: 0.23172706}
+    trackingRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+  - jointId: 8
+    poseValid: 1
+    trackingPosition: {x: -0.0062282495, y: 1.2255627, z: 0.21993409}
+    trackingRotation: {x: -0.18690547, y: -0.6778372, z: -0.6255292, w: -0.3381068}
+  - jointId: 9
+    poseValid: 1
+    trackingPosition: {x: 0.019836236, y: 1.2527355, z: 0.22035605}
+    trackingRotation: {x: -0.21066043, y: -0.6738389, z: -0.62895364, w: -0.32554662}
+  - jointId: 10
+    poseValid: 1
+    trackingPosition: {x: 0.036816474, y: 1.2698785, z: 0.22043149}
+    trackingRotation: {x: -0.22891197, y: -0.6433941, z: -0.6471875, w: -0.33880916}
+  - jointId: 11
+    poseValid: 1
+    trackingPosition: {x: 0.053123835, y: 1.2847682, z: 0.22297184}
+    trackingRotation: {x: -0.22891197, y: -0.6433941, z: -0.6471875, w: -0.33880916}
+  - jointId: 12
+    poseValid: 1
+    trackingPosition: {x: -0.037228562, y: 1.1702821, z: 0.23550531}
+    trackingRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+  - jointId: 13
+    poseValid: 1
+    trackingPosition: {x: 0.008861307, y: 1.2116398, z: 0.2283329}
+    trackingRotation: {x: -0.26539317, y: -0.660071, z: -0.5890433, w: -0.3832761}
+  - jointId: 14
+    poseValid: 1
+    trackingPosition: {x: 0.043750536, y: 1.2361107, z: 0.22781062}
+    trackingRotation: {x: -0.2751661, y: -0.6550688, z: -0.59248585, w: -0.37964323}
+  - jointId: 15
+    poseValid: 1
+    trackingPosition: {x: 0.06627332, y: 1.2516277, z: 0.22754632}
+    trackingRotation: {x: -0.28203002, y: -0.611667, z: -0.6387213, w: -0.37196457}
+  - jointId: 16
+    poseValid: 1
+    trackingPosition: {x: 0.08650738, y: 1.265571, z: 0.2309908}
+    trackingRotation: {x: -0.28203002, y: -0.611667, z: -0.6387213, w: -0.37196457}
+  - jointId: 17
+    poseValid: 1
+    trackingPosition: {x: -0.022244122, y: 1.1581658, z: 0.23894647}
+    trackingRotation: {x: -0.23735376, y: -0.73165333, z: -0.5636393, w: -0.30109358}
+  - jointId: 18
+    poseValid: 1
+    trackingPosition: {x: 0.017393585, y: 1.1928513, z: 0.22906527}
+    trackingRotation: {x: -0.33391336, y: -0.66153336, z: -0.5575439, w: -0.37419298}
+  - jointId: 19
+    poseValid: 1
+    trackingPosition: {x: 0.0509769, y: 1.211736, z: 0.22526146}
+    trackingRotation: {x: -0.35964617, y: -0.6520362, z: -0.5651158, w: -0.35517237}
+  - jointId: 20
+    poseValid: 1
+    trackingPosition: {x: 0.07392064, y: 1.2244385, z: 0.22238594}
+    trackingRotation: {x: -0.34846434, y: -0.6640729, z: -0.57289135, w: -0.33071947}
+  - jointId: 21
+    poseValid: 1
+    trackingPosition: {x: 0.094443604, y: 1.2371937, z: 0.22096394}
+    trackingRotation: {x: -0.34846434, y: -0.6640729, z: -0.57289135, w: -0.33071947}
+  - jointId: 22
+    poseValid: 1
+    trackingPosition: {x: -0.017152473, y: 1.1513804, z: 0.2371791}
+    trackingRotation: {x: -0.46586317, y: -0.627195, z: -0.56125474, w: -0.27311343}
+  - jointId: 23
+    poseValid: 1
+    trackingPosition: {x: 0.022074413, y: 1.171758, z: 0.22717108}
+    trackingRotation: {x: -0.42636803, y: -0.64492095, z: -0.520518, w: -0.3624199}
+  - jointId: 24
+    poseValid: 1
+    trackingPosition: {x: 0.049869772, y: 1.1828092, z: 0.22121063}
+    trackingRotation: {x: -0.46743223, y: -0.60529995, z: -0.52351356, w: -0.3755697}
+  - jointId: 25
+    poseValid: 1
+    trackingPosition: {x: 0.06890765, y: 1.1885092, z: 0.2177873}
+    trackingRotation: {x: -0.43710402, y: -0.6183443, z: -0.5513475, w: -0.35015196}
+  - jointId: 26
+    poseValid: 1
+    trackingPosition: {x: 0.08891833, y: 1.1969259, z: 0.21579656}
+    trackingRotation: {x: -0.43710402, y: -0.6183443, z: -0.5513475, w: -0.35015196}
+  expectedBoneCount: 26
+  capturedBoneCount: 26
+  capturedJointCount: 26
+  validJointPoseCount: 26
+  skeletonValid: 1
+  captureSummary: 'Pose: Left_Open
+
+    Bones: 26 (local Transform from L_*)
+
+    Joints:
+    26 total, 26 valid tracking poses
+
+    Joint rotation = tracking-space (not
+    bone localRotation).
+
+    No target relative pose (target was null).'

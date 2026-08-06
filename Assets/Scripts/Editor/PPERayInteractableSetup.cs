@@ -326,7 +326,7 @@ public static class PPERayInteractableSetup
 
     static void EnsureSelectionManager(StringBuilder report)
     {
-        var existing = Object.FindFirstObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
+        var existing = Object.FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
         if (existing != null)
         {
             report.AppendLine($"PPE_SelectionManager: already present ({GetHierarchyPath(existing.transform)})");
@@ -351,8 +351,8 @@ public static class PPERayInteractableSetup
 
     static void EnsurePreviewController(StringBuilder report)
     {
-        var selection = Object.FindFirstObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
-        var preview = Object.FindFirstObjectByType<PPEPreviewController>(FindObjectsInactive.Include);
+        var selection = Object.FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
+        var preview = Object.FindAnyObjectByType<PPEPreviewController>(FindObjectsInactive.Include);
 
         if (preview == null)
         {
@@ -384,7 +384,7 @@ public static class PPERayInteractableSetup
         }
 
         // Ensure preview anchor exists under XR camera.
-        var origin = Object.FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>(FindObjectsInactive.Include);
+        var origin = Object.FindAnyObjectByType<Unity.XR.CoreUtils.XROrigin>(FindObjectsInactive.Include);
         var cam = origin != null ? origin.Camera : Camera.main;
         if (cam == null)
         {
@@ -441,6 +441,15 @@ public static class PPERayInteractableSetup
     }
 
     /// <summary>
+    /// Public entry so other setup menus can fix unwired Ray Select / Activate.
+    /// </summary>
+    public static bool WireRayInteractorSelectAndActivateInputs(StringBuilder report = null)
+    {
+        report ??= new StringBuilder();
+        return TryWireRayInteractorSelectInputs(report);
+    }
+
+    /// <summary>
     /// Scene Ray Interactors currently ship with Select InputActionReference mode but null refs.
     /// Wire them to XRI Default Input Actions so hover/select events can fire.
     /// </summary>
@@ -459,6 +468,10 @@ public static class PPERayInteractableSetup
         var leftSelectValue = FindActionReference(asset, "XRI Left Interaction", "Select Value");
         var rightSelect = FindActionReference(asset, "XRI Right Interaction", "Select");
         var rightSelectValue = FindActionReference(asset, "XRI Right Interaction", "Select Value");
+        var leftActivate = FindActionReference(asset, "XRI Left Interaction", "Activate");
+        var leftActivateValue = FindActionReference(asset, "XRI Left Interaction", "Activate Value");
+        var rightActivate = FindActionReference(asset, "XRI Right Interaction", "Activate");
+        var rightActivateValue = FindActionReference(asset, "XRI Right Interaction", "Activate Value");
 
         if (leftSelect == null || rightSelect == null)
         {
@@ -480,15 +493,21 @@ public static class PPERayInteractableSetup
             var hand = InferHand(ray.transform);
             InputActionReference select;
             InputActionReference selectValue;
+            InputActionReference activate;
+            InputActionReference activateValue;
             if (hand == HandSide.Left)
             {
                 select = leftSelect;
                 selectValue = leftSelectValue ?? leftSelect;
+                activate = leftActivate;
+                activateValue = leftActivateValue ?? leftActivate;
             }
             else if (hand == HandSide.Right)
             {
                 select = rightSelect;
                 selectValue = rightSelectValue ?? rightSelect;
+                activate = rightActivate;
+                activateValue = rightActivateValue ?? rightActivate;
             }
             else
             {
@@ -496,15 +515,19 @@ public static class PPERayInteractableSetup
                 continue;
             }
 
-            if (AssignSelectReferences(ray, select, selectValue))
+            var changed = AssignActionReferences(ray, "m_SelectInput", select, selectValue);
+            if (activate != null)
+                changed |= AssignActionReferences(ray, "m_ActivateInput", activate, activateValue ?? activate);
+
+            if (changed)
             {
                 anyChange = true;
-                report.AppendLine($"  + {GetHierarchyPath(ray.transform)}: wired Select ({hand})");
+                report.AppendLine($"  + {GetHierarchyPath(ray.transform)}: wired Select/Activate ({hand})");
                 EditorUtility.SetDirty(ray);
             }
             else
             {
-                report.AppendLine($"  · {GetHierarchyPath(ray.transform)}: Select already assigned ({hand})");
+                report.AppendLine($"  · {GetHierarchyPath(ray.transform)}: Select/Activate already assigned ({hand})");
             }
         }
 
@@ -533,15 +556,16 @@ public static class PPERayInteractableSetup
         return HandSide.Unknown;
     }
 
-    static bool AssignSelectReferences(
+    static bool AssignActionReferences(
         XRRayInteractor ray,
-        InputActionReference select,
-        InputActionReference selectValue)
+        string inputProperty,
+        InputActionReference performed,
+        InputActionReference value)
     {
         var so = new SerializedObject(ray);
-        var modeProp = so.FindProperty("m_SelectInput.m_InputSourceMode");
-        var performedProp = so.FindProperty("m_SelectInput.m_InputActionReferencePerformed");
-        var valueProp = so.FindProperty("m_SelectInput.m_InputActionReferenceValue");
+        var modeProp = so.FindProperty($"{inputProperty}.m_InputSourceMode");
+        var performedProp = so.FindProperty($"{inputProperty}.m_InputActionReferencePerformed");
+        var valueProp = so.FindProperty($"{inputProperty}.m_InputActionReferenceValue");
         if (modeProp == null || performedProp == null || valueProp == null)
             return false;
 
@@ -554,15 +578,15 @@ public static class PPERayInteractableSetup
             changed = true;
         }
 
-        if (performedProp.objectReferenceValue != select)
+        if (performed != null && performedProp.objectReferenceValue != performed)
         {
-            performedProp.objectReferenceValue = select;
+            performedProp.objectReferenceValue = performed;
             changed = true;
         }
 
-        if (valueProp.objectReferenceValue != selectValue)
+        if (value != null && valueProp.objectReferenceValue != value)
         {
-            valueProp.objectReferenceValue = selectValue;
+            valueProp.objectReferenceValue = value;
             changed = true;
         }
 

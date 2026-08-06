@@ -89,7 +89,7 @@ public static class PPEEquipmentSetup
 
     static PPEEquipmentManager EnsureEquipmentManager(StringBuilder report)
     {
-        var existing = Object.FindFirstObjectByType<PPEEquipmentManager>(FindObjectsInactive.Include);
+        var existing = Object.FindAnyObjectByType<PPEEquipmentManager>(FindObjectsInactive.Include);
         if (existing != null)
         {
             if (existing.gameObject.name != "PPE_EquipmentManager")

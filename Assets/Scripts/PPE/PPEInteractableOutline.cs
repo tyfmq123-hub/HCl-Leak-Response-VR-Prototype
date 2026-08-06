@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// <summary>
 /// Event-driven XR hover/select outline for PPE roots.
@@ -20,6 +21,7 @@ public class PPEInteractableOutline : MonoBehaviour
 
     [Header("Hover")]
     [SerializeField] bool enableHoverOutline = true;
+    [SerializeField] bool rayInteractorOnly;
     [SerializeField] Color hoverColor = new Color(1f, 0.92f, 0.016f, 1f);
     [SerializeField] [Range(0.5f, 10f)] float hoverWidth = 2.5f;
 
@@ -44,6 +46,25 @@ public class PPEInteractableOutline : MonoBehaviour
 
     public bool IsHovered => isHovered;
     public bool IsSelected => isSelected;
+
+    public void EditorSetHoverYellowRayOnly()
+    {
+        enableHoverOutline = true;
+        enableSelectedOutline = false;
+        rayInteractorOnly = true;
+        hoverColor = new Color(1f, 0.92f, 0.016f, 1f);
+        hoverWidth = 2.5f;
+    }
+
+    /// <summary>Hide outline and reset hover/select counters (reset / contents hide).</summary>
+    public void ForceClearOutline()
+    {
+        hoverCount = 0;
+        selectCount = 0;
+        isHovered = false;
+        isSelected = false;
+        ApplyOutlineVisual(false);
+    }
 
     void Awake()
     {
@@ -102,6 +123,9 @@ public class PPEInteractableOutline : MonoBehaviour
 
     void OnHoverEntered(HoverEnterEventArgs args)
     {
+        if (rayInteractorOnly && !IsRayInteractor(args.interactorObject))
+            return;
+
         hoverCount++;
         isHovered = hoverCount > 0;
         RefreshOutlineState();
@@ -109,6 +133,9 @@ public class PPEInteractableOutline : MonoBehaviour
 
     void OnHoverExited(HoverExitEventArgs args)
     {
+        if (rayInteractorOnly && !IsRayInteractor(args.interactorObject))
+            return;
+
         hoverCount = Mathf.Max(0, hoverCount - 1);
         isHovered = hoverCount > 0;
         RefreshOutlineState();
@@ -116,6 +143,9 @@ public class PPEInteractableOutline : MonoBehaviour
 
     void OnSelectEntered(SelectEnterEventArgs args)
     {
+        if (rayInteractorOnly && !IsRayInteractor(args.interactorObject))
+            return;
+
         selectCount++;
         isSelected = selectCount > 0;
         RefreshOutlineState();
@@ -123,9 +153,17 @@ public class PPEInteractableOutline : MonoBehaviour
 
     void OnSelectExited(SelectExitEventArgs args)
     {
+        if (rayInteractorOnly && !IsRayInteractor(args.interactorObject))
+            return;
+
         selectCount = Mathf.Max(0, selectCount - 1);
         isSelected = selectCount > 0;
         RefreshOutlineState();
+    }
+
+    static bool IsRayInteractor(IXRInteractor interactor)
+    {
+        return interactor is XRRayInteractor;
     }
 
     void RefreshOutlineState()

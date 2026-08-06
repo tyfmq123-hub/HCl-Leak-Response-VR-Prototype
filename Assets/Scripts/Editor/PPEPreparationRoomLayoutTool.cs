@@ -19,7 +19,7 @@ public static class PPEPreparationRoomLayoutTool
     const string LayoutRootName = "PPE_LayoutRoot";
     const float FloorY = 0f;
     const string AutoRunTriggerPath = "Assets/Scripts/Editor/RunPPELayoutArrange.trigger.txt";
-    const string CabinetAssetGuid = "43193d6c380fb424a9930eabccae450f";
+    const string CabinetAssetGuid = "3b50e42ff173f744db220f2f4702b3d9";
     const string OrganizerFbxGuid = "f8158ea3aafb9264a8e59d4506ba8384"; // Assets/PPE/PPE.fbm/PPE.fbx
     const string OrganizerFbxPath = "Assets/PPE/PPE.fbm/PPE.fbx";
 
