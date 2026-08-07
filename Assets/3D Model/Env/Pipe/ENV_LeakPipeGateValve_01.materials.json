@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "fbx": "gate_valve.fbx",
+  "materials": [
+    {
+      "name": "CastIron_DarkBlueGray",
+      "baseColor": [
+        0.3,
+        0.33,
+        0.35,
+        1.0
+      ],
+      "metallic": 0.05,
+      "roughness": 0.58
+    },
+    {
+      "name": "Gasket_Dark",
+      "baseColor": [
+        0.3,
+        0.33,
+        0.35,
+        1.0
+      ],
+      "metallic": 0.05,
+      "roughness": 0.58
+    },
+    {
+      "name": "Steel",
+      "baseColor": [
+        0.3,
+        0.33,
+        0.35,
+        1.0
+      ],
+      "metallic": 0.05,
+      "roughness": 0.58
+    }
+  ]
+}

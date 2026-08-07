@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fbx": "Flange2.fbx",
+  "materials": [
+    {
+      "name": "ForgedSteel_Optimized",
+      "baseColor": [
+        0.30000001192092896,
+        0.33000001311302185,
+        0.3499999940395355,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5
+    }
+  ]
+}

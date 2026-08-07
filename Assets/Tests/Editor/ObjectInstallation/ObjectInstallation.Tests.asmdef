@@ -1,0 +1,11 @@
+{
+  "name": "VRProject.ObjectInstallation.Tests",
+  "rootNamespace": "VRProject.ObjectInstallation.Tests",
+  "references": [
+    "VRProject.ObjectInstallation.Runtime",
+    "Unity.XR.Interaction.Toolkit"
+  ],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}
