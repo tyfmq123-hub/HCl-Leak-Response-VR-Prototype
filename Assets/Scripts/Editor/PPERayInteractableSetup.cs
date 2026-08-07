@@ -241,6 +241,16 @@ public static class PPERayInteractableSetup
         size.x = Mathf.Max(Mathf.Abs(size.x), 0.01f);
         size.y = Mathf.Max(Mathf.Abs(size.y), 0.01f);
         size.z = Mathf.Max(Mathf.Abs(size.z), 0.01f);
+
+        // Skinned / cabinet meshes often inflate AABBs into room-sized ghost targets.
+        const float MaxAxis = 0.55f;
+        var maxAxis = Mathf.Max(size.x, Mathf.Max(size.y, size.z));
+        if (maxAxis > MaxAxis)
+        {
+            var shrink = MaxAxis / maxAxis;
+            size *= shrink;
+        }
+
         box.size = size;
     }
 

@@ -7,7 +7,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 /// Reusable PPE interactable attached to every selectable PPE root.
 /// Phase 1: hover highlight only. Selection is stubbed for later phases.
 /// </summary>
-[RequireComponent(typeof(XRSimpleInteractable))]
+[RequireComponent(typeof(XRBaseInteractable))]
 [RequireComponent(typeof(PPEHighlight))]
 public class PPEItem : MonoBehaviour
 {
@@ -17,7 +17,7 @@ public class PPEItem : MonoBehaviour
     [SerializeField]
     PPEHighlight highlight;
 
-    XRSimpleInteractable interactable;
+    XRBaseInteractable interactable;
     bool isHovered;
     bool loggedMissingManager;
 
@@ -28,12 +28,12 @@ public class PPEItem : MonoBehaviour
 
     void Awake()
     {
-        interactable = GetComponent<XRSimpleInteractable>();
+        interactable = GetComponent<XRBaseInteractable>();
         if (highlight == null)
             highlight = GetComponent<PPEHighlight>();
 
         if (interactable == null)
-            Debug.LogWarning($"PPEItem on '{name}' is missing XRSimpleInteractable.", this);
+            Debug.LogWarning($"PPEItem on '{name}' is missing XRBaseInteractable.", this);
 
         if (highlight == null)
             Debug.LogWarning($"PPEItem on '{name}' is missing PPEHighlight.", this);
@@ -101,7 +101,8 @@ public class PPEItem : MonoBehaviour
         if (PPEManager.Instance != null)
             PPEManager.Instance.NotifyHoverEntered(this);
 
-        if (highlight != null)
+        // Prefer mesh outline (PPEOutlineHighlight). Skip cube PPEHighlight when outline exists.
+        if (highlight != null && GetComponent<PPEOutlineHighlight>() == null)
             highlight.SetHighlighted(true);
     }
 

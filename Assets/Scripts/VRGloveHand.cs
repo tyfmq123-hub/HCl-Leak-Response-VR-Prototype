@@ -142,7 +142,7 @@ public class VRGloveHand : MonoBehaviour
     };
 
     [ContextMenu("손가락 본 자동 찾기")]
-    void AutoAssignBones()
+    public void AutoAssignBones()
     {
         thumbBones = FindFingerChain(fingerKeywords[0]);
         indexBones = FindFingerChain(fingerKeywords[1]);

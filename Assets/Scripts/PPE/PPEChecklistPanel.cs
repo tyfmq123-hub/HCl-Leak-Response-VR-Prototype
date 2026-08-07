@@ -377,16 +377,13 @@ public class PPEChecklistPanel : MonoBehaviour
         if (!context.performed)
             return;
 
-        // While inspecting the world bag (pre-equip), Left Y opens bag contents UI instead of the checklist.
-        // After equip, Left Y while hovering the worn bag toggles gear UI — don't also flip the checklist.
+        // While inspecting the world bag (pre-equip), Left Y reveals bag contents instead of the checklist.
         var response = ResponseEquipmentManager.Instance != null
             ? ResponseEquipmentManager.Instance
             : FindAnyObjectByType<ResponseEquipmentManager>();
         if (response != null)
         {
             if (response.IsWorldBagCurrentlySelected() && !response.ResponseBagPrepared)
-                return;
-            if (response.ResponseBagPrepared && response.IsWearableBagCurrentlyHovered())
                 return;
         }
 

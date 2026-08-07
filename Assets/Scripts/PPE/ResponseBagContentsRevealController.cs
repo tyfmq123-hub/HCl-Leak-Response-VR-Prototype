@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -34,24 +35,46 @@ public class ResponseBagContentsRevealController : MonoBehaviour
     [Header("Visibility")]
     [SerializeField] bool keepContentsVisible = false;
 
-    [Header("Inspection layout (local under BagContentsRoot — tunable)")]
-    [SerializeField] Vector3 gasLocalPosition = new Vector3(0.09f, 0.05f, 0.03f);
-    [SerializeField] Vector3 gasLocalEuler = new Vector3(-18f, 200f, 0f);
-    [SerializeField] float gasUniformScale = 0.13f;
+    [Header("Camera-front inspection (PPE-style)")]
+    [Tooltip("Stage local position under the XR camera (same idea as PPE preview).")]
+    [SerializeField] Vector3 inspectStageLocalPosition = new Vector3(0f, -0.08f, 1.15f);
+    [Tooltip("Horizontal spacing between the three item centers (meters).")]
+    [SerializeField] float inspectItemSpacing = 0.4f;
+    [Tooltip("Uniform max world extent for each item (meters).")]
+    [SerializeField] float inspectItemMaxExtent = 0.28f;
+    // Gas: product-front pose. Sock/pad: upright, no heavy tilt.
+    [SerializeField] Vector3 gasInspectEuler = new Vector3(-90f, -90f, 0f);
+    [SerializeField] Vector3 sockInspectEuler = new Vector3(0f, 0f, 90f);
+    [SerializeField] Vector3 padInspectEuler = new Vector3(0f, 0f, 0f);
 
-    [SerializeField] Vector3 sockLocalPosition = new Vector3(0f, -0.01f, 0.05f);
-    [SerializeField] Vector3 sockLocalEuler = new Vector3(5f, 90f, 0f);
-    [SerializeField] float sockUniformScale = 0.26f;
-
-    [SerializeField] Vector3 padLocalPosition = new Vector3(-0.09f, 0.03f, -0.01f);
-    [SerializeField] Vector3 padLocalEuler = new Vector3(85f, 0f, 10f);
-    [SerializeField] float padUniformScale = 0.18f;
+    [Header("World name labels (under each item)")]
+    [SerializeField] float nameLabelBelowItem = 0.2f;
+    [SerializeField] float nameLabelWorldScale = 0.0009f;
+    [SerializeField] Vector2 nameLabelCanvasSize = new Vector2(480f, 72f);
+    [SerializeField] float nameLabelFontSize = 36f;
 
     bool runtimeConfigured;
+    readonly List<GameObject> worldNameLabels = new List<GameObject>(3);
+    Transform inspectStage;
+    bool presentingInFrontOfCamera;
+    PoseCache gasHome;
+    PoseCache sockHome;
+    PoseCache padHome;
+
+    struct PoseCache
+    {
+        public bool valid;
+        public Transform parent;
+        public Vector3 localPosition;
+        public Quaternion localRotation;
+        public Vector3 localScale;
+        public bool wasActive;
+    }
 
     public float MaxGazeDistance => 3f;
     public bool ContentsVisible =>
-        gasDetectorRoot != null && gasDetectorRoot.activeInHierarchy;
+        presentingInFrontOfCamera
+        || (gasDetectorRoot != null && gasDetectorRoot.activeInHierarchy);
     public GameObject WorldBagRoot =>
         worldResponseBagRoot != null ? worldResponseBagRoot : gameObject;
 
@@ -60,120 +83,360 @@ public class ResponseBagContentsRevealController : MonoBehaviour
     public GameObject AbsorbentPadRoot => absorbentPadRoot;
 
     /// <summary>
-    /// Called when the world bag is sticky-selected into camera preview:
-    /// show contents, arrange inside the open bag, fix gas facing.
+    /// Y inspect: present the three content meshes in front of the HMD like PPE preview
+    /// (similar size, even spacing, name labels underneath) — not inside the bag.
     /// </summary>
     public void PrepareContentsForInspection()
     {
         EnsureRuntimeConfigured(equipmentManager);
-        ArrangeContentsForInspection();
+        PresentContentsInFrontOfCamera();
         RefitContentHoverColliders();
-        SetContentsActive(true);
-        FixGasDetectorFacing();
+        EnsureWorldItemNameLabels();
+        ShowWorldItemNameLabels(true);
+    }
+
+    /// <summary>Show/hide the world-space name plates under each content object.</summary>
+    public void ShowWorldItemNameLabels(bool visible)
+    {
+        if (visible)
+            EnsureWorldItemNameLabels();
+
+        for (var i = 0; i < worldNameLabels.Count; i++)
+        {
+            var label = worldNameLabels[i];
+            if (label == null)
+                continue;
+            if (label.activeSelf != visible)
+                label.SetActive(visible);
+        }
+
+        if (!visible)
+            ClearWorldNameLabels();
+    }
+
+    void EnsureWorldItemNameLabels()
+    {
+        ClearWorldNameLabels();
+        if (inspectStage == null)
+            return;
+
+        EnsureWorldNameLabel(
+            -inspectItemSpacing,
+            "\uD734\uB300\uC6A9 HCl \uAC00\uC2A4\uCE21\uC815\uAE30");
+        EnsureWorldNameLabel(
+            0f,
+            "\uCF00\uBBF8\uCEEC \uD761\uCC29\uC0AD");
+        EnsureWorldNameLabel(
+            inspectItemSpacing,
+            "\uD654\uD559\uBB3C\uC9C8\uC6A9 \uD761\uCC29\uD328\uB4DC");
+    }
+
+    void ClearWorldNameLabels()
+    {
+        for (var i = 0; i < worldNameLabels.Count; i++)
+        {
+            if (worldNameLabels[i] != null)
+                DestroyImmediate(worldNameLabels[i]);
+        }
+
+        worldNameLabels.Clear();
+
+        if (inspectStage == null)
+            return;
+
+        for (var i = inspectStage.childCount - 1; i >= 0; i--)
+        {
+            var child = inspectStage.GetChild(i);
+            if (child != null && child.name.StartsWith("ItemNameLabel", System.StringComparison.Ordinal))
+                DestroyImmediate(child.gameObject);
+        }
+    }
+
+    void EnsureWorldNameLabel(float localX, string koreanName)
+    {
+        if (inspectStage == null)
+            return;
+
+        var labelGo = new GameObject("ItemNameLabel");
+        labelGo.transform.SetParent(inspectStage, false);
+        labelGo.transform.localPosition = new Vector3(localX, -nameLabelBelowItem, 0f);
+        labelGo.transform.localRotation = Quaternion.identity;
+        labelGo.transform.localScale = Vector3.one * nameLabelWorldScale;
+
+        var canvas = labelGo.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.worldCamera = xrCamera;
+
+        var rt = labelGo.GetComponent<RectTransform>();
+        rt.sizeDelta = nameLabelCanvasSize;
+        labelGo.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 10f;
+
+        var bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        bg.transform.SetParent(labelGo.transform, false);
+        var bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero;
+        bgRt.offsetMax = Vector2.zero;
+        bg.GetComponent<Image>().color = new Color(0.06f, 0.07f, 0.09f, 0.88f);
+
+        var textGo = new GameObject("Label", typeof(RectTransform));
+        textGo.transform.SetParent(bg.transform, false);
+        var textRt = textGo.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = new Vector2(12f, 8f);
+        textRt.offsetMax = new Vector2(-12f, -8f);
+
+        var tmp = textGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = koreanName;
+        tmp.fontSize = nameLabelFontSize;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        tmp.enableWordWrapping = false;
+        tmp.overflowMode = TextOverflowModes.Ellipsis;
+        var font = Resources.Load<TMP_FontAsset>(HangulFontResource);
+        if (font != null)
+            tmp.font = font;
+
+        labelGo.AddComponent<ResponseBagWorldItemNameBillboard>();
+        worldNameLabels.Add(labelGo);
+    }
+
+    static Bounds? GetLocalRendererBounds(Transform root)
+    {
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        Bounds? bounds = null;
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var r = renderers[i];
+            if (r == null || !r.enabled)
+                continue;
+            if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer))
+                continue;
+
+            // Convert world bounds corners into root-local space and encapsulate.
+            var wb = r.bounds;
+            var corners = new[]
+            {
+                wb.center + new Vector3(-wb.extents.x, -wb.extents.y, -wb.extents.z),
+                wb.center + new Vector3(-wb.extents.x, -wb.extents.y, wb.extents.z),
+                wb.center + new Vector3(-wb.extents.x, wb.extents.y, -wb.extents.z),
+                wb.center + new Vector3(-wb.extents.x, wb.extents.y, wb.extents.z),
+                wb.center + new Vector3(wb.extents.x, -wb.extents.y, -wb.extents.z),
+                wb.center + new Vector3(wb.extents.x, -wb.extents.y, wb.extents.z),
+                wb.center + new Vector3(wb.extents.x, wb.extents.y, -wb.extents.z),
+                wb.center + new Vector3(wb.extents.x, wb.extents.y, wb.extents.z),
+            };
+
+            for (var c = 0; c < corners.Length; c++)
+            {
+                var local = root.InverseTransformPoint(corners[c]);
+                if (!bounds.HasValue)
+                    bounds = new Bounds(local, Vector3.zero);
+                else
+                {
+                    var b = bounds.Value;
+                    b.Encapsulate(local);
+                    bounds = b;
+                }
+            }
+        }
+
+        return bounds;
     }
 
     /// <summary>
-    /// Place the three content objects inside the bag opening for inspect:
-    /// sock along the lower interior, pad left/back, gas detector on the right.
+    /// Lift the three bag items into a camera-front row (PPE-style glance layout).
     /// </summary>
     public void ArrangeContentsForInspection()
     {
-        var bag = WorldBagRoot != null ? WorldBagRoot.transform : transform;
-        var contentsRoot = bag.Find("BagContentsRoot");
-        if (contentsRoot == null)
+        PresentContentsInFrontOfCamera();
+    }
+
+    void PresentContentsInFrontOfCamera()
+    {
+        ResolveRefs();
+        CacheHomePosesIfNeeded();
+        EnsureInspectStage();
+        if (inspectStage == null)
+            return;
+
+        // Left → center → right: gas / sock / pad
+        PresentItem(gasDetectorRoot, -inspectItemSpacing, gasInspectEuler);
+        PresentItem(absorbentSockRoot, 0f, sockInspectEuler);
+        PresentItem(absorbentPadRoot, inspectItemSpacing, padInspectEuler);
+        presentingInFrontOfCamera = true;
+    }
+
+    void EnsureInspectStage()
+    {
+        ResolveRefs();
+        if (xrCamera == null)
+            return;
+
+        if (inspectStage == null)
         {
-            var go = new GameObject("BagContentsRoot");
-            contentsRoot = go.transform;
-            contentsRoot.SetParent(bag, false);
-            contentsRoot.localPosition = Vector3.zero;
-            contentsRoot.localRotation = Quaternion.identity;
-            contentsRoot.localScale = Vector3.one;
+            var existing = xrCamera.transform.Find("ResponseBag_ContentsInspectStage");
+            if (existing != null)
+                inspectStage = existing;
+            else
+            {
+                var go = new GameObject("ResponseBag_ContentsInspectStage");
+                inspectStage = go.transform;
+                inspectStage.SetParent(xrCamera.transform, false);
+            }
         }
 
-        // Prefer existing slot roots; otherwise use assigned content roots.
-        ApplyInspectionPose(
-            ResolveSlotOrRoot(contentsRoot, "GasDetectorSlot", gasDetectorRoot),
-            gasLocalPosition,
-            gasLocalEuler,
-            gasUniformScale,
-            ExactGasName);
+        if (inspectStage.parent != xrCamera.transform)
+            inspectStage.SetParent(xrCamera.transform, false);
 
-        ApplyInspectionPose(
-            ResolveSlotOrRoot(contentsRoot, "AbsorbentSockSlot", absorbentSockRoot),
-            sockLocalPosition,
-            sockLocalEuler,
-            sockUniformScale,
-            ExactSockName);
-
-        ApplyInspectionPose(
-            ResolveSlotOrRoot(contentsRoot, "AbsorbentPadSlot", absorbentPadRoot),
-            padLocalPosition,
-            padLocalEuler,
-            padUniformScale,
-            ExactPadPreferred);
+        inspectStage.localPosition = inspectStageLocalPosition;
+        inspectStage.localRotation = Quaternion.identity;
+        inspectStage.localScale = Vector3.one;
+        if (!inspectStage.gameObject.activeSelf)
+            inspectStage.gameObject.SetActive(true);
     }
 
-    static Transform ResolveSlotOrRoot(Transform contentsRoot, string slotName, GameObject contentRoot)
+    void PresentItem(GameObject root, float localX, Vector3 localEuler)
     {
-        var slot = contentsRoot.Find(slotName);
-        if (slot != null)
-            return slot;
-
-        if (contentRoot == null)
-            return null;
-
-        if (contentRoot.transform.parent != contentsRoot)
-            contentRoot.transform.SetParent(contentsRoot, true);
-
-        return contentRoot.transform;
-    }
-
-    static void ApplyInspectionPose(
-        Transform slot,
-        Vector3 localPos,
-        Vector3 localEuler,
-        float uniformScale,
-        string preferredChildName)
-    {
-        if (slot == null)
+        if (root == null || inspectStage == null)
             return;
 
-        slot.localPosition = localPos;
-        slot.localRotation = Quaternion.Euler(localEuler);
-        slot.localScale = Vector3.one * Mathf.Max(0.01f, uniformScale);
+        // Remove legacy labels parented under the mesh from older inspect builds.
+        var legacyLabel = root.transform.Find("ItemNameLabel");
+        if (legacyLabel != null)
+            DestroyImmediate(legacyLabel.gameObject);
 
-        // Zero the mesh under the slot so Inspector scale lives on the slot.
-        var model = preferredChildName != null ? FindExact(slot, preferredChildName) : null;
-        if (model == null && slot.childCount > 0)
-            model = slot.GetChild(0);
-        if (model == null)
-            return;
+        var t = root.transform;
+        t.SetParent(inspectStage, false);
+        t.localRotation = Quaternion.Euler(localEuler);
+        t.localScale = Vector3.one;
+        t.localPosition = new Vector3(localX, 0f, 0f);
 
-        model.localPosition = Vector3.zero;
-        model.localRotation = Quaternion.identity;
-        model.localScale = Vector3.one;
+        if (!root.activeSelf)
+            root.SetActive(true);
+
+        FitUniformWorldExtent(t, inspectItemMaxExtent);
+        CenterBoundsOnLocalPoint(t, new Vector3(localX, 0f, 0f));
     }
 
-    /// <summary>Hide interior props until the bag is selected for inspection.</summary>
+    static void FitUniformWorldExtent(Transform t, float targetMaxExtent)
+    {
+        if (t == null || targetMaxExtent < 0.01f)
+            return;
+
+        if (!TryGetWorldRendererBounds(t, out var bounds))
+            return;
+
+        var maxExtent = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+        if (maxExtent < 0.0001f)
+            return;
+
+        var factor = targetMaxExtent / maxExtent;
+        t.localScale *= factor;
+    }
+
+    static void CenterBoundsOnLocalPoint(Transform t, Vector3 desiredLocalCenter)
+    {
+        if (t == null || t.parent == null)
+            return;
+
+        if (!TryGetWorldRendererBounds(t, out var bounds))
+        {
+            t.localPosition = desiredLocalCenter;
+            return;
+        }
+
+        var parent = t.parent;
+        var currentLocalCenter = parent.InverseTransformPoint(bounds.center);
+        var delta = desiredLocalCenter - currentLocalCenter;
+        t.localPosition += delta;
+    }
+
+    static bool TryGetWorldRendererBounds(Transform root, out Bounds bounds)
+    {
+        bounds = default;
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        var has = false;
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var r = renderers[i];
+            if (r == null || !r.enabled)
+                continue;
+            if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer))
+                continue;
+
+            if (!has)
+            {
+                bounds = r.bounds;
+                has = true;
+            }
+            else
+                bounds.Encapsulate(r.bounds);
+        }
+
+        return has;
+    }
+
+    void CacheHomePosesIfNeeded()
+    {
+        CachePose(ref gasHome, gasDetectorRoot);
+        CachePose(ref sockHome, absorbentSockRoot);
+        CachePose(ref padHome, absorbentPadRoot);
+    }
+
+    static void CachePose(ref PoseCache cache, GameObject root)
+    {
+        if (cache.valid || root == null)
+            return;
+
+        var t = root.transform;
+        cache.valid = true;
+        cache.parent = t.parent;
+        cache.localPosition = t.localPosition;
+        cache.localRotation = t.localRotation;
+        cache.localScale = t.localScale;
+        cache.wasActive = root.activeSelf;
+    }
+
+    void RestoreHomePoses()
+    {
+        RestorePose(ref gasHome, gasDetectorRoot);
+        RestorePose(ref sockHome, absorbentSockRoot);
+        RestorePose(ref padHome, absorbentPadRoot);
+        presentingInFrontOfCamera = false;
+
+        if (inspectStage != null && inspectStage.gameObject.activeSelf)
+            inspectStage.gameObject.SetActive(false);
+    }
+
+    static void RestorePose(ref PoseCache cache, GameObject root)
+    {
+        if (!cache.valid || root == null)
+            return;
+
+        var t = root.transform;
+        t.SetParent(cache.parent, false);
+        t.localPosition = cache.localPosition;
+        t.localRotation = cache.localRotation;
+        t.localScale = cache.localScale;
+        if (root.activeSelf != cache.wasActive)
+            root.SetActive(cache.wasActive);
+    }
+
+    /// <summary>Hide interior props until Y inspection — restore shelf poses first.</summary>
     public void HideContentsUntilSelected()
     {
         ClearAllItemVisuals();
+        ClearWorldNameLabels();
+        RestoreHomePoses();
         SetContentsActive(false);
     }
 
     void FixGasDetectorFacing()
     {
-        if (gasDetectorRoot == null)
-            return;
-
-        // Pose comes from ArrangeContentsForInspection (gasLocalEuler includes face-out yaw).
-        // Keep mesh identity under the slot so slot euler is the single source of truth.
-        var model = FindExact(gasDetectorRoot.transform, ExactGasName);
-        if (model != null)
-        {
-            model.localRotation = Quaternion.identity;
-            return;
-        }
+        // Kept for older call sites; camera-front layout uses gasInspectEuler instead.
     }
 
     void Awake()
@@ -212,10 +475,13 @@ public class ResponseBagContentsRevealController : MonoBehaviour
     {
         if (runtimeConfigured && gasDetectorRoot != null && absorbentSockRoot != null && absorbentPadRoot != null)
         {
-            if (keepContentsVisible)
-                SetContentsActive(true);
-            else
-                SetContentsActive(false);
+            if (!presentingInFrontOfCamera)
+            {
+                if (keepContentsVisible)
+                    SetContentsActive(true);
+                else
+                    SetContentsActive(false);
+            }
             return;
         }
 
@@ -316,12 +582,16 @@ public class ResponseBagContentsRevealController : MonoBehaviour
     public void HideContentsImmediate()
     {
         ClearAllItemVisuals();
+        ShowWorldItemNameLabels(false);
+        RestoreHomePoses();
         SetContentsActive(false);
     }
 
     public void ResetContentsDisplay()
     {
         ClearAllItemVisuals();
+        ShowWorldItemNameLabels(false);
+        RestoreHomePoses();
         SetContentsActive(keepContentsVisible);
     }
 

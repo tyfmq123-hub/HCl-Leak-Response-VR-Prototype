@@ -35,7 +35,7 @@ public class PPEPreviewController : MonoBehaviour
 
     [Header("Anchor")]
     [SerializeField] Transform previewAnchor;
-    [SerializeField] Vector3 anchorLocalPosition = new Vector3(0f, -0.15f, 0.95f);
+    [SerializeField] Vector3 anchorLocalPosition = new Vector3(0f, -0.12f, 0.85f);
 
     [Header("Motion")]
     [SerializeField] [Range(0.1f, 2f)] float moveDuration = 0.4f;
@@ -47,21 +47,46 @@ public class PPEPreviewController : MonoBehaviour
     bool centerOnRendererBounds = true;
 
     [Header("Scale")]
+    [Tooltip("Normalize every PPE so its longest world-axis matches this size (meters) for VR glanceability.")]
+    [SerializeField] bool useUniformPreviewSize = true;
+    [SerializeField] [Range(0.2f, 0.8f)] float targetPreviewMaxExtent = 0.45f;
     [SerializeField] float defaultPreviewScaleMultiplier = 1f;
     [SerializeField] List<PreviewOverride> previewOverrides = new List<PreviewOverride>
     {
-        new PreviewOverride { nameContains = "PPE_ChemicalSuit", scaleMultiplier = 0.28f, yawOffsetDegrees = 0f },
-        new PreviewOverride { nameContains = "PPE_ChemicalSafetyBoots", scaleMultiplier = 0.55f, yawOffsetDegrees = 0f },
+        new PreviewOverride { nameContains = "PPE_ChemicalSuit", scaleMultiplier = 2.1f, yawOffsetDegrees = 0f },
+        new PreviewOverride
+        {
+            nameContains = "PPE_ChemicalSafetyBoots",
+            scaleMultiplier = 1f,
+            // FBX often faces -Z; yaw 180 puts toe/front toward the HMD.
+            yawOffsetDegrees = 180f,
+            faceCameraYawOnly = true,
+        },
         new PreviewOverride { nameContains = "PPE_FaceRespirator", scaleMultiplier = 1.05f, yawOffsetDegrees = 0f },
-        new PreviewOverride { nameContains = "PPE_ChemicalFaceShield", scaleMultiplier = 0.85f, yawOffsetDegrees = 0f },
-        new PreviewOverride { nameContains = "PPE_ChemicalGloves", scaleMultiplier = 1.05f, yawOffsetDegrees = 0f },
-        new PreviewOverride { nameContains = "PPE_Gloves", scaleMultiplier = 1.05f, yawOffsetDegrees = 0f },
-        // Camera-follow inspect (same PPE_PreviewAnchor as other gear) so the bag stays
-        // readable in front of the HMD during Y-panel review.
+        new PreviewOverride { nameContains = "PPE_ChemicalFaceShield", scaleMultiplier = 1f, yawOffsetDegrees = 0f },
+        // Shelf gloves lie flat (thin on Y). Yaw-only + pitch stands them for reading.
+        new PreviewOverride
+        {
+            nameContains = "PPE_ChemicalGloves",
+            scaleMultiplier = 1.1f,
+            yawOffsetDegrees = 180f,
+            pitchOffsetDegrees = 90f,
+            faceCameraYawOnly = true,
+            anchorLocalOffset = new Vector3(0f, 0.04f, 0f),
+        },
+        new PreviewOverride
+        {
+            nameContains = "PPE_Gloves",
+            scaleMultiplier = 1.1f,
+            yawOffsetDegrees = 180f,
+            pitchOffsetDegrees = 90f,
+            faceCameraYawOnly = true,
+            anchorLocalOffset = new Vector3(0f, 0.04f, 0f),
+        },
         new PreviewOverride
         {
             nameContains = "ResponseBag",
-            scaleMultiplier = 1.05f,
+            scaleMultiplier = 2.0f,
             yawOffsetDegrees = 0f,
             pitchOffsetDegrees = 12f,
             faceCameraYawOnly = true,
@@ -264,7 +289,7 @@ public class PPEPreviewController : MonoBehaviour
         else if (previous != null && previous != next && previewing == previous && activeSnapshot.HasValue)
             yield return ReturnToOriginRoutine(previous);
 
-        if (next != null)
+        if (next != null && !IsWasteContainerHighlight(next))
             yield return MoveToPreviewRoutine(next);
 
         activeRoutine = null;
@@ -307,7 +332,7 @@ public class PPEPreviewController : MonoBehaviour
             DisableInteractionColliders(t);
 
         GetOverride(t.name, out var scaleMul, out var yawOffset, out var pitchOffset, out var anchorOffset, out var yawOnly);
-        var targetWorldScale = snapshot.worldScale * scaleMul;
+        var targetWorldScale = ComputePreviewWorldScale(t, snapshot.worldScale, scaleMul);
 
         var startRot = t.rotation;
         var startScale = t.lossyScale;
@@ -365,6 +390,14 @@ public class PPEPreviewController : MonoBehaviour
             return false;
         return target.GetComponent<ResponseBagPrepareInteractable>() != null
             || target.GetComponentInParent<ResponseBagPrepareInteractable>() != null;
+    }
+
+    static bool IsWasteContainerHighlight(PPEOutlineHighlight target)
+    {
+        if (target == null)
+            return false;
+        return target.GetComponent<WasteContainerPrepareInteractable>() != null
+            || target.GetComponentInParent<WasteContainerPrepareInteractable>() != null;
     }
 
     Transform EnsureBagInspectAnchorPlaced()
@@ -603,6 +636,25 @@ public class PPEPreviewController : MonoBehaviour
         if (Mathf.Abs(pitchOffsetDegrees) > 0.01f)
             look *= Quaternion.Euler(pitchOffsetDegrees, 0f, 0f);
         return look;
+    }
+
+    Vector3 ComputePreviewWorldScale(Transform t, Vector3 snapshotWorldScale, float scaleMul)
+    {
+        scaleMul = Mathf.Max(0.01f, scaleMul);
+
+        if (!useUniformPreviewSize || t == null)
+            return snapshotWorldScale * scaleMul;
+
+        if (!TryGetRendererBounds(t, out var bounds))
+            return snapshotWorldScale * scaleMul;
+
+        var maxExtent = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+        if (maxExtent < 0.001f)
+            return snapshotWorldScale * scaleMul;
+
+        // bounds are world-sized at the current lossyScale (== snapshot when selection starts).
+        var uniformFactor = targetPreviewMaxExtent / maxExtent;
+        return snapshotWorldScale * uniformFactor * scaleMul;
     }
 
     void GetOverride(

@@ -57,18 +57,7 @@ public class ResponseBagInteractable : MonoBehaviour
 
     void OnSelectEntered(SelectEnterEventArgs _)
     {
-        if (!openContentsPanelOnSelect)
-            return;
-
-        ResolveRefs();
-
-        if (equipmentManager != null && equipmentManager.ResponseBagPrepared)
-            return;
-
-        if (contentsPanel == null)
-            return;
-
-        contentsPanel.ShowPanel();
+        // Legacy contents-panel open removed.
     }
 
     public void EditorWire(ResponseEquipmentManager manager, ResponseBagContentsPanel panel)

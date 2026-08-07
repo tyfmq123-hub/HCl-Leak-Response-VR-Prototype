@@ -59,43 +59,21 @@ public class WearableResponseBagVisualController : MonoBehaviour
     public GameObject WearableBagRoot =>
         wearableBagRoot != null ? wearableBagRoot : gameObject;
 
-    /// <summary>True when a controller ray is aimed at the worn bag (hover or 3D hit).</summary>
-    public bool IsLookingAtWearableBag()
-    {
-        if (isRayHoveringBag)
-            return true;
-
-        var root = WearableBagRoot;
-        if (root == null || !root.activeInHierarchy)
-            return false;
-
-        var rays = FindObjectsByType<XRRayInteractor>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (var i = 0; i < rays.Length; i++)
-        {
-            var ray = rays[i];
-            if (ray == null || !ray.isActiveAndEnabled)
-                continue;
-
-            if (ray.TryGetCurrent3DRaycastHit(out var hit) &&
-                hit.collider != null &&
-                hit.collider.transform.IsChildOf(root.transform))
-                return true;
-        }
-
-        return false;
-    }
+    /// <summary>Post-equip wearable ray/Y interaction removed.</summary>
+    public bool IsLookingAtWearableBag() => false;
 
     void Awake()
     {
         ResolveDefaults();
-        WireBagInteractable(true);
+        // Do not wire BagOpenInteractable — post-equip gear UI removed.
         if (startClosed)
             ApplyClosedImmediate();
     }
 
     void OnEnable()
     {
-        WireBagInteractable(true);
+        WireBagInteractable(false);
+        DisableBagOpenInteractable();
         TrySubscribeManager(true);
     }
 
@@ -147,52 +125,27 @@ public class WearableResponseBagVisualController : MonoBehaviour
     }
 
     /// <summary>
-    /// Equipped bag: toggle gear UI only. Closed wearable mesh stays visible.
-    /// Open/close cover animation is not used for the Y-key UI flow.
+    /// Post-equip wearable gear UI removed.
     /// </summary>
     public void ToggleGearUiFromY()
     {
-        if (!CanOpen())
-            return;
-
-        var manager = ResolveManager();
-        if (manager == null)
-            return;
-
-        if (manager.GearPanel != null && manager.GearPanel.IsOpen)
-        {
-            isOpen = false;
-            manager.HideGearPanel();
-            if (sharedSubtitle != null && isRayHoveringBag)
-                sharedSubtitle.ShowSubtitle(SubtitleOpen);
-            return;
-        }
-
-        isOpen = true;
-        KeepInteriorMeshesHidden();
-        SetContentInteractionsEnabled(false);
-        EnsureSharedMeshVisible();
-        ApplyClosedVisualsActive();
-        manager.ShowGearPanelForEquippedBag();
-        if (sharedSubtitle != null && isRayHoveringBag)
-            sharedSubtitle.ShowSubtitle(SubtitleClose);
+        // no-op
     }
 
     /// <summary>Called when gear UI closes from close button / prepare / reset — bag mesh stays worn.</summary>
     public void NotifyGearUiClosed()
     {
-        if (!isOpen)
-            return;
-
         isOpen = false;
         KeepInteriorMeshesHidden();
         EnsureSharedMeshVisible();
         ApplyClosedVisualsActive();
-        if (sharedSubtitle != null && isRayHoveringBag)
-            sharedSubtitle.ShowSubtitle(SubtitleOpen);
+        HideSubtitleImmediate();
     }
 
-    public void OpenBag() => ToggleGearUiFromY();
+    public void OpenBag()
+    {
+        // Post-equip open UI removed.
+    }
 
     public void CloseBag()
     {
@@ -203,13 +156,13 @@ public class WearableResponseBagVisualController : MonoBehaviour
         EnsureSharedMeshVisible();
         ApplyClosedVisualsActive();
         ResolveManager()?.HideGearPanel();
-        if (sharedSubtitle != null && isRayHoveringBag)
-            sharedSubtitle.ShowSubtitle(SubtitleOpen);
-        else
-            HideSubtitleImmediate();
+        HideSubtitleImmediate();
     }
 
-    public void ToggleBag() => ToggleGearUiFromY();
+    public void ToggleBag()
+    {
+        // Post-equip open UI removed.
+    }
 
     public void ResetBagVisual()
     {
@@ -227,12 +180,38 @@ public class WearableResponseBagVisualController : MonoBehaviour
     public void InitializeClosedAfterEquip()
     {
         ResetBagVisual();
+        DisableBagOpenInteractable();
     }
 
     bool CanOpen()
     {
-        var manager = ResolveManager();
-        return manager != null && manager.ResponseBagPrepared;
+        return false;
+    }
+
+    void DisableBagOpenInteractable()
+    {
+        WireBagInteractable(false);
+        isRayHoveringBag = false;
+
+        if (bagOpenCollider != null)
+            bagOpenCollider.enabled = false;
+
+        if (bagOpenOutline != null)
+            bagOpenOutline.enabled = false;
+
+        if (bagOpenInteractable != null)
+        {
+            bagOpenInteractable.enabled = false;
+            if (bagOpenInteractable.gameObject.activeSelf)
+                bagOpenInteractable.gameObject.SetActive(false);
+        }
+
+        if (bagOpenVisual != null && bagOpenVisual.activeSelf)
+            bagOpenVisual.SetActive(false);
+
+        KeepInteriorMeshesHidden();
+        ApplyClosedVisualsActive();
+        HideSubtitleImmediate();
     }
 
     void ApplyOpenVisualsActive()

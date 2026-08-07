@@ -94,5 +94,11 @@ public class PPEEquipable : MonoBehaviour
         itemId = id;
         displayName = koreanDisplayName;
     }
+
+    /// <summary>Editor helper — assign optional equipped visual (e.g. wearable gloves).</summary>
+    public void EditorApplyEquippedVisual(GameObject visual)
+    {
+        equippedVisual = visual;
+    }
 #endif
 }

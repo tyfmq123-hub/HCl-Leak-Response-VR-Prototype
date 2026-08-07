@@ -94,85 +94,8 @@ public class ResponseBagItemRetriever : MonoBehaviour
     /// </summary>
     public bool TryTakeItem(string itemId)
     {
-        EnsureStatesInitialized();
-        var id = Normalize(itemId);
-        if (!ResponseEquipmentManager.IsKnownBagContentId(id))
-        {
-            Debug.LogWarning($"[Bag Retriever] Unknown item id '{itemId}'.", this);
-            return false;
-        }
-
-        if (!IsItemAvailableInBag(id))
-            return false;
-
-        var interactor = ResolveSelectingInteractor();
-        if (interactor == null)
-        {
-            ShowFeedback(NoHandMessage);
-            return false;
-        }
-
-        if (interactor.hasSelection)
-        {
-            ShowFeedback(HandBusyMessage);
-            return false;
-        }
-
-        var prefab = ResolvePrefab(id);
-        if (prefab == null)
-        {
-            ShowFeedback(MissingPrefabMessage);
-            Debug.LogWarning($"[Bag Retriever] Missing runtime prefab for '{id}'.", this);
-            return false;
-        }
-
-        var manager = ResolveInteractionManager(interactor);
-        if (manager == null)
-        {
-            Debug.LogWarning("[Bag Retriever] XRInteractionManager missing.", this);
-            return false;
-        }
-
-        var instance = Instantiate(prefab);
-        instance.name = prefab.name + "_Runtime";
-        EnsureRuntimeMarker(instance, id);
-
-        var grab = instance.GetComponent<XRGrabInteractable>();
-        if (grab == null)
-            grab = instance.GetComponentInChildren<XRGrabInteractable>(true);
-
-        if (grab == null)
-        {
-            Destroy(instance);
-            ShowFeedback(NoGrabMessage);
-            Debug.LogWarning($"[Bag Retriever] Prefab '{prefab.name}' has no XRGrabInteractable.", this);
-            return false;
-        }
-
-        var attach = interactor.GetAttachTransform(grab);
-        var pose = attach != null ? attach : ((Component)interactor).transform;
-        instance.transform.SetPositionAndRotation(pose.position, pose.rotation);
-
-        if (!manager.IsRegistered((IXRInteractable)grab))
-            manager.RegisterInteractable((IXRInteractable)grab);
-
-        manager.SelectEnter(interactor, grab);
-
-        if (!interactor.IsSelecting(grab))
-            manager.SelectEnterUnconditionally(interactor, grab);
-
-        if (!interactor.IsSelecting(grab))
-        {
-            Destroy(instance);
-            ShowFeedback(HandBusyMessage);
-            return false;
-        }
-
-        itemStates[id] = ResponseBagItemState.InHand;
-        spawnedInstances.Add(instance);
-        ScheduleRestock(id);
-        equipmentManager?.NotifyBagItemTaken(id);
-        return true;
+        // Post-equip take-from-bag removed.
+        return false;
     }
 
     public void ResetAllItems()

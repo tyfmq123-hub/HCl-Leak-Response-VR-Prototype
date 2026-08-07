@@ -43,27 +43,8 @@ public class ResponseBagGazeTarget : MonoBehaviour
 
     public bool CanAcceptGaze()
     {
-        ResolveRefs();
-
-        if (equipmentManager != null && equipmentManager.ResponseBagPrepared)
-            return false;
-
-        var root = WorldBagRoot;
-        if (root == null || !root.activeInHierarchy)
-            return false;
-
-        if (IsWorldBagBeingGrabbedOrMoved(root))
-            return false;
-
-        // Direct 3D reveal owns gaze when present — do not open large panel.
-        if (root.GetComponent<ResponseBagContentsRevealController>() != null
-            || root.GetComponentInChildren<ResponseBagContentsRevealController>(true) != null)
-            return false;
-
-        if (contentsPanel != null && contentsPanel.IsModalBlockingOtherUi)
-            return false;
-
-        return true;
+        // Legacy gaze inspection removed.
+        return false;
     }
 
     /// <summary>Called by the shared camera/gaze detector while this target is hit.</summary>

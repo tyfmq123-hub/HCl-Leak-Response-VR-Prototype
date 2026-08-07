@@ -154,26 +154,8 @@ public class ResponseBagContentsPanel : MonoBehaviour
 
     public void ShowPanel()
     {
-        ResolveManager();
-        if (equipmentManager != null && equipmentManager.ResponseBagPrepared)
-            return;
-
-        // Don't keep a wearable PPE preview/selection while the bag inspection UI is open.
-        ClearNonBagPpeSelection();
-
-        if (panelRoot != null)
-            panelRoot.SetActive(true);
-        gameObject.SetActive(true);
-
-        if (previewController != null)
-            previewController.ActivateStage();
-
-        RefreshFromManager();
-
-        if (selectedIndex < 0 && entries != null && entries.Length > 0)
-            SelectEntry(0);
-        else if (selectedIndex >= 0)
-            ApplySelectionVisuals();
+        // Legacy contents panel removed — use ResponseBagGearPanel pre-equip inspect.
+        return;
     }
 
     static void ClearNonBagPpeSelection()

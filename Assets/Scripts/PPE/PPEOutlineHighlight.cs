@@ -9,7 +9,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 /// Selected has priority over hover. selectExited does not clear selection.
 /// </summary>
 [DisallowMultipleComponent]
-[RequireComponent(typeof(XRSimpleInteractable))]
+[RequireComponent(typeof(XRBaseInteractable))]
 public class PPEOutlineHighlight : MonoBehaviour
 {
     static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
@@ -234,6 +234,19 @@ public class PPEOutlineHighlight : MonoBehaviour
         for (var i = renderers.Count - 1; i >= 0; i--)
         {
             var r = renderers[i];
+            if (r == null)
+            {
+                renderers.RemoveAt(i);
+                continue;
+            }
+
+            // Legacy PPE cube highlight — never outline this as if it were the item mesh.
+            if (r.gameObject.name == "HighlightVisual")
+            {
+                renderers.RemoveAt(i);
+                continue;
+            }
+
             if (r is MeshRenderer || r is SkinnedMeshRenderer)
                 continue;
             renderers.RemoveAt(i);

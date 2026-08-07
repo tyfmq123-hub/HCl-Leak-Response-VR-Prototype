@@ -107,7 +107,10 @@ public class ResponseBagGearPanel : MonoBehaviour
         ResolveCamera();
         ApplyThumbnails();
         if (preferLive3DCapture)
-            CaptureLive3DPreviews();
+        {
+            // Legacy live 3D card capture disabled.
+            preferLive3DCapture = false;
+        }
 
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
@@ -234,15 +237,10 @@ public class ResponseBagGearPanel : MonoBehaviour
         if (slot == null || equipmentManager == null || string.IsNullOrEmpty(slot.itemId))
             return;
 
-        // Equipped wearable bag: take real gameplay prefab into the selecting hand.
+        // Post-equip take-from-bag removed. Cards only mark inspect pre-equip.
         if (equipmentManager.ResponseBagPrepared)
-        {
-            equipmentManager.TryTakeBagItem(slot.itemId);
-            RefreshTakenVisuals();
             return;
-        }
 
-        // Pre-equip inspection flow unchanged.
         equipmentManager.InspectResponseBagItem(slot.itemId);
     }
 

@@ -94,7 +94,7 @@ public class ResponseEquipmentManager : MonoBehaviour
         }
 
         Instance = this;
-        EnsureItemRetriever();
+        // Post-equip take-from-bag removed — do not spawn ResponseBagItemRetriever.
 
         // Cache spawn pose before gameplay interaction if already assigned.
         if (responseBagRoot != null && !IsBagCurrentlySelected(responseBagRoot))
@@ -166,38 +166,27 @@ public class ResponseEquipmentManager : MonoBehaviour
         contentsReveal.EnsureRuntimeConfigured(this);
         contentsReveal.HideContentsUntilSelected();
 
-        if (gearPanel == null)
-            gearPanel = ResponseBagGearPanel.EnsureCreated(this);
-
-        EnsureItemRetriever();
+        // Gear panel card UI removed — Y reveals 3D contents + name labels.
         EnsureContentsUiToggleAction();
     }
 
     void EnsureItemRetriever()
     {
-        if (itemRetriever == null)
-            itemRetriever = GetComponent<ResponseBagItemRetriever>();
-        if (itemRetriever == null)
-            itemRetriever = gameObject.AddComponent<ResponseBagItemRetriever>();
+        // Post-equip take-from-bag removed. Keep method for call-site compatibility.
+        itemRetriever = null;
     }
 
     /// <summary>
-    /// Equipped bag: take a gameplay item into the selecting hand.
-    /// Pre-equip: returns false — callers should use InspectResponseBagItem instead.
+    /// Post-equip take-from-bag removed. Always returns false.
     /// </summary>
     public bool TryTakeBagItem(string itemId)
     {
-        if (!responseBagPrepared)
-            return false;
-
-        EnsureItemRetriever();
-        return itemRetriever != null && itemRetriever.TryTakeItem(itemId);
+        return false;
     }
 
     public bool IsBagItemAvailable(string itemId)
     {
-        EnsureItemRetriever();
-        return itemRetriever == null || itemRetriever.IsItemAvailableInBag(itemId);
+        return true;
     }
 
     public void NotifyBagItemTaken(string itemId)
@@ -236,7 +225,7 @@ public class ResponseEquipmentManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>Interior meshes stay hidden — contents are reviewed via GearPanel (Y key / Left Y).</summary>
+    /// <summary>Interior meshes stay hidden until Y reveals them for inspection.</summary>
     public void PrepareBagContentsForInspection()
     {
         HideBagContents();
@@ -277,15 +266,11 @@ public class ResponseEquipmentManager : MonoBehaviour
         if (!context.performed)
             return;
 
-        // Equipped wearable: Left Y only while ray-hovering the bag.
+        // Post-equip wearable gear UI removed. Y only toggles world-bag 3D contents.
         if (responseBagPrepared)
-        {
-            ToggleGearPanelIfWearableBagHovered();
             return;
-        }
 
-        // Pre-equip world bag: Left Y while the world bag is sticky-selected.
-        ToggleGearPanelIfBagSelected();
+        ToggleBagContentsInspectionIfSelected();
     }
 
     /// <summary>True when the sticky-selected PPE is the world response bag.</summary>
@@ -305,31 +290,77 @@ public class ResponseEquipmentManager : MonoBehaviour
     /// <summary>True when a ray is aimed at the equipped wearable bag.</summary>
     public bool IsWearableBagCurrentlyHovered()
     {
-        var controller = wearableVisual != null ? wearableVisual.VisualController : null;
-        return controller != null && controller.IsLookingAtWearableBag();
+        // Post-equip wearable interaction removed.
+        return false;
     }
 
-    void ToggleGearPanelIfBagSelected()
+    void ToggleBagContentsInspectionIfSelected()
     {
         if (!IsWorldBagCurrentlySelected())
             return;
 
-        if (gearPanel != null && gearPanel.IsOpen)
+        ResolveContentsReveal();
+        if (contentsReveal != null && contentsReveal.ContentsVisible)
         {
-            HideGearPanel();
+            HideBagContentsInspection();
             return;
         }
 
-        ShowGearPanel();
+        ShowBagContentsInspection();
     }
 
     void ToggleGearPanelIfWearableBagHovered()
     {
-        var controller = wearableVisual != null ? wearableVisual.VisualController : null;
-        if (controller == null || !controller.IsLookingAtWearableBag())
+        // Post-equip wearable gear UI removed.
+    }
+
+    /// <summary>Show the three bag content meshes with world name labels (no card UI).</summary>
+    public void ShowBagContentsInspection()
+    {
+        if (responseBagPrepared)
             return;
 
-        controller.ToggleGearUiFromY();
+        ResolveContentsReveal();
+        if (contentsReveal == null)
+        {
+            Debug.LogWarning("[Response Equipment] Contents reveal missing — cannot inspect bag.", this);
+            return;
+        }
+
+        // Ensure any leftover gear panel stays closed.
+        if (gearPanel != null)
+            gearPanel.Hide();
+
+        // Move items to camera first, then hide the bag so it does not compete for attention.
+        contentsReveal.PrepareContentsForInspection();
+        contentsReveal.ShowWorldItemNameLabels(true);
+        SetBagHiddenForGearUi(true);
+        MarkAllBagContentsInspected();
+
+        var feedback = FindAnyObjectByType<PPEEquipFeedbackUI>(FindObjectsInactive.Include);
+        feedback?.ShowMessage(
+            "\uB0B4\uBD80 \uC7A5\uBE44\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4. Grip\uC73C\uB85C \uC900\uBE44\uD554\uC138\uC694.");
+    }
+
+    public void HideBagContentsInspection()
+    {
+        if (contentsReveal != null)
+        {
+            contentsReveal.ShowWorldItemNameLabels(false);
+            contentsReveal.HideContentsUntilSelected();
+        }
+
+        if (gearPanel != null)
+            gearPanel.Hide();
+
+        SetBagHiddenForGearUi(false);
+    }
+
+    void MarkAllBagContentsInspected()
+    {
+        InspectResponseBagItem(IdGasDetector);
+        InspectResponseBagItem(IdAbsorbentSock);
+        InspectResponseBagItem(IdAbsorbentPad);
     }
 
     void OnDestroy()
@@ -402,42 +433,23 @@ public class ResponseEquipmentManager : MonoBehaviour
 
     public void ShowGearPanel()
     {
-        if (responseBagPrepared)
-            return;
-
-        ShowGearPanelInternal(showPrepareHint: true);
+        // Card UI removed — Y now reveals 3D contents.
+        ShowBagContentsInspection();
     }
 
     /// <summary>
-    /// Equipped wearable open: same yellow-slot UI, no prepare-hint toast.
+    /// Post-equip wearable gear UI removed.
     /// </summary>
     public void ShowGearPanelForEquippedBag()
     {
-        if (!responseBagPrepared)
-            return;
-
-        ShowGearPanelInternal(showPrepareHint: false);
-    }
-
-    void ShowGearPanelInternal(bool showPrepareHint)
-    {
-        ResolveContentsReveal();
-        if (contentsReveal != null && !responseBagPrepared)
-            contentsReveal.PrepareContentsForInspection();
-
-        // Always go through EnsureCreated so outdated canvases are rebuilt
-        // (previously kept an old gearPanel forever → stuck on result #2 poses).
-        gearPanel = ResponseBagGearPanel.EnsureCreated(this);
-
-        gearPanel.Show(showPrepareHint);
+        // no-op
     }
 
     public void HideGearPanel()
     {
-        if (gearPanel != null)
-            gearPanel.Hide();
+        HideBagContentsInspection();
 
-        // Keep wearable open-state in sync when UI is closed from the panel X / prepare flow.
+        // Keep wearable open-state in sync when UI is closed from prepare / reset.
         if (wearableVisual != null && wearableVisual.VisualController != null)
             wearableVisual.VisualController.NotifyGearUiClosed();
     }
@@ -497,8 +509,9 @@ public class ResponseEquipmentManager : MonoBehaviour
         }
 
         // Hide bag meshes (world preview bag only for pre-equip).
+        // Content items are already reparented under the camera stage — skip them.
         if (responseBagRoot != null && responseBagRoot.activeInHierarchy)
-            SetRenderersEnabled(responseBagRoot, !hidden);
+            SetBagShellRenderersEnabled(responseBagRoot, !hidden);
 
         if (wearableVisual != null)
             wearableVisual.SetBagMeshRenderersEnabled(!hidden);
@@ -521,10 +534,42 @@ public class ResponseEquipmentManager : MonoBehaviour
         }
 
         if (responseBagRoot != null && responseBagRoot.activeInHierarchy)
-            SetRenderersEnabled(responseBagRoot, true);
+            SetBagShellRenderersEnabled(responseBagRoot, true);
 
         if (wearableVisual != null)
             wearableVisual.SetBagMeshRenderersEnabled(true);
+    }
+
+    /// <summary>
+    /// Toggle only the bag shell meshes — never the three content props (they may still
+    /// be hierarchy-children for a frame, or return home after inspection).
+    /// </summary>
+    void SetBagShellRenderersEnabled(GameObject root, bool enabled)
+    {
+        if (root == null)
+            return;
+
+        var gas = contentsReveal != null ? contentsReveal.GasDetectorRoot : null;
+        var sock = contentsReveal != null ? contentsReveal.AbsorbentSockRoot : null;
+        var pad = contentsReveal != null ? contentsReveal.AbsorbentPadRoot : null;
+
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var r = renderers[i];
+            if (r == null)
+                continue;
+
+            var t = r.transform;
+            if (gas != null && (t == gas.transform || t.IsChildOf(gas.transform)))
+                continue;
+            if (sock != null && (t == sock.transform || t.IsChildOf(sock.transform)))
+                continue;
+            if (pad != null && (t == pad.transform || t.IsChildOf(pad.transform)))
+                continue;
+
+            r.enabled = enabled;
+        }
     }
 
     static void SetRenderersEnabled(GameObject root, bool enabled)
@@ -542,8 +587,7 @@ public class ResponseEquipmentManager : MonoBehaviour
 
     public void HideBagContents()
     {
-        if (contentsReveal != null)
-            contentsReveal.HideContentsUntilSelected();
+        HideBagContentsInspection();
     }
 
     public void SetWearableVisual(ResponseBagWearableVisual visual)

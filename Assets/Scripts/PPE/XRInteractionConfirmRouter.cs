@@ -14,6 +14,7 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
     [Header("Targets")]
     [SerializeField] ResponseBagPrepareInteractable responseBagPrepareInteractable;
+    [SerializeField] WasteContainerPrepareInteractable wasteContainerPrepareInteractable;
     [SerializeField] PPESelectionManager ppeSelectionManager;
 
     [Header("Confirm Input")]
@@ -56,6 +57,9 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
         if (responseBagPrepareInteractable != null)
             responseBagPrepareInteractable.SetConfirmInputOwnedByRouter(true);
+
+        if (wasteContainerPrepareInteractable != null)
+            wasteContainerPrepareInteractable.SetConfirmInputOwnedByRouter(true);
     }
 
     void OnDisable()
@@ -67,6 +71,9 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
         if (responseBagPrepareInteractable != null)
             responseBagPrepareInteractable.SetConfirmInputOwnedByRouter(false);
+
+        if (wasteContainerPrepareInteractable != null)
+            wasteContainerPrepareInteractable.SetConfirmInputOwnedByRouter(false);
     }
 
     void OnDestroy()
@@ -85,10 +92,12 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
     public void EditorWire(
         ResponseBagPrepareInteractable bag,
-        PPESelectionManager selection)
+        PPESelectionManager selection,
+        WasteContainerPrepareInteractable waste = null)
     {
         responseBagPrepareInteractable = bag;
         ppeSelectionManager = selection;
+        wasteContainerPrepareInteractable = waste;
         if (selection != null)
             confirmAction = selection.EquipConfirmActionProperty;
     }
@@ -99,6 +108,12 @@ public class XRInteractionConfirmRouter : MonoBehaviour
         {
             responseBagPrepareInteractable =
                 FindAnyObjectByType<ResponseBagPrepareInteractable>(FindObjectsInactive.Exclude);
+        }
+
+        if (wasteContainerPrepareInteractable == null)
+        {
+            wasteContainerPrepareInteractable =
+                FindAnyObjectByType<WasteContainerPrepareInteractable>(FindObjectsInactive.Exclude);
         }
 
         if (ppeSelectionManager == null)
@@ -208,7 +223,16 @@ public class XRInteractionConfirmRouter : MonoBehaviour
             return;
         }
 
-        // Priority 2: PPE equip.
+        // Priority 2: hazardous waste container (gaze/ray sticky + Grip take-out).
+        if (wasteContainerPrepareInteractable != null
+            && wasteContainerPrepareInteractable.CanConfirmPreparation())
+        {
+            if (wasteContainerPrepareInteractable.TryPrepareFromConfirmRouter())
+                lastRoutedAt = Time.unscaledTime;
+            return;
+        }
+
+        // Priority 3: PPE equip.
         if (ppeSelectionManager != null
             && ppeSelectionManager.HasValidEquipSelection(equipConfirmDelay))
         {
