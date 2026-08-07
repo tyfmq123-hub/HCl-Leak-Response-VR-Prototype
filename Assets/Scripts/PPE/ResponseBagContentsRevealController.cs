@@ -44,7 +44,7 @@ public class ResponseBagContentsRevealController : MonoBehaviour
     [SerializeField] float inspectItemMaxExtent = 0.28f;
     // Gas: product-front pose. Sock/pad: upright, no heavy tilt.
     [SerializeField] Vector3 gasInspectEuler = new Vector3(-90f, -90f, 0f);
-    [SerializeField] Vector3 sockInspectEuler = new Vector3(0f, 0f, 90f);
+    [SerializeField] Vector3 sockInspectEuler = new Vector3(0f, 90f, 90f);
     [SerializeField] Vector3 padInspectEuler = new Vector3(0f, 0f, 0f);
 
     [Header("World name labels (under each item)")]
