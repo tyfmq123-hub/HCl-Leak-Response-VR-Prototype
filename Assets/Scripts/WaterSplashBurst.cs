@@ -62,6 +62,9 @@ public class WaterSplashBurst : MonoBehaviour
     // 나중에 누출을 멈출 때 안전하게 중지하기 위해 필요합니다.
     private Coroutine splashLoopCoroutine;
 
+    // false가 되면 현재 보이는 스플래시는 끝까지 재생하고 다음 반복만 중지합니다.
+    private bool leakRequested;
+
 
     private void Awake()
     {
@@ -103,6 +106,8 @@ public class WaterSplashBurst : MonoBehaviour
             return;
         }
 
+        leakRequested = true;
+
         // 이미 실행 중이라면 중복으로 시작하지 않습니다.
         if (splashLoopCoroutine != null)
         {
@@ -114,21 +119,11 @@ public class WaterSplashBurst : MonoBehaviour
 
 
     /// <summary>
-    /// 물튀김 반복을 멈추고 모델을 숨깁니다.
+    /// 현재 보이는 물튀김은 자연스럽게 끝내고 다음 반복을 멈춥니다.
     /// </summary>
     public void StopLeak()
     {
-        if (splashLoopCoroutine != null)
-        {
-            StopCoroutine(splashLoopCoroutine);
-            splashLoopCoroutine = null;
-        }
-
-        if (splashObject != null)
-        {
-            splashObject.SetActive(false);
-            splashObject.transform.localScale = originalLocalScale;
-        }
+        leakRequested = false;
     }
 
 
@@ -137,9 +132,14 @@ public class WaterSplashBurst : MonoBehaviour
     /// </summary>
     private IEnumerator SplashLoop()
     {
-        while (true)
+        while (leakRequested)
         {
             yield return PlaySingleBurst();
+
+            if (!leakRequested)
+            {
+                break;
+            }
 
             float waitingTime = Random.Range(
                 minimumInterval,
@@ -148,6 +148,8 @@ public class WaterSplashBurst : MonoBehaviour
 
             yield return new WaitForSeconds(waitingTime);
         }
+
+        splashLoopCoroutine = null;
     }
 
 
@@ -210,6 +212,8 @@ public class WaterSplashBurst : MonoBehaviour
 
     private void OnDisable()
     {
+        leakRequested = false;
+
         // Scene 전환이나 오브젝트 비활성화 시 코루틴을 정리합니다.
         if (splashLoopCoroutine != null)
         {

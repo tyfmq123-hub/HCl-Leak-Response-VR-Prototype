@@ -62,6 +62,7 @@ namespace VRProject.Valves
         float targetHingeAngle;
         float minimumHingeAngle;
         float maximumHingeAngle;
+        float closureAngleSign = 1f;
         bool constraintReferenceInitialized;
         int activeHandCount;
         bool grabIsValid;
@@ -658,10 +659,21 @@ namespace VRProject.Valves
             return true;
         }
 
+        public void SetClosureAngleSign(float sign)
+        {
+            closureAngleSign = float.IsFinite(sign) && sign < 0f ? -1f : 1f;
+            ApplyConfiguredJointLimits();
+        }
+
         public bool TryGetConfiguredLimits(out float minimum, out float maximum)
         {
-            minimum = -maxOpenRotationDegrees;
-            maximum = maxCloseRotationDegrees;
+            bool closingUsesPositiveRawAngle = closureAngleSign >= 0f;
+            minimum = closingUsesPositiveRawAngle
+                ? -maxOpenRotationDegrees
+                : -maxCloseRotationDegrees;
+            maximum = closingUsesPositiveRawAngle
+                ? maxCloseRotationDegrees
+                : maxOpenRotationDegrees;
             return float.IsFinite(maxOpenRotationDegrees) && float.IsFinite(maxCloseRotationDegrees) &&
                 maxOpenRotationDegrees >= 0f && maxCloseRotationDegrees >= 0f;
         }

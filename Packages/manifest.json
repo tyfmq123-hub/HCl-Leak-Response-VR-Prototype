@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.senghwan.vr-hand-pose-tool": "file:E:/최종프로젝트/자료/fianl VR hand Tools/com.senghwan.vr-hand-pose-tool-0.2.0-object-ghost.tgz",
+    "com.senghwan.vr-hand-pose-tool": "https://github.com/sinsnghwan/vr-hand-pose-tool.git",
     "com.unity.ai.navigation": "2.0.12",
     "com.unity.cloud.gltfast": "6.19.0",
     "com.unity.collab-proxy": "2.12.4",

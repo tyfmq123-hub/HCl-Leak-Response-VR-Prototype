@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 namespace VRProject.ObjectInstallation
@@ -71,6 +73,10 @@ namespace VRProject.ObjectInstallation
 
         [Header("Runtime State (Read Only)")]
         [SerializeField] bool isInstalled;
+        [SerializeField] bool hasBeenReleased;
+
+        bool selectEventsSubscribed;
+        readonly List<Material> runtimeGhostMaterials = new List<Material>();
 
         [Header("Initial Pose (Recorded Only)")]
         [SerializeField] Vector3 initialLocalPosition;
@@ -90,6 +96,22 @@ namespace VRProject.ObjectInstallation
                 ApplyInstalledState();
             else
                 ApplyInitialGhostState();
+        }
+
+        void OnEnable()
+        {
+            SubscribeSelectEvents();
+        }
+
+        void OnDisable()
+        {
+            UnsubscribeSelectEvents();
+        }
+
+        void OnDestroy()
+        {
+            UnsubscribeSelectEvents();
+            ReleaseRuntimeGhostMaterials();
         }
 
         public void Configure(
@@ -112,6 +134,7 @@ namespace VRProject.ObjectInstallation
             initialLocalRotation = transform.localRotation;
             initialLocalScale = transform.localScale;
             isInstalled = false;
+            hasBeenReleased = false;
         }
 
         public bool TryValidateConfiguration(out string issue)
@@ -175,6 +198,7 @@ namespace VRProject.ObjectInstallation
             targetRigidbody.useGravity = false;
             targetRigidbody.isKinematic = true;
             isInstalled = false;
+            hasBeenReleased = false;
             return true;
         }
 
@@ -250,27 +274,131 @@ namespace VRProject.ObjectInstallation
 
             targetRigidbody.linearVelocity = Vector3.zero;
             targetRigidbody.angularVelocity = Vector3.zero;
-            targetRigidbody.isKinematic = installedIsKinematic;
-            targetRigidbody.useGravity = installedUseGravity;
+
+            if (hasBeenReleased)
+                RestoreInstalledRigidbodyState();
+            else
+                ApplyInstalledAnchoredRigidbodyState();
 
             for (int i = 0; i < colliders.Length; ++i)
                 colliders[i].TargetCollider.enabled = colliders[i].InstalledEnabled;
 
-            grabInteractable.enabled = true;
             isInstalled = true;
+            grabInteractable.enabled = true;
             return true;
+        }
+
+        void OnSelectExited(SelectExitEventArgs args)
+        {
+            if (!isInstalled || hasBeenReleased || grabInteractable.isSelected)
+                return;
+
+            // XRGrabInteractable.Drop has already restored its captured Rigidbody state
+            // before this second-pass selectExited event is raised.
+            if (!grabInteractable.throwOnDetach)
+            {
+                targetRigidbody.linearVelocity = Vector3.zero;
+                targetRigidbody.angularVelocity = Vector3.zero;
+            }
+
+            hasBeenReleased = true;
+            RestoreInstalledRigidbodyState();
+        }
+
+        void ApplyInstalledAnchoredRigidbodyState()
+        {
+            targetRigidbody.isKinematic = true;
+            targetRigidbody.useGravity = false;
+        }
+
+        void RestoreInstalledRigidbodyState()
+        {
+            targetRigidbody.isKinematic = installedIsKinematic;
+            targetRigidbody.useGravity = installedUseGravity;
+        }
+
+        void SubscribeSelectEvents()
+        {
+            if (selectEventsSubscribed || grabInteractable == null)
+                return;
+
+            grabInteractable.selectExited.AddListener(OnSelectExited);
+            selectEventsSubscribed = true;
+        }
+
+        void UnsubscribeSelectEvents()
+        {
+            if (!selectEventsSubscribed || grabInteractable == null)
+                return;
+
+            grabInteractable.selectExited.RemoveListener(OnSelectExited);
+            selectEventsSubscribed = false;
         }
 
         void ApplyMaterials(bool useInstalledMaterials)
         {
+            if (!useInstalledMaterials)
+                ReleaseRuntimeGhostMaterials();
+
             for (int i = 0; i < rendererMaterials.Length; ++i)
             {
                 RendererMaterialBinding binding = rendererMaterials[i];
                 Material[] materials = useInstalledMaterials
                     ? binding.InstalledMaterials
-                    : binding.GhostMaterials;
+                    : Application.isPlaying
+                        ? CreateRuntimeGhostMaterials(binding.GhostMaterials)
+                        : binding.GhostMaterials;
                 binding.TargetRenderer.sharedMaterials = CloneMaterials(materials);
             }
+
+            if (useInstalledMaterials)
+                ReleaseRuntimeGhostMaterials();
+        }
+
+        Material[] CreateRuntimeGhostMaterials(Material[] source)
+        {
+            if (source == null || source.Length == 0)
+                return Array.Empty<Material>();
+
+            var materials = new Material[source.Length];
+            for (int i = 0; i < source.Length; ++i)
+            {
+                Material sourceMaterial = source[i];
+                var runtimeMaterial = new Material(sourceMaterial)
+                {
+                    name = $"{sourceMaterial.name} (Ghost Runtime, No Depth Write)",
+                    hideFlags = HideFlags.DontSave
+                };
+
+                // The current HandGhostFresnel shader is transparent in its color pass,
+                // but its separate DepthPrepass writes an opaque silhouette into depth.
+                // Disabling only that pass keeps the visible Fresnel guide while allowing
+                // the transparent puddle behind it to render normally.
+                if (runtimeMaterial.FindPass("DepthPrepass") >= 0)
+                    runtimeMaterial.SetShaderPassEnabled("DepthPrepass", false);
+
+                materials[i] = runtimeMaterial;
+                runtimeGhostMaterials.Add(runtimeMaterial);
+            }
+
+            return materials;
+        }
+
+        void ReleaseRuntimeGhostMaterials()
+        {
+            for (int i = 0; i < runtimeGhostMaterials.Count; ++i)
+            {
+                Material material = runtimeGhostMaterials[i];
+                if (material == null)
+                    continue;
+
+                if (Application.isPlaying)
+                    Destroy(material);
+                else
+                    DestroyImmediate(material);
+            }
+
+            runtimeGhostMaterials.Clear();
         }
 
         static bool HasCompleteMaterials(Material[] materials, int expectedCount)

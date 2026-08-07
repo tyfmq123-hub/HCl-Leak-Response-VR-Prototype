@@ -39,6 +39,7 @@
   <Project Path="Unity.AI.Navigation.Editor.ConversionSystem.csproj" />
   <Project Path="Unity.Burst.CodeGen.csproj" />
   <Project Path="Unity.VisualScripting.Flow.csproj" />
+  <Project Path="Senghwan.VRHandPoseTool.Runtime.csproj" />
   <Project Path="Unity.PerformanceTesting.csproj" />
   <Project Path="Unity.XR.Hands.Samples.VisualizerSample.csproj" />
   <Project Path="Unity.TextMeshPro.csproj" />
@@ -54,6 +55,7 @@
   <Project Path="glTFast.Newtonsoft.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Editor.Overrides.csproj" />
   <Project Path="Unity.XR.Hands.Analytics.Editor.csproj" />
+  <Project Path="Senghwan.VRHandPoseTool.Editor.csproj" />
   <Project Path="Unity.XR.CoreUtils.Editor.csproj" />
   <Project Path="Unity.AI.Navigation.Editor.csproj" />
   <Project Path="Unity.XR.Interaction.Toolkit.Samples.Hands.csproj" />

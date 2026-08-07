@@ -24,6 +24,16 @@ namespace VRProject.ObjectInstallation
         [Tooltip("Maximum world-space release distance accepted by this group.")]
         [SerializeField, Min(0f)] float activationRadius = 0.5f;
 
+        [Tooltip("Maximum distance from the released supply to the nearest preplaced item. This prevents a large group activation sphere from accepting supplies far from every actual install location.")]
+        [SerializeField, Min(0f)] float installRadius = 0.5f;
+
+        [Tooltip("Optional exact release zone. When assigned, the supply must be inside this Collider instead of using nearest-item distance.")]
+        [SerializeField] Collider installZone;
+
+        [Header("Absorption")]
+        [Tooltip("This completed group's share of total puddle absorption. Set Sock to 0.25 and Pad to 0.75.")]
+        [SerializeField, Range(0f, 1f)] float absorptionWeight = 0.5f;
+
         [Header("Preplaced Items")]
         [Tooltip("Every Scene-preplaced Ghost converted together by one matching supply.")]
         [SerializeField] PreplacedGhostInstallItem[] items =
@@ -38,9 +48,18 @@ namespace VRProject.ObjectInstallation
         public string AcceptedItemTypeId => acceptedItemTypeId;
         public Transform ActivationCenter => activationCenter != null ? activationCenter : transform;
         public float ActivationRadius => Mathf.Max(0f, activationRadius);
+        public float InstallRadius => Mathf.Max(0f, installRadius);
+        public Collider InstallZone => installZone;
+        public float AbsorptionWeight => Mathf.Clamp01(absorptionWeight);
         public PreplacedGhostInstallItem[] Items => items;
         public bool IsInstalled => isInstalled;
         public bool IsProcessing => processing;
+
+        /// <summary>
+        /// Raised after every item in this group has entered its installed state successfully.
+        /// Observer failures are isolated from the installation transaction.
+        /// </summary>
+        public event Action<PreplacedGhostInstallGroup> Installed;
 
         void OnEnable()
         {
@@ -56,6 +75,8 @@ namespace VRProject.ObjectInstallation
         void OnValidate()
         {
             activationRadius = Mathf.Max(0f, activationRadius);
+            installRadius = Mathf.Max(0f, installRadius);
+            absorptionWeight = Mathf.Clamp01(absorptionWeight);
             lastFailure = null;
         }
 
@@ -67,6 +88,16 @@ namespace VRProject.ObjectInstallation
 
             Gizmos.color = new Color(0.15f, 0.85f, 1f, 0.85f);
             Gizmos.DrawWireSphere(center.position, ActivationRadius);
+
+            if (installZone != null || items == null)
+                return;
+
+            Gizmos.color = new Color(0.2f, 1f, 0.35f, 0.85f);
+            for (int i = 0; i < items.Length; ++i)
+            {
+                if (items[i] != null)
+                    Gizmos.DrawWireSphere(items[i].transform.position, InstallRadius);
+            }
         }
 
         public void Configure(
@@ -120,15 +151,57 @@ namespace VRProject.ObjectInstallation
 
                 float radius = group.ActivationRadius;
                 float sqrDistance = (center.position - releaseWorldPosition).sqrMagnitude;
-                if (sqrDistance > radius * radius || sqrDistance >= nearestSqrDistance)
+                if (sqrDistance > radius * radius ||
+                    !group.TryGetInstallDistanceSqr(releaseWorldPosition, out float installSqrDistance) ||
+                    installSqrDistance >= nearestSqrDistance)
                     continue;
 
                 nearest = group;
-                nearestSqrDistance = sqrDistance;
+                nearestSqrDistance = installSqrDistance;
             }
 
             return nearest;
         }
+
+        bool TryGetInstallDistanceSqr(Vector3 releaseWorldPosition, out float sqrDistance)
+        {
+            sqrDistance = float.PositiveInfinity;
+            if (!IsFinite(releaseWorldPosition))
+                return false;
+
+            if (installZone != null)
+            {
+                if (!installZone.enabled || !installZone.gameObject.activeInHierarchy)
+                    return false;
+
+                Vector3 closestPoint = installZone.ClosestPoint(releaseWorldPosition);
+                if (!IsFinite(closestPoint))
+                    return false;
+
+                sqrDistance = (closestPoint - releaseWorldPosition).sqrMagnitude;
+                return sqrDistance <= 0.000001f;
+            }
+
+            if (items == null || items.Length == 0)
+                return false;
+
+            for (int i = 0; i < items.Length; ++i)
+            {
+                PreplacedGhostInstallItem item = items[i];
+                if (item == null)
+                    continue;
+
+                float candidate = (item.transform.position - releaseWorldPosition).sqrMagnitude;
+                if (candidate < sqrDistance)
+                    sqrDistance = candidate;
+            }
+
+            float radius = InstallRadius;
+            return float.IsFinite(sqrDistance) && sqrDistance <= radius * radius;
+        }
+
+        static bool IsFinite(Vector3 value) =>
+            float.IsFinite(value.x) && float.IsFinite(value.y) && float.IsFinite(value.z);
 
         public bool TryInstallAll(string itemTypeId, out int installedCount)
         {
@@ -147,6 +220,7 @@ namespace VRProject.ObjectInstallation
 
             processing = true;
             var changedItems = new List<PreplacedGhostInstallItem>(items.Length);
+            bool succeeded = false;
 
             try
             {
@@ -162,7 +236,7 @@ namespace VRProject.ObjectInstallation
                 installedCount = changedItems.Count;
                 isInstalled = installedCount == items.Length;
                 lastFailure = null;
-                return isInstalled;
+                succeeded = isInstalled;
             }
             catch (Exception exception)
             {
@@ -172,11 +246,34 @@ namespace VRProject.ObjectInstallation
                 isInstalled = false;
                 installedCount = 0;
                 LogFailureOnce($"Installation was rolled back: {exception.Message}");
-                return false;
             }
             finally
             {
                 processing = false;
+            }
+
+            if (succeeded)
+                NotifyInstalledObservers();
+
+            return succeeded;
+        }
+
+        void NotifyInstalledObservers()
+        {
+            Delegate[] observers = Installed?.GetInvocationList();
+            if (observers == null)
+                return;
+
+            for (int i = 0; i < observers.Length; ++i)
+            {
+                try
+                {
+                    ((Action<PreplacedGhostInstallGroup>)observers[i]).Invoke(this);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception, this);
+                }
             }
         }
 

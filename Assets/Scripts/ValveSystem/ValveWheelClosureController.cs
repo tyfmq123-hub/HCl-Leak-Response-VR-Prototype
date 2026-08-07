@@ -102,6 +102,7 @@ namespace VRProject.Valves
             initialHingeAngle = hingeJoint != null && float.IsFinite(hingeJoint.angle) ? hingeJoint.angle : 0f;
             currentHingeAngle = initialHingeAngle;
             closureAngleSign = DetermineClosureAngleSign();
+            grabTransformer?.SetClosureAngleSign(closureAngleSign);
             ApplyJointLimits();
         }
 

@@ -30,6 +30,9 @@ namespace VRProject.ObjectInstallation.Editor
         const string SockSupplyName = "INT_AbsorbentSock_Straight_01";
         const float MinimumActivationPadding = 0.15f;
         const float MaximumActivationPadding = 0.5f;
+        const float LegacyThrowSmoothingDuration = 0.25f;
+        const float LegacyThrowVelocityScale = 1.5f;
+        const float LegacyThrowAngularVelocityScale = 1f;
 
         static readonly Regex s_GhostSuffix =
             new Regex("_ObjectGhost[0-9]+$", RegexOptions.CultureInvariant);
@@ -84,7 +87,11 @@ namespace VRProject.ObjectInstallation.Editor
             public ColliderCreationPlan colliderCreation;
             public bool grabUsesExplicitColliders;
             public Rigidbody rigidbody;
+            public bool createRigidbody;
             public XRGrabInteractable grabInteractable;
+            public bool createGrabInteractable;
+            public bool migrateLegacyGrabInteractable;
+            public string existingGrabPreservationReason;
             public bool installedIsKinematic;
             public bool installedUseGravity;
             public PreplacedGhostInstallItem configuredItem;
@@ -143,10 +150,30 @@ namespace VRProject.ObjectInstallation.Editor
                 plan.targets
                     .GroupBy(target => target.originalName, StringComparer.Ordinal)
                     .Select(group => $"- {group.Key}: {group.First().materialSourceDescription}"));
+            string preservedGrabText = string.Join(
+                "\n",
+                plan.targets
+                    .Where(target => !string.IsNullOrEmpty(target.existingGrabPreservationReason))
+                    .Select(target =>
+                        $"- {GetHierarchyPath(target.gameObject.transform)}: {target.existingGrabPreservationReason}"));
 
             string message =
                 "The seven preplaced Ghost objects and both install groups were configured.\n" +
                 $"Created {plan.targets.Count(target => target.colliderCreation != null)} convex MeshCollider(s) from target MeshFilters.\n" +
+                $"Created {plan.targets.Count(target => target.createRigidbody)} Rigidbody component(s).\n" +
+                (plan.targets.Any(target => !target.createRigidbody)
+                    ? $"Reused {plan.targets.Count(target => !target.createRigidbody)} existing Rigidbody component(s).\n"
+                    : string.Empty) +
+                $"Created {plan.targets.Count(target => target.createGrabInteractable)} XRGrabInteractable component(s).\n" +
+                (plan.targets.Any(target => !target.createGrabInteractable)
+                    ? $"Reused {plan.targets.Count(target => !target.createGrabInteractable)} existing XRGrabInteractable component(s).\n"
+                    : string.Empty) +
+                $"Migrated legacy XRGrabInteractable(s): {plan.targets.Count(target => target.migrateLegacyGrabInteractable)}\n" +
+                $"Preserved customized existing XRGrabInteractable(s): " +
+                $"{plan.targets.Count(target => !target.createGrabInteractable && !target.migrateLegacyGrabInteractable)}\n" +
+                (string.IsNullOrEmpty(preservedGrabText)
+                    ? string.Empty
+                    : "Preserved existing XRGrabInteractable detail(s):\n" + preservedGrabText + "\n") +
                 "The Scene is dirty but was not saved. One Undo reverts this entire run.\n\n" +
                 "Opaque material sources:\n" + materialText + "\n\n" +
                 "Supply configuration:\n" + noticeText + "\n\n" +
@@ -336,20 +363,71 @@ namespace VRProject.ObjectInstallation.Editor
                     installedMaterials));
             }
 
-            Rigidbody body = plan.gameObject.GetComponent<Rigidbody>();
+            XRGrabInteractable[] grabs = plan.gameObject.GetComponentsInChildren<XRGrabInteractable>(true);
+            if (grabs.Length > 1)
+            {
+                string locations = string.Join(", ", grabs.Select(candidate => GetHierarchyPath(candidate.transform)));
+                return Fail(
+                    $"'{GetHierarchyPath(plan.gameObject.transform)}' has multiple XRGrabInteractable components " +
+                    $"({grabs.Length}: {locations}). The configurator will not guess which one to use.",
+                    out error);
+            }
+
+            XRGrabInteractable grab = grabs.Length == 1 ? grabs[0] : null;
+            if (grab != null && grab.gameObject != plan.gameObject)
+            {
+                return Fail(
+                    $"'{GetHierarchyPath(plan.gameObject.transform)}' has its only XRGrabInteractable below the target root at " +
+                    $"'{GetHierarchyPath(grab.transform)}'. Move it to the target root or remove it so the configurator can create one there.",
+                    out error);
+            }
+
+            Rigidbody[] rootBodies = plan.gameObject.GetComponents<Rigidbody>();
+            if (rootBodies.Length > 1)
+            {
+                return Fail(
+                    $"'{GetHierarchyPath(plan.gameObject.transform)}' has multiple Rigidbody components on the target root.",
+                    out error);
+            }
+
+            Rigidbody body = rootBodies.Length == 1 ? rootBodies[0] : null;
             if (body == null)
-                return Fail($"'{GetHierarchyPath(plan.gameObject.transform)}' needs an existing Rigidbody on its root.", out error);
+            {
+                Rigidbody[] misplacedBodies = plan.gameObject.GetComponentsInChildren<Rigidbody>(true);
+                if (misplacedBodies.Length != 0)
+                {
+                    return Fail(
+                        $"'{GetHierarchyPath(plan.gameObject.transform)}' has no Rigidbody on the XRGrabInteractable root, " +
+                        "but has Rigidbody component(s) below it. The configurator will not guess which body to use:\n" +
+                        string.Join("\n", misplacedBodies.Select(candidate => $"  - {GetHierarchyPath(candidate.transform)}")),
+                        out error);
+                }
 
-            XRGrabInteractable grab = plan.gameObject.GetComponent<XRGrabInteractable>();
-            if (grab == null)
-                return Fail($"'{GetHierarchyPath(plan.gameObject.transform)}' needs an existing XRGrabInteractable on its root.", out error);
+                if (plan.existingItem != null && plan.existingItem.TargetRigidbody != null)
+                {
+                    return Fail(
+                        $"'{GetHierarchyPath(plan.gameObject.transform)}' has an existing PreplacedGhostInstallItem " +
+                        $"that references a Rigidbody on '{GetHierarchyPath(plan.existingItem.TargetRigidbody.transform)}' instead of its root.",
+                        out error);
+                }
+            }
+            else if (plan.existingItem != null &&
+                     plan.existingItem.TargetRigidbody != null &&
+                     plan.existingItem.TargetRigidbody != body)
+            {
+                return Fail(
+                    $"'{GetHierarchyPath(plan.gameObject.transform)}' has an existing PreplacedGhostInstallItem " +
+                    $"that references a different Rigidbody on '{GetHierarchyPath(plan.existingItem.TargetRigidbody.transform)}'.",
+                    out error);
+            }
 
-            if (!TryBuildColliderPlan(plan, body, grab, out string colliderError))
+            if (!TryBuildColliderPlan(plan, grab, out string colliderError))
                 return Fail(colliderError, out error);
 
             bool installedIsKinematic;
             bool installedUseGravity;
-            if (plan.existingItem != null &&
+            if (body != null &&
+                plan.existingItem != null &&
                 plan.existingItem.TryGetInstalledRigidbodyState(out bool savedKinematic, out bool savedGravity))
             {
                 installedIsKinematic = savedKinematic;
@@ -357,22 +435,85 @@ namespace VRProject.ObjectInstallation.Editor
             }
             else
             {
-                installedIsKinematic = body.isKinematic;
-                installedUseGravity = body.useGravity;
+                installedIsKinematic = body != null && body.isKinematic;
+                installedUseGravity = body == null || body.useGravity;
             }
 
             plan.materialSourceDescription = materialSource.description;
             plan.rendererBindings = rendererBindings.ToArray();
             plan.rigidbody = body;
+            plan.createRigidbody = body == null;
             plan.grabInteractable = grab;
+            plan.createGrabInteractable = grab == null;
+            plan.migrateLegacyGrabInteractable = grab != null && HasLegacyGeneratedGrabSettings(grab);
+            plan.existingGrabPreservationReason = grab != null && !plan.migrateLegacyGrabInteractable
+                ? DescribeLegacyGrabMismatch(grab)
+                : null;
             plan.installedIsKinematic = installedIsKinematic;
             plan.installedUseGravity = installedUseGravity;
             return true;
         }
 
+        static bool HasLegacyGeneratedGrabSettings(XRGrabInteractable grab)
+        {
+            return grab.movementType == XRBaseInteractable.MovementType.Instantaneous &&
+                   grab.attachTransform == null &&
+                   !grab.useDynamicAttach &&
+                   grab.matchAttachPosition &&
+                   grab.matchAttachRotation &&
+                   grab.throwOnDetach &&
+                   Mathf.Approximately(grab.throwSmoothingDuration, LegacyThrowSmoothingDuration) &&
+                   Mathf.Approximately(grab.throwVelocityScale, LegacyThrowVelocityScale) &&
+                   Mathf.Approximately(grab.throwAngularVelocityScale, LegacyThrowAngularVelocityScale);
+        }
+
+        static string DescribeLegacyGrabMismatch(XRGrabInteractable grab)
+        {
+            var mismatches = new List<string>();
+            if (grab.movementType != XRBaseInteractable.MovementType.Instantaneous)
+                mismatches.Add($"Movement Type is {grab.movementType}");
+            if (grab.attachTransform != null)
+                mismatches.Add($"Attach Transform is '{GetHierarchyPath(grab.attachTransform)}'");
+            if (grab.useDynamicAttach)
+                mismatches.Add("Dynamic Attach is enabled");
+            if (!grab.matchAttachPosition)
+                mismatches.Add("Match Attach Position is disabled");
+            if (!grab.matchAttachRotation)
+                mismatches.Add("Match Attach Rotation is disabled");
+            if (!grab.throwOnDetach)
+                mismatches.Add("Throw On Detach is disabled");
+            if (!Mathf.Approximately(grab.throwSmoothingDuration, LegacyThrowSmoothingDuration))
+                mismatches.Add($"Throw Smoothing Duration is {grab.throwSmoothingDuration:R}");
+            if (!Mathf.Approximately(grab.throwVelocityScale, LegacyThrowVelocityScale))
+                mismatches.Add($"Throw Velocity Scale is {grab.throwVelocityScale:R}");
+            if (!Mathf.Approximately(grab.throwAngularVelocityScale, LegacyThrowAngularVelocityScale))
+                mismatches.Add($"Throw Angular Velocity Scale is {grab.throwAngularVelocityScale:R}");
+
+            return string.Join(", ", mismatches);
+        }
+
+        static void ApplyRecoverySafeGrabSettings(XRGrabInteractable grab)
+        {
+            grab.movementType = XRBaseInteractable.MovementType.Kinematic;
+            grab.useDynamicAttach = true;
+            grab.matchAttachPosition = true;
+            grab.matchAttachRotation = true;
+            grab.throwOnDetach = false;
+
+            if (grab.movementType != XRBaseInteractable.MovementType.Kinematic ||
+                !grab.useDynamicAttach ||
+                !grab.matchAttachPosition ||
+                !grab.matchAttachRotation ||
+                grab.throwOnDetach)
+            {
+                throw new InvalidOperationException(
+                    $"The XRGrabInteractable on '{grab.gameObject.name}' " +
+                    "did not retain its recovery-safe movement, attach, and throw settings.");
+            }
+        }
+
         static bool TryBuildColliderPlan(
             TargetPlan plan,
-            Rigidbody rootRigidbody,
             XRGrabInteractable grabInteractable,
             out string error)
         {
@@ -392,7 +533,8 @@ namespace VRProject.ObjectInstallation.Editor
 
                 plan.colliderBindings = bindings;
                 plan.colliderCreation = null;
-                plan.grabUsesExplicitColliders = grabInteractable.colliders.Count != 0;
+                plan.grabUsesExplicitColliders =
+                    grabInteractable != null && grabInteractable.colliders.Count != 0;
                 return true;
             }
 
@@ -401,10 +543,10 @@ namespace VRProject.ObjectInstallation.Editor
                 .Where(meshFilter =>
                     meshFilter.sharedMesh != null &&
                     meshFilter.GetComponent<MeshRenderer>() != null &&
-                    meshFilter.GetComponentInParent<Rigidbody>() == rootRigidbody)
+                    UsesTargetRootRigidbodyAfterApply(plan.gameObject.transform, meshFilter.transform))
                 .ToArray();
 
-            string meshFilterState = DescribeMeshFilters(plan.gameObject, meshFilters, rootRigidbody);
+            string meshFilterState = DescribeMeshFilters(plan.gameObject, meshFilters);
             if (candidates.Length == 0)
             {
                 return Fail(
@@ -436,11 +578,26 @@ namespace VRProject.ObjectInstallation.Editor
                 gameObject = selected.gameObject,
                 displayPath = GetRelativePath(plan.gameObject.transform, selected.transform),
             };
-            plan.grabUsesExplicitColliders = grabInteractable.colliders.Count != 0;
+            plan.grabUsesExplicitColliders =
+                grabInteractable != null && grabInteractable.colliders.Count != 0;
             return true;
         }
 
-        static string DescribeMeshFilters(GameObject target, MeshFilter[] meshFilters, Rigidbody rootRigidbody)
+        static bool UsesTargetRootRigidbodyAfterApply(Transform targetRoot, Transform candidate)
+        {
+            Transform current = candidate;
+            while (current != null && current != targetRoot)
+            {
+                if (current.GetComponent<Rigidbody>() != null)
+                    return false;
+
+                current = current.parent;
+            }
+
+            return current == targetRoot;
+        }
+
+        static string DescribeMeshFilters(GameObject target, MeshFilter[] meshFilters)
         {
             if (meshFilters == null || meshFilters.Length == 0)
                 return "MeshFilters: none.";
@@ -454,8 +611,8 @@ namespace VRProject.ObjectInstallation.Editor
                         ? $"'{meshFilter.sharedMesh.name}'"
                         : "null";
                     bool hasMeshRenderer = meshFilter.GetComponent<MeshRenderer>() != null;
-                    bool usesRootRigidbody = meshFilter.GetComponentInParent<Rigidbody>() == rootRigidbody;
-                    return $"  - {path} (sharedMesh: {mesh}, MeshRenderer: {hasMeshRenderer}, root Rigidbody: {usesRootRigidbody})";
+                    bool usesRootRigidbody = UsesTargetRootRigidbodyAfterApply(target.transform, meshFilter.transform);
+                    return $"  - {path} (sharedMesh: {mesh}, MeshRenderer: {hasMeshRenderer}, target root Rigidbody after apply: {usesRootRigidbody})";
                 }));
         }
 
@@ -761,21 +918,38 @@ namespace VRProject.ObjectInstallation.Editor
 
         static void ApplyTarget(TargetPlan plan)
         {
+            Rigidbody body = plan.rigidbody;
+            if (plan.createRigidbody)
+            {
+                body = Undo.AddComponent<Rigidbody>(plan.gameObject);
+                if (body == null)
+                    throw new InvalidOperationException($"Could not add a Rigidbody to '{plan.gameObject.name}'.");
+
+                body.isKinematic = false;
+                body.useGravity = true;
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                if (body.isKinematic || !body.useGravity)
+                {
+                    throw new InvalidOperationException(
+                        $"The generated Rigidbody on '{plan.gameObject.name}' did not retain its installed-state defaults.");
+                }
+
+                plan.rigidbody = body;
+                EditorUtility.SetDirty(body);
+            }
+            else
+            {
+                Undo.RecordObject(body, UndoName);
+            }
+
             DestroyComponentsWithUndo<GhostObjectSnapSlot>(plan.gameObject);
             DestroyComponentsWithUndo<GhostSnappableObject>(plan.gameObject);
             DestroyComponentsWithUndo<GhostObjectAutoFillSource>(plan.gameObject);
             DestroyComponentsWithUndo<PreplacedGhostInstallSource>(plan.gameObject);
-
-            PreplacedGhostInstallItem item = plan.existingItem != null
-                ? plan.existingItem
-                : Undo.AddComponent<PreplacedGhostInstallItem>(plan.gameObject);
-
-            Undo.RecordObject(item, UndoName);
             Undo.RecordObjects(plan.rendererBindings.Select(binding => binding.TargetRenderer).ToArray(), UndoName);
             if (plan.colliderBindings.Length != 0)
                 Undo.RecordObjects(plan.colliderBindings.Select(binding => binding.TargetCollider).ToArray(), UndoName);
-            Undo.RecordObject(plan.rigidbody, UndoName);
-            Undo.RecordObject(plan.grabInteractable, UndoName);
 
             PreplacedGhostInstallItem.ColliderBinding[] colliderBindings = plan.colliderBindings;
             if (plan.colliderCreation != null)
@@ -806,18 +980,56 @@ namespace VRProject.ObjectInstallation.Editor
                     new PreplacedGhostInstallItem.ColliderBinding(meshCollider, true),
                 };
 
-                if (plan.grabUsesExplicitColliders && !plan.grabInteractable.colliders.Contains(meshCollider))
-                    plan.grabInteractable.colliders.Add(meshCollider);
-
                 EditorUtility.SetDirty(meshCollider);
             }
+
+            XRGrabInteractable grab = plan.grabInteractable;
+            if (plan.createGrabInteractable)
+            {
+                grab = Undo.AddComponent<XRGrabInteractable>(plan.gameObject);
+                if (grab == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not add an XRGrabInteractable to '{plan.gameObject.name}'.");
+                }
+
+                // Recovery items should keep their grabbed point under the hand, follow through
+                // Rigidbody motion, and never inherit a large detach velocity.
+                ApplyRecoverySafeGrabSettings(grab);
+
+                plan.grabInteractable = grab;
+                EditorUtility.SetDirty(grab);
+            }
+            else
+            {
+                Undo.RecordObject(grab, UndoName);
+
+                if (plan.migrateLegacyGrabInteractable)
+                {
+                    ApplyRecoverySafeGrabSettings(grab);
+                    EditorUtility.SetDirty(grab);
+                }
+            }
+
+            if (plan.colliderCreation != null &&
+                plan.grabUsesExplicitColliders &&
+                !grab.colliders.Contains(colliderBindings[0].TargetCollider))
+            {
+                grab.colliders.Add(colliderBindings[0].TargetCollider);
+                EditorUtility.SetDirty(grab);
+            }
+
+            PreplacedGhostInstallItem item = plan.existingItem != null
+                ? plan.existingItem
+                : Undo.AddComponent<PreplacedGhostInstallItem>(plan.gameObject);
+            Undo.RecordObject(item, UndoName);
 
             item.Configure(
                 plan.installationTypeId,
                 plan.rendererBindings,
                 colliderBindings,
-                plan.rigidbody,
-                plan.grabInteractable,
+                body,
+                grab,
                 plan.installedIsKinematic,
                 plan.installedUseGravity);
 

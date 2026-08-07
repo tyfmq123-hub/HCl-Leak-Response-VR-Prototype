@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BaseAlpha: 0.07
+    - _BaseAlpha: 0
     - _PulseAmount: 0.2
     - _PulseSpeed: 1.2
     - _RimIntensity: 2
