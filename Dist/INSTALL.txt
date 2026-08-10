@@ -1,0 +1,31 @@
+VR Hand Tools — 설치 안내
+Package ID: com.senghwan.vr-hand-pose-tool
+Version: 0.2.0
+
+==================================================
+Tarball 설치
+==================================================
+
+Unity에서:
+
+1. Window
+2. Package Manager
+3. 좌측 상단 +
+4. Add package from tarball...
+5. Dist/com.senghwan.vr-hand-pose-tool-0.2.0.tgz 선택
+
+설치 후:
+
+Tools
+→ VR Hand Tools
+→ Hand Pose Capture
+
+==================================================
+참고
+==================================================
+
+- HandVisualizer Sample은 ① 선택 손 전체 준비에서 필요 시
+  Unity 공식 Sample API로 Import됩니다.
+- XR Hands 공식 FBX/Prefab/Material은 이 패키지에 포함되지 않습니다.
+- Controller 설정은 Edit Mode Scene에 적용한 뒤 Ctrl+S로 저장하세요.
+- Trigger/검지 독립 애니메이션은 현재 미지원입니다.

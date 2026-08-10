@@ -2,6 +2,7 @@
   "dependencies": {
     "com.senghwan.vr-hand-pose-tool": "file:com.senghwan.vr-hand-pose-tool-0.2.0.tgz",
     "com.unity.ai.navigation": "2.0.12",
+    "com.unity.cloud.gltfast": "6.19.0",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.vr": "1.0.1",
     "com.unity.ide.rider": "3.0.40",
@@ -15,8 +16,9 @@
     "com.unity.ugui": "2.0.0",
     "com.unity.visualscripting": "1.9.11",
     "com.unity.xr.hands": "1.7.3",
-    "com.unity.xr.management": "4.5.4",
+    "com.unity.xr.management": "4.7.0",
     "com.unity.xr.oculus": "4.5.4",
+    "com.unity.xr.openxr": "1.16.1",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",
     "com.unity.modules.ai": "1.0.0",

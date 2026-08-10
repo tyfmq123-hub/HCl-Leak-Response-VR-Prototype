@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fbx": "Elbow_90deg_8NPS.fbx",
+  "materials": [
+    {
+      "name": "CastIron_DarkBlueGray",
+      "baseColor": [
+        0.3,
+        0.33,
+        0.35,
+        1.0
+      ],
+      "metallic": 0.05,
+      "roughness": 0.58
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "VRProject.ValveSystem.Editor",
+  "rootNamespace": "VRProject.Valves.Editor",
+  "references": [
+    "VRProject.ValveSystem.Runtime",
+    "Unity.XR.Interaction.Toolkit"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

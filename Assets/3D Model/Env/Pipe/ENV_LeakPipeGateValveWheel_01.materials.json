@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fbx": "ValveHandWheel.fbx",
+  "materials": [
+    {
+      "name": "Handwheel_Red",
+      "baseColor": [
+        0.3400000035762787,
+        0.02500000037252903,
+        0.019999999552965164,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.5
+    }
+  ]
+}
