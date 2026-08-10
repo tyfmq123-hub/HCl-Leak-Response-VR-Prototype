@@ -7,7 +7,6 @@ using UnityEngine.XR.Hands;
 using UnityEngine.XR.Interaction.Toolkit.Inputs;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Simulation;
-using UnityEngine.XR.Interaction.Toolkit.Utilities;
 
 namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
 {
@@ -185,7 +184,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
         /// </summary>
         protected void Start()
         {
-            if (!ComponentLocatorUtility<XRInteractionSimulator>.TryFindComponent(out m_Simulator))
+            m_Simulator = Object.FindFirstObjectByType<XRInteractionSimulator>();
+            if (m_Simulator == null)
             {
                 Debug.LogError($"Could not find the XRInteractionSimulator component, disabling simulator UI.", this);
                 gameObject.SetActive(false);
@@ -224,7 +224,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
 
         void CheckInputModalityManager()
         {
-            if (ComponentLocatorUtility<XRInputModalityManager>.TryFindComponent(out var inputModalityManager) &&
+            var inputModalityManager = Object.FindFirstObjectByType<XRInputModalityManager>();
+            if (inputModalityManager != null &&
                 inputModalityManager.leftHand == null && inputModalityManager.rightHand == null)
             {
                 m_InputModalityManagerWarningPanel.SetActive(true);
@@ -236,7 +237,8 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
 #if XR_HANDS_1_2_OR_NEWER
         void CheckHandVisualizer()
         {
-            if (ComponentLocatorUtility<XRInputModalityManager>.TryFindComponent(out var inputModalityManager))
+            var inputModalityManager = Object.FindFirstObjectByType<XRInputModalityManager>();
+            if (inputModalityManager != null)
             {
                 if (inputModalityManager.leftHand == null && inputModalityManager.rightHand == null)
                     return;

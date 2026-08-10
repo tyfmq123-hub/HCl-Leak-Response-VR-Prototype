@@ -1,7 +1,7 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using NUnit.Framework;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
@@ -24,16 +24,35 @@ namespace VRProject.ObjectInstallation.Tests
         }
 
         [Test]
-        public void SampleScene_AbsorbentSocksHaveCompleteGrabAndSnapWiring()
+        public void P102Scene_SockSourceHasCompleteGrabAndInstallWiring()
         {
-            string scenePath = Path.Combine(Application.dataPath, "Scenes", "SampleScene.unity");
-            string[] documents = File.ReadAllText(scenePath)
-                .Replace("\r\n", "\n")
-                .Split(new[] { "--- " }, StringSplitOptions.RemoveEmptyEntries);
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/SSH_VR_Project.unity", OpenSceneMode.Single);
+            var sceneObjects = scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
+                .Select(transform => transform.gameObject)
+                .ToArray();
+            var sockSources = sceneObjects
+                .Select(gameObject => gameObject.GetComponent<PreplacedGhostInstallSource>())
+                .Where(source => source != null && source.ItemTypeId == "Sock")
+                .ToArray();
 
-            AssertSceneObjectWiring(documents, "INT_AbsorbentSock_Straight_01", "absorbent-sock-straight", 1);
-            AssertSceneObjectWiring(documents, "INT_AbsorbentSock_Curved_01", "absorbent-sock-curved", 2);
-            AssertSceneObjectWiring(documents, "INT_AbsorbentSock_Curved_02", "absorbent-sock-curved", 2);
+            Assert.That(sockSources, Has.Length.EqualTo(1));
+            var sockSource = sockSources[0];
+            Assert.That(sockSource.GrabInteractable, Is.Not.Null);
+            Assert.That(sockSource.GrabInteractable.gameObject, Is.SameAs(sockSource.gameObject));
+            Assert.That(sockSource.GetComponents<Rigidbody>(), Has.Length.EqualTo(1));
+            Assert.That(sockSource.GetComponents<Collider>(), Has.Length.EqualTo(1));
+            Assert.That(sockSource.ConsumeSourceOnSuccess, Is.True);
+
+            string[] expectedGhosts =
+            {
+                "INT_AbsorbentSock_Straight_01_ObjectGhost1",
+                "INT_AbsorbentSock_Straight_01_ObjectGhost2",
+                "INT_AbsorbentSock_Curved_01_ObjectGhost1",
+                "INT_AbsorbentSock_Curved_01_ObjectGhost2",
+            };
+            foreach (string expectedGhost in expectedGhosts)
+                Assert.That(sceneObjects.Count(gameObject => gameObject.name == expectedGhost), Is.EqualTo(1));
         }
 
         [Test]
@@ -192,102 +211,6 @@ namespace VRProject.ObjectInstallation.Tests
             var created = new GameObject(name);
             createdObjects.Add(created);
             return created;
-        }
-
-        static void AssertSceneObjectWiring(
-            string[] documents,
-            string objectName,
-            string compatibilityId,
-            int expectedColliderCount)
-        {
-            string gameObjectDocument = FindDocumentContaining(
-                documents, "!u!1 ", $"  m_Name: {objectName}\n");
-            Assert.That(gameObjectDocument, Is.Not.Null, $"Missing Scene GameObject {objectName}.");
-
-            var componentIds = new List<string>();
-            foreach (string line in gameObjectDocument.Split('\n'))
-            {
-                const string componentPrefix = "  - component: {fileID: ";
-                if (!line.StartsWith(componentPrefix, StringComparison.Ordinal))
-                    continue;
-
-                int idEnd = line.IndexOf('}', componentPrefix.Length);
-                componentIds.Add(line.Substring(componentPrefix.Length, idEnd - componentPrefix.Length));
-            }
-
-            int rigidbodyCount = 0;
-            int colliderCount = 0;
-            int grabCount = 0;
-            int snappableCount = 0;
-            foreach (string componentId in componentIds)
-            {
-                string componentDocument = FindDocumentById(documents, componentId);
-                Assert.That(componentDocument, Is.Not.Null, $"Missing component {componentId} on {objectName}.");
-
-                if (componentDocument.StartsWith("!u!54 ", StringComparison.Ordinal))
-                    ++rigidbodyCount;
-                else if (componentDocument.StartsWith("!u!65 ", StringComparison.Ordinal) ||
-                         componentDocument.StartsWith("!u!136 ", StringComparison.Ordinal))
-                    ++colliderCount;
-                else if (componentDocument.Contains("XRGrabInteractable"))
-                {
-                    ++grabCount;
-                    Assert.That(CountColliderReferences(componentDocument), Is.EqualTo(expectedColliderCount));
-                }
-                else if (componentDocument.Contains("GhostSnappableObject"))
-                {
-                    ++snappableCount;
-                    Assert.That(componentDocument, Does.Contain($"compatibilityId: {compatibilityId}"));
-                    Assert.That(componentDocument, Does.Not.Contain("grabInteractable: {fileID: 0}"));
-                    Assert.That(componentDocument, Does.Not.Contain("targetRigidbody: {fileID: 0}"));
-                    Assert.That(componentDocument, Does.Not.Contain("scalableRoot: {fileID: 0}"));
-                    Assert.That(componentDocument, Does.Not.Contain("snapAlignment: {fileID: 0}"));
-                }
-            }
-
-            Assert.That(rigidbodyCount, Is.EqualTo(1));
-            Assert.That(colliderCount, Is.EqualTo(expectedColliderCount));
-            Assert.That(grabCount, Is.EqualTo(1));
-            Assert.That(snappableCount, Is.EqualTo(1));
-        }
-
-        static string FindDocumentContaining(string[] documents, string typePrefix, string value)
-        {
-            foreach (string document in documents)
-            {
-                if (document.StartsWith(typePrefix, StringComparison.Ordinal) && document.Contains(value))
-                    return document;
-            }
-
-            return null;
-        }
-
-        static string FindDocumentById(string[] documents, string componentId)
-        {
-            string suffix = $" &{componentId}\n";
-            foreach (string document in documents)
-            {
-                int headerEnd = document.IndexOf('\n');
-                if (headerEnd >= 0 && document.Substring(0, headerEnd + 1).EndsWith(suffix, StringComparison.Ordinal))
-                    return document;
-            }
-
-            return null;
-        }
-
-        static int CountColliderReferences(string grabDocument)
-        {
-            int start = grabDocument.IndexOf("  m_Colliders:\n", StringComparison.Ordinal);
-            int end = grabDocument.IndexOf("  m_InteractionLayers:\n", start, StringComparison.Ordinal);
-            string colliderList = grabDocument.Substring(start, end - start);
-            int count = 0;
-            foreach (string line in colliderList.Split('\n'))
-            {
-                if (line.StartsWith("  - {fileID: ", StringComparison.Ordinal))
-                    ++count;
-            }
-
-            return count;
         }
 
         static void AssertVector(Vector3 actual, Vector3 expected)
