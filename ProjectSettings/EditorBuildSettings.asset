@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SSH_VR_Project.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity
+    guid: fe230134fef5b8a438806396473c6686
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ad32b387f060dcc48938a8a699c4da9c, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

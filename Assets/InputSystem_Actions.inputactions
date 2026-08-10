@@ -990,6 +990,34 @@
                     "isPartOfComposite": false
                 }
             ]
+        },
+        {
+            "name": "JH Entry Safety",
+            "id": "f8f8db0a-7f93-4c95-9ec2-bda39f62cdd5",
+            "actions": [
+                {
+                    "name": "EquipDetector",
+                    "type": "Button",
+                    "id": "d5bc1350-b621-4925-b108-2f86ed064b45",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "17352d5e-0a0e-45bb-b4f3-52dde8c4890a",
+                    "path": "<XRController>{LeftHand}/secondaryButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "XR",
+                    "action": "EquipDetector",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
         }
     ],
     "controlSchemes": [
