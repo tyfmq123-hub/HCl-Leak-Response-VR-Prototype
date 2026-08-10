@@ -1,0 +1,1 @@
+tripo_part_14용 BaseColor를 순백색 JPG로 변경한 버전입니다. 파일명과 폴더 구조는 원본 유지.
