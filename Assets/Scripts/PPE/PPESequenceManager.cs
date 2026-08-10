@@ -134,6 +134,15 @@ public class PPESequenceManager : MonoBehaviour
 
     void OnDestroy()
     {
+        // Leaving the PPE room without an explicit confirm still records the real
+        // (possibly partial/empty) result so validation cannot apply FieldReadyPreset.
+        if (Application.isPlaying
+            && Instance == this
+            && PPELoadoutReader.Source == PPELoadoutSource.None)
+        {
+            PPELoadoutData.CommitPpeSceneResultFromManagers();
+        }
+
         if (Instance == this)
             Instance = null;
     }
@@ -216,8 +225,9 @@ public class PPESequenceManager : MonoBehaviour
         {
             sequenceComplete = true;
             OnRequiredStepChanged?.Invoke(null);
+            // Finalize before completed listeners so they see Source=PpeSceneResult.
+            PPELoadoutData.CommitPpeSceneResultFromManagers();
             OnPPESequenceCompleted?.Invoke();
-            PPELoadoutData.SyncFromScene();
             Debug.Log("[PPE Sequence] Preparation sequence complete.", this);
             return true;
         }

@@ -1,7 +1,7 @@
-# PPE Loadout — 현장 씬 공식 연동 스펙
+# PPE Loadout — 현장/출입전 검증 씬 공식 연동 스펙
 
-이 문서를 현장(누출 대응) 씬 담당에게 전달하세요.  
-`PPELoadoutData.cs`만으로는 부족하므로 **아래 파일·표·프리셋을 함께** 사용합니다.
+이 문서를 출입전 검증·현장 씬 담당에게 전달하세요.  
+`PPELoadoutData.cs`만으로는 부족하므로 **아래 파일·표·프리셋·Source 규칙**을 함께 사용합니다.
 
 ---
 
@@ -9,146 +9,117 @@
 
 | 파일 | 역할 |
 |------|------|
-| `Assets/Scripts/PPE/PPELoadoutData.cs` | DontDestroyOnLoad 영속 상태 |
+| `Assets/Scripts/PPE/PPELoadoutData.cs` | DontDestroyOnLoad + `PPELoadoutSource` |
 | `Assets/Scripts/PPE/PPELoadoutReader.cs` | null-safe 조회 API |
-| `Assets/Scripts/PPE/PPELoadoutSceneBootstrap.cs` | 현장 씬 자동 적용 |
-| `Assets/Scripts/PPE/PPELoadoutPresets.cs` | 공식 스냅샷 / Clear·Replace |
+| `Assets/Scripts/PPE/PPELoadoutSceneBootstrap.cs` | **출입전 검증 씬 전용** 자동 적용 |
+| `Assets/Scripts/PPE/PPELoadoutPresets.cs` | 공식 스냅샷 / Clear·Replace·Commit |
+| `Assets/Scripts/PPE/PPELoadoutResultCommit.cs` | PPE 룸 완료/확정 버튼용 1회 커밋 |
 | `Assets/Scripts/PPE/PPELoadout_Integration_Prompt.md` | 본 문서 |
 
+**금지:** PPE 룸 씬에 `PPELoadoutSceneBootstrap` 추가.
+
 ---
 
-## 진행 모드 (필수)
+## 세 상태 (`PPELoadoutSource`)
 
-### A) 전체 훈련 (PPE 룸 → 현장)
-1. PPE 룸에서 실제 장착/준비가 `PPELoadoutData`에 자동 동기화됨
-2. `LoadScene` 후 DDOL 데이터가 유지됨
-3. 현장 씬 `PPELoadoutSceneBootstrap`이 **그 실데이터를 읽음**
-4. **씬 전환 시 Clear 금지**
+| Source | 의미 |
+|--------|------|
+| `None` | 현재 훈련에서 PPE 결과가 전혀 기록되지 않음 |
+| `PpeSceneResult` | PPE 결과가 기록됨 (장비 일부/전체 누락 가능) |
+| `FieldReadyPreset` | PPE를 거치지 않은 현장 단독 시작 공식 프리셋 |
 
-### B) 현장 파트 단독 시작 (모듈 선택)
-1. **빈 `PPELoadoutData`를 만들지 말 것**
-2. 모듈 선택에서 공식 프리셋 적용:
+판정 API (목록 개수 / singleton / `sequenceComplete`로 판단하지 말 것):
 
+```csharp
+PPELoadoutReader.HasRecordedPpeResult  // Source == PpeSceneResult
+PPELoadoutReader.HasResolvedLoadout    // Source != None
+PPELoadoutReader.Source
+```
+
+`Source == PpeSceneResult`이면 Equipped/Prepared가 비어 있어도 **실결과**다. 프리셋으로 덮지 않는다.
+
+---
+
+## 진행 모드
+
+### A) 전체 훈련 (PPE 룸 → 출입전 검증)
+1. PPE 룸에서 장착/준비 진행 (`SyncFromScene`은 draft일 뿐, Source를 확정하지 않음)
+2. 사용자가 **완료/결과 확정** 시 한 번만:
+   - `PPELoadoutResultCommit.CommitResult()` 또는
+   - `PPELoadoutPresets.CommitPpeSceneResult()` / `PPELoadoutData.CommitPpeSceneResultFromManagers()`
+   - 시퀀스 전부 완료 시 `PPESequenceManager`도 동일 Commit 1회 호출
+3. `ReplaceWithSnapshot`은 **장비마다 반복 호출 금지** (호출 전 Clear됨)
+4. Single `LoadScene`으로 출입전 검증 씬 이동 — **Clear 금지**
+5. 검증 씬 `PPELoadoutSceneBootstrap`이 `Source=PpeSceneResult`를 그대로 읽음
+
+### B) 현장/검증 파트 단독 시작 (모듈 선택)
 ```csharp
 PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
-// 내부: Ensure() → ApplySnapshot(FieldReadyComplete) → 기존 상태 Clear 후 교체
+// Source = FieldReadyPreset
 ```
 
-3. Bootstrap Inspector: `Missing Loadout Mode = Apply Field Ready Preset`
-
-### C) 새 훈련 시작
-이전 DDOL이 남지 않도록:
-
+### C) 새 전체 훈련 / PPE 파트 새로 시작 (사용자 명시 선택 시에만)
 ```csharp
-// 전체 훈련(PPE 룸부터)
 PPELoadoutPresets.BeginNewFullTrainingClear();
-
-// 또는 현장 단독으로 새 시작
-PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset(); // Clear + 교체
+// Source = None, 장비 Clear
 ```
 
-`ApplySnapshot` / `ReplaceLoadout`은 **항상 먼저 Clear** 합니다.
-
 ---
 
-## Equipped vs Prepared — 공식 표
+## Equipped vs Prepared
 
-| 의미 | ItemId (문자열 정확 일치) | PPE 룸 저장 | 조회 |
-|------|---------------------------|-------------|------|
-| 속장갑 (1차) | `InnerGloves` | **Equipped** | `IsEquipped` |
-| 내산성 화학보호복 | `ChemicalSuit` | **Equipped** | `IsEquipped` |
-| 내화학 안전장화 | `ChemicalSafetyBoots` | **Equipped** | `IsEquipped` |
-| 전면형 호흡보호구 | `FaceRespirator` | **Equipped** | `IsEquipped` |
-| 대응가방 | `ResponseBag` | **Equipped** (`MirrorResponseBagEquipped`) | `IsEquipped` (방어적으로 `IsPrepared`도 OK) |
-| 안면보호구 | `ChemicalFaceShield` | **Equipped** | `IsEquipped` |
-| 외부 보호장갑 | `ChemicalGloves` | **Equipped** | `IsEquipped` |
-| 유해폐기물 수거용기 | `WasteContainer` | **Prepared** (`SetPrepared`) | `IsPrepared` |
-
-상수: `PPEEquipmentManager.Id*` / `PPESequenceManager.IdInnerGloves`
-
-### 완료 플래그
-
-| 플래그 | 의미 |
+| ItemId | 저장 |
 |--------|------|
-| `sequenceComplete` / `HasCompletedPreparation()` | PPE 시퀀스 전부 완료 |
-| `bagContentsChecked` / `BagContentsChecked()` | 가방 내용물 **한 번** 확인(Y) 완료 |
+| `InnerGloves` | **Equipped** |
+| `ChemicalSuit` | **Equipped** |
+| `ChemicalSafetyBoots` | **Equipped** |
+| `FaceRespirator` | **Equipped** |
+| `ResponseBag` | **Equipped** |
+| `ChemicalFaceShield` | **Equipped** |
+| `ChemicalGloves` | **Equipped** |
+| `WasteContainer` | **Prepared** |
 
----
+### 개별 ItemId로 저장하지 않음
 
-## ResponseBag 내용물 (측정기·흡착재·집게)
-
-PPE 룸 `ResponseEquipmentManager.RequiredBagContentIds` 기준:
-
-| 내용물 | ItemId | Equipped/Prepared에 저장? | BagContentsChecked |
-|--------|--------|---------------------------|--------------------|
-| 가스/농도 측정기 | `GasDetector` (`IdConcentrationMeter` 별칭) | **아니요** | 확인 시 포함 (3종 중 1) |
-| 흡착재(소크) | `AbsorbentSock` | **아니요** | 확인 시 포함 |
-| 흡착재(패드) | `AbsorbentPad` | **아니요** | 확인 시 포함 |
-| 집게 | — | **존재하지 않음** | — |
-
-중요:
-- 측정기(`GasDetector`)는 **가방 내부 검사 ID**일 뿐, `PPELoadoutData.equippedItemIds` / `preparedItemIds`에 **들어가지 않음**
-- Y로 내용물 한 번 확인하면 3종이 모두 inspected 처리되고 `bagContentsChecked = true`
-- 현장 씬에서는 개별 측정기 Equipped가 아니라 **`BagContentsChecked()`** 로 “가방 점검 완료”를 판단할 것
+| ItemId | 처리 |
+|--------|------|
+| `GasDetector` | `bagContentsChecked=true`일 때 준비된 것으로 처리 |
+| `AbsorbentSock` | 동일 |
+| `AbsorbentPad` | 동일 |
+| 집게 | **ItemId 신설 금지**. `WasteContainer` Prepared를 그대로 따름 (`HasTongs()`) |
 
 ---
 
 ## 공식 프리셋 `FieldReadyComplete`
 
-`PPELoadoutPresets.FieldReadyComplete`:
-
-**Equipped**
-- `InnerGloves`
-- `ChemicalSuit`
-- `ChemicalSafetyBoots`
-- `FaceRespirator`
-- `ResponseBag`
-- `ChemicalFaceShield`
-- `ChemicalGloves`
-
-**Prepared**
-- `WasteContainer`
-
-**Flags**
-- `sequenceComplete = true`
-- `bagContentsChecked = true`
-
-(`GasDetector` / `AbsorbentSock` / `AbsorbentPad`는 리스트에 넣지 않음 — 플래그로만 표현)
+- Source: `FieldReadyPreset`
+- Equipped: 위 7종 전부
+- Prepared: `WasteContainer`
+- `sequenceComplete = true`, `bagContentsChecked = true`
 
 ---
 
-## 현장 씬 최소 구현
+## 출입전 검증 씬 최소 구현
 
-1. 저장 시스템 새로 만들지 말 것
-2. `PPELoadoutSceneBootstrap` 추가  
-   - `Missing Loadout Mode = ApplyFieldReadyPreset`
-3. 조회는 `PPELoadoutReader`만 사용
-4. 모듈 선택 현장 단독 진입 시:
-
-```csharp
-PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
-// then LoadScene(field)
-```
-
-5. 전체 훈련 새 시작:
-
-```csharp
-PPELoadoutPresets.BeginNewFullTrainingClear();
-// then LoadScene(ppeRoom)
-```
+1. `PPELoadoutSceneBootstrap` 1회만 배치 (`Missing Loadout Mode = LeaveEmpty` 권장; 현장 단독은 모듈 선택에서 미리 `BeginFieldStandaloneWithOfficialPreset()`)
+2. 조회는 `PPELoadoutReader`만 사용
+3. Source 기반으로만 “결과 없음 / PPE 결과 / 프리셋”을 구분
+4. 모듈 선택 현장 단독이면 씬 로드 전 `BeginFieldStandaloneWithOfficialPreset()` 호출
 
 ---
 
 ## 금지
 
-1. 현장 단독에서 `PPELoadoutData.Ensure()`만 호출해 **빈 상태**로 진행
-2. ItemId 임의 변경 (`ChemicalSuit` ≠ `Suit`)
-3. `GasDetector`를 Equipped로 가정
-4. 집게 ItemId 가정 (현재 PPE 룸 가방에 없음)
-5. PPE 룸 grab/equip 로직을 현장으로 복사
+1. 싱글턴 존재 / 빈 목록 / `sequenceComplete`로 PPE 결과 유무 판단
+2. `PpeSceneResult`(빈 목록 포함)를 프리셋으로 덮어쓰기
+3. PPE 완료 후 스테이지 이동 시 Clear
+4. `GasDetector` 등 가방 내용물을 Equipped로 가정
+5. 집게 ItemId 신설
+6. PPE 룸에 Bootstrap 배치
+7. 장비마다 `ApplySnapshot`/`ReplaceWithSnapshot` 반복 호출
 
 ---
 
 ## Agent 한 줄 요약
 
-> 전체 진행은 PPE 룸이 쓴 `PPELoadoutData`를 읽고, 현장 단독은 `PPELoadoutPresets.FieldReadyComplete`로 Clear 후 교체한다. Equipped/Prepared 표를 지키고, 측정기는 ItemId 장비가 아니라 `bagContentsChecked`다. 집게는 없다.
+> Source로 세 상태를 구분한다. PPE는 Commit 한 번으로 `PpeSceneResult`를 남기고, 검증 씬은 Source≠None이면 절대 프리셋으로 덮지 않는다. 측정기는 `bagContentsChecked`, 집게는 `WasteContainer` Prepared를 따른다.

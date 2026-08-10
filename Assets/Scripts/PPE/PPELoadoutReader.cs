@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 /// <summary>
-/// Null-safe read API for the field scene. Never throws if loadout is missing or empty.
+/// Null-safe read API for the pre-entry validation / field scene.
 /// Prefer this over touching <see cref="PPELoadoutData.Instance"/> directly.
 /// </summary>
 public static class PPELoadoutReader
 {
+    /// <summary>
+    /// DontDestroyOnLoad object exists. Do <b>not</b> treat this as a recorded PPE result.
+    /// Use <see cref="HasRecordedPpeResult"/> / <see cref="HasResolvedLoadout"/> instead.
+    /// </summary>
     public static bool HasLoadoutObject => PPELoadoutData.Instance != null;
 
     /// <summary>Existing loadout, or null if none was created yet (does not create).</summary>
@@ -15,6 +18,21 @@ public static class PPELoadoutReader
 
     /// <summary>Existing loadout, or creates an empty one. Prefer presets for field-only start.</summary>
     public static PPELoadoutData GetOrEmpty() => PPELoadoutData.Ensure();
+
+    public static PPELoadoutSource Source
+    {
+        get
+        {
+            var data = PPELoadoutData.Instance;
+            return data != null ? data.Source : PPELoadoutSource.None;
+        }
+    }
+
+    /// <summary>True when PPE room explicitly committed a result (lists may be empty/partial).</summary>
+    public static bool HasRecordedPpeResult => Source == PPELoadoutSource.PpeSceneResult;
+
+    /// <summary>True when a PPE result or field-ready preset is resolved.</summary>
+    public static bool HasResolvedLoadout => Source != PPELoadoutSource.None;
 
     public static bool IsEquipped(string itemId)
     {
@@ -67,12 +85,15 @@ public static class PPELoadoutReader
     public static bool HasFaceProtection() => IsEquipped(PPEEquipmentManager.IdFaceShield);
     public static bool HasProtectiveGloves() => IsEquipped(PPEEquipmentManager.IdChemicalGloves);
 
-    /// <summary>Response bag is stored as Equipped (MirrorResponseBagEquipped). Prepared check is defensive.</summary>
+    /// <summary>Response bag is stored as Equipped. Prepared check is defensive.</summary>
     public static bool HasResponseBag() =>
         IsEquipped(PPEEquipmentManager.IdResponseBag) || IsPrepared(PPEEquipmentManager.IdResponseBag);
 
-    /// <summary>Waste container is stored as Prepared only.</summary>
+    /// <summary>Waste container is stored as Prepared only. Tongs follow this state (no separate ItemId).</summary>
     public static bool HasWasteContainer() => IsPrepared(PPEEquipmentManager.IdWasteContainer);
+
+    /// <summary>Tongs are a WasteContainer accessory — same Prepared state, no dedicated ItemId.</summary>
+    public static bool HasTongs() => HasWasteContainer();
 
     // ---- Bag contents (NOT written to Equipped/Prepared lists) ----
 

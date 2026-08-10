@@ -2,8 +2,8 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Official PPE loadout snapshots for cross-scene / standalone field start.
-/// Full training flow uses live PPE-room capture; field-only start uses
-/// <see cref="FieldReadyComplete"/>.
+/// Full training flow commits live PPE-room state as <see cref="PPELoadoutSource.PpeSceneResult"/>;
+/// field-only start uses <see cref="FieldReadyComplete"/>.
 /// </summary>
 public static class PPELoadoutPresets
 {
@@ -13,6 +13,7 @@ public static class PPELoadoutPresets
     /// </summary>
     public static PPELoadoutSnapshot FieldReadyComplete => new PPELoadoutSnapshot
     {
+        source = PPELoadoutSource.FieldReadyPreset,
         equippedItemIds = new List<string>
         {
             PPEEquipmentManager.IdInnerGloves,       // InnerGloves
@@ -42,18 +43,42 @@ public static class PPELoadoutPresets
         return data;
     }
 
-    /// <summary>Clears previous DDOL loadout, then applies <see cref="FieldReadyComplete"/>.</summary>
+    /// <summary>
+    /// Clears previous DDOL loadout, then applies <see cref="FieldReadyComplete"/>
+    /// with <see cref="PPELoadoutSource.FieldReadyPreset"/>.
+    /// </summary>
     public static PPELoadoutData BeginFieldStandaloneWithOfficialPreset()
     {
         return ReplaceLoadout(FieldReadyComplete);
     }
 
-    /// <summary>Clears loadout for a brand-new full training (PPE room first).</summary>
+    /// <summary>
+    /// Clears loadout for a brand-new full training (PPE room first).
+    /// Sets <see cref="PPELoadoutSource.None"/>.
+    /// </summary>
     public static void BeginNewFullTrainingClear()
     {
         if (PPELoadoutData.Instance != null)
             PPELoadoutData.Instance.Clear();
         else
             PPELoadoutData.Ensure().Clear();
+    }
+
+    /// <summary>
+    /// Explicit PPE-room result finalize (partial / empty allowed).
+    /// Sets <see cref="PPELoadoutSource.PpeSceneResult"/> via one snapshot replace.
+    /// </summary>
+    public static PPELoadoutData CommitPpeSceneResult()
+    {
+        return PPELoadoutData.CommitPpeSceneResultFromManagers();
+    }
+
+    /// <summary>
+    /// True only when no resolved loadout exists yet.
+    /// Never use list counts / sequenceComplete / singleton presence for this.
+    /// </summary>
+    public static bool ShouldApplyFieldReadyPreset(PPELoadoutSource source)
+    {
+        return source == PPELoadoutSource.None;
     }
 }

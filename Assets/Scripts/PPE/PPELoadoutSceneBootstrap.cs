@@ -4,20 +4,22 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Drop on the field / leak-response scene.
-/// Full training: reads live DontDestroyOnLoad <see cref="PPELoadoutData"/> from PPE room.
-/// Field-only start: applies <see cref="PPELoadoutPresets.FieldReadyComplete"/> (never an empty loadout).
+/// Use once on the pre-entry validation scene (not the PPE room).
+/// Full training: reads committed DontDestroyOnLoad <see cref="PPELoadoutData"/>
+/// (<see cref="PPELoadoutSource.PpeSceneResult"/>), including partial / empty gear.
+/// Field-only start: applies <see cref="PPELoadoutPresets.FieldReadyComplete"/> only when
+/// <see cref="PPELoadoutSource"/> is <see cref="PPELoadoutSource.None"/>.
 /// </summary>
 [DisallowMultipleComponent]
 public class PPELoadoutSceneBootstrap : MonoBehaviour
 {
     public enum MissingLoadoutMode
     {
-        /// <summary>Do nothing / report empty (legacy). Prefer not for field scene.</summary>
+        /// <summary>Do nothing when Source is None.</summary>
         LeaveEmpty = 0,
-        /// <summary>Create empty PPELoadoutData (debug only).</summary>
+        /// <summary>Create empty PPELoadoutData with Source None (debug only).</summary>
         CreateEmpty = 1,
-        /// <summary>Replace with official FieldReadyComplete preset (field standalone / module select).</summary>
+        /// <summary>Apply official FieldReadyComplete when Source is None.</summary>
         ApplyFieldReadyPreset = 2,
     }
 
@@ -40,12 +42,12 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
     bool loadOnAwake = true;
 
     [SerializeField]
-    [Tooltip("Also read again in Start (safe if other scripts create state later).")]
+    [Tooltip("Also read again in Start only if Awake did not already apply.")]
     bool loadOnStart = true;
 
     [SerializeField]
-    [Tooltip("When PPELoadoutData is missing or empty (field-only start).")]
-    MissingLoadoutMode missingLoadoutMode = MissingLoadoutMode.ApplyFieldReadyPreset;
+    [Tooltip("Only used when Source == None. Field-only module select should call BeginFieldStandaloneWithOfficialPreset before load; prefer LeaveEmpty for full-training validation.")]
+    MissingLoadoutMode missingLoadoutMode = MissingLoadoutMode.LeaveEmpty;
 
     [Header("Optional Visual Apply")]
     [SerializeField]
@@ -60,7 +62,7 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
     UnityEvent onLoadoutApplied;
 
     [SerializeField]
-    UnityEvent onLoadoutEmpty;
+    UnityEvent onLoadoutUnresolved;
 
     [SerializeField]
     UnityEvent onPreparationComplete;
@@ -79,41 +81,48 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
 
     void Start()
     {
-        if (loadOnStart)
+        if (loadOnStart && !applied)
             ApplyLoadout();
     }
 
     [ContextMenu("Apply Loadout Now")]
+    public void ApplyLoadoutFromMenu()
+    {
+        applied = false;
+        ApplyLoadout();
+    }
+
     public void ApplyLoadout()
     {
+        // Prevent Awake+Start double-fire of UnityEvents (scene loads, gate unlocks, etc.).
+        if (applied)
+            return;
+
         cached = ResolveOrSeedLoadout();
 
-        if (cached == null)
+        if (cached == null || !cached.HasResolvedLoadout)
         {
-            Debug.LogWarning("[PPE Loadout Bootstrap] No PPELoadoutData. Continuing without visuals.", this);
+            Debug.LogWarning(
+                "[PPE Loadout Bootstrap] No resolved loadout (Source=None). Continuing without forcing gear.",
+                this);
             ApplyBindingsEmpty();
-            onLoadoutEmpty?.Invoke();
+            onLoadoutUnresolved?.Invoke();
             applied = true;
             return;
         }
 
         var equippedCount = cached.EquippedItemIds != null ? cached.EquippedItemIds.Count : 0;
         var preparedCount = cached.PreparedItemIds != null ? cached.PreparedItemIds.Count : 0;
-        var empty = equippedCount == 0 && preparedCount == 0 && !cached.IsSequenceComplete;
 
         ApplyBindings(cached);
-
-        if (empty)
-            onLoadoutEmpty?.Invoke();
-        else
-            onLoadoutApplied?.Invoke();
+        onLoadoutApplied?.Invoke();
 
         if (cached.IsSequenceComplete || cached.HasCompletedPreparation)
             onPreparationComplete?.Invoke();
 
         applied = true;
         Debug.Log(
-            $"[PPE Loadout Bootstrap] Applied. equipped={equippedCount}, prepared={preparedCount}, " +
+            $"[PPE Loadout Bootstrap] Applied. source={cached.Source}, equipped={equippedCount}, prepared={preparedCount}, " +
             $"sequenceComplete={cached.IsSequenceComplete}, bagChecked={cached.BagContentsChecked}",
             this);
     }
@@ -121,13 +130,15 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
     PPELoadoutData ResolveOrSeedLoadout()
     {
         var existing = PPELoadoutData.Instance;
-        if (existing != null && !IsEffectivelyEmpty(existing))
+
+        // Source is the only gate. Partial/empty PpeSceneResult must never be overwritten.
+        if (existing != null && existing.HasResolvedLoadout)
             return existing;
 
         switch (missingLoadoutMode)
         {
             case MissingLoadoutMode.ApplyFieldReadyPreset:
-                // Replaces any stale empty / missing DDOL with the official complete preset.
+                // Only when Source == None.
                 return PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
 
             case MissingLoadoutMode.CreateEmpty:
@@ -137,15 +148,6 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
             default:
                 return existing;
         }
-    }
-
-    static bool IsEffectivelyEmpty(PPELoadoutData data)
-    {
-        if (data == null)
-            return true;
-        var eq = data.EquippedItemIds != null ? data.EquippedItemIds.Count : 0;
-        var pr = data.PreparedItemIds != null ? data.PreparedItemIds.Count : 0;
-        return eq == 0 && pr == 0 && !data.IsSequenceComplete;
     }
 
     void ApplyBindingsEmpty()
