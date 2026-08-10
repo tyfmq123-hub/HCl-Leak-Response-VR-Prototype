@@ -17,6 +17,8 @@ public class PPEEquipmentManager : MonoBehaviour
     public const string IdChemicalBoots = "ChemicalSafetyBoots";
     public const string IdResponseBag = "ResponseBag";
     public const string IdWasteContainer = "WasteContainer";
+    /// <summary>Optional first sequence step — assign a PPEEquipable with this ItemId when present.</summary>
+    public const string IdInnerGloves = PPESequenceManager.IdInnerGloves;
 
     public static PPEEquipmentManager Instance { get; private set; }
 
@@ -36,11 +38,51 @@ public class PPEEquipmentManager : MonoBehaviour
     /// <summary>Raised after <see cref="SetPrepared"/> changes preparation state.</summary>
     public event Action<string, bool> PreparationChanged;
 
-    /// <summary>
-    /// Raised after any equip / preparation / reset that checklist UIs should refresh from.
+    /// <summary>Raised after any equip / preparation / reset that checklist UIs should refresh from.
     /// UI must query this manager — do not cache completion in the panel.
     /// </summary>
     public event Action StateChanged;
+
+    /// <summary>Copies equipped ids into <paramref name="destination"/> (clears it first).</summary>
+    public void CopyEquippedIdsTo(List<string> destination)
+    {
+        if (destination == null)
+            return;
+
+        destination.Clear();
+        if (equippedItemIds == null)
+            return;
+
+        for (var i = 0; i < equippedItemIds.Count; i++)
+        {
+            var id = equippedItemIds[i];
+            if (!string.IsNullOrWhiteSpace(id))
+                destination.Add(id);
+        }
+    }
+
+    /// <summary>Copies prepared ids into <paramref name="destination"/> (clears it first).</summary>
+    public void CopyPreparedIdsTo(List<string> destination)
+    {
+        if (destination == null)
+            return;
+
+        destination.Clear();
+        if (preparedItemIds == null)
+            return;
+
+        for (var i = 0; i < preparedItemIds.Count; i++)
+        {
+            var id = preparedItemIds[i];
+            if (!string.IsNullOrWhiteSpace(id))
+                destination.Add(id);
+        }
+    }
+
+    static void SyncLoadoutData()
+    {
+        PPELoadoutData.SyncFromScene();
+    }
 
     void Awake()
     {
@@ -83,6 +125,8 @@ public class PPEEquipmentManager : MonoBehaviour
         equippedLookup.Add(IdResponseBag);
         if (!equippedItemIds.Contains(IdResponseBag))
             equippedItemIds.Add(IdResponseBag);
+
+        SyncLoadoutData();
     }
 
     /// <summary>Removes an equipped id without resetting the whole inventory (used by response-bag reset).</summary>
@@ -93,6 +137,7 @@ public class PPEEquipmentManager : MonoBehaviour
 
         equippedLookup.Remove(itemId);
         equippedItemIds.Remove(itemId);
+        SyncLoadoutData();
     }
 
     /// <summary>True if a non-wearable preparation item is marked ready.</summary>
@@ -136,7 +181,7 @@ public class PPEEquipmentManager : MonoBehaviour
             return false;
 
         PreparationChanged?.Invoke(itemId, prepared);
-        StateChanged?.Invoke();
+        RaiseStateChanged();
         return true;
     }
 
@@ -154,10 +199,21 @@ public class PPEEquipmentManager : MonoBehaviour
             return false;
 
         if (IsEquipped(item.ItemId))
+        {
+            PPETTSManager.Instance?.NotifyAlreadyEquipped();
             return false;
+        }
 
         if (!item.CanEquip())
             return false;
+
+        // Sequence gate: select/preview stay allowed; only real equip is blocked.
+        var sequence = PPESequenceManager.Resolve();
+        if (sequence != null && !sequence.CanEquip(item.ItemId))
+        {
+            sequence.NotifyEquipBlocked(item.ItemId);
+            return false;
+        }
 
         if (item.ItemId == IdResponseBag)
             return EquipResponseBagViaContentsFlow(item);
@@ -182,11 +238,12 @@ public class PPEEquipmentManager : MonoBehaviour
             SyncResponseBagPreparedFromEquip(item);
 
         EquipmentSucceeded?.Invoke(item);
-        StateChanged?.Invoke();
+        RaiseStateChanged();
 
         if (item.DeactivateOnEquip)
             item.gameObject.SetActive(false);
 
+        sequence?.CompleteEquip(item.ItemId);
         return true;
     }
 
@@ -199,6 +256,14 @@ public class PPEEquipmentManager : MonoBehaviour
         if (response == null)
         {
             Debug.LogWarning("[PPE Equipment] ResponseEquipmentManager missing — cannot equip response bag.");
+            return false;
+        }
+
+        // Sequence + bag-contents gate (CanEquip already checked in Equip, but re-check for safety).
+        var sequence = PPESequenceManager.Resolve();
+        if (sequence != null && !sequence.CanEquip(IdResponseBag))
+        {
+            sequence.NotifyEquipBlocked(IdResponseBag);
             return false;
         }
 
@@ -228,9 +293,11 @@ public class PPEEquipmentManager : MonoBehaviour
             // Do not raise EquipmentSucceeded — ResponseEquipmentManager already showed the
             // prepared toast; PPEEquipFeedbackUI would show a second "착용" message.
             if (ppe != null)
-                ppe.StateChanged?.Invoke();
+                ppe.RaiseStateChanged();
         }
 
+        // PrepareResponseBag also Completes — duplicate CompleteEquip is ignored safely.
+        sequence?.CompleteEquip(IdResponseBag);
         return true;
     }
 
@@ -275,7 +342,13 @@ public class PPEEquipmentManager : MonoBehaviour
         if (response != null)
             response.ResetResponseBag();
 
+        RaiseStateChanged();
+    }
+
+    void RaiseStateChanged()
+    {
         StateChanged?.Invoke();
+        SyncLoadoutData();
     }
 
     static void ClearXrInteraction(PPEEquipable item)

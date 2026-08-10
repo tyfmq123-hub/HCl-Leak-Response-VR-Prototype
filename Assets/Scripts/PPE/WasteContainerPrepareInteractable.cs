@@ -205,6 +205,13 @@ public class WasteContainerPrepareInteractable : MonoBehaviour
             if (equipmentManager == null)
                 return false;
 
+            var sequence = PPESequenceManager.Resolve();
+            if (sequence != null && !sequence.CanEquip(PPEEquipmentManager.IdWasteContainer))
+            {
+                sequence.NotifyEquipBlocked(PPEEquipmentManager.IdWasteContainer);
+                return false;
+            }
+
             if (!equipmentManager.SetPrepared(PPEEquipmentManager.IdWasteContainer, true))
                 return false;
 
@@ -226,6 +233,7 @@ public class WasteContainerPrepareInteractable : MonoBehaviour
                 root.SetActive(false);
 
             containerSelected = false;
+            PPESequenceManager.Resolve()?.CompleteEquip(PPEEquipmentManager.IdWasteContainer);
             return true;
         }
         finally

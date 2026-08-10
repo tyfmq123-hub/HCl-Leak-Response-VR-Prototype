@@ -336,6 +336,7 @@ public class ResponseEquipmentManager : MonoBehaviour
         contentsReveal.ShowWorldItemNameLabels(true);
         SetBagHiddenForGearUi(true);
         MarkAllBagContentsInspected();
+        PPESequenceManager.Resolve()?.NotifyBagContentsChecked();
 
         var feedback = FindAnyObjectByType<PPEEquipFeedbackUI>(FindObjectsInactive.Include);
         feedback?.ShowMessage(
@@ -645,6 +646,7 @@ public class ResponseEquipmentManager : MonoBehaviour
         StateChanged?.Invoke();
         OnResponseBagPreparedChanged?.Invoke(true);
         ResponseBagPreparedSucceeded?.Invoke();
+        PPESequenceManager.Resolve()?.CompleteEquip(PPEEquipmentManager.IdResponseBag);
         Debug.Log("[Response Equipment] Response bag prepared.", this);
         return true;
     }
@@ -654,6 +656,13 @@ public class ResponseEquipmentManager : MonoBehaviour
     {
         if (responseBagPrepared)
             return false;
+
+        var sequence = PPESequenceManager.Resolve();
+        if (sequence != null && !sequence.CanEquip(PPEEquipmentManager.IdResponseBag))
+        {
+            sequence.NotifyEquipBlocked(PPEEquipmentManager.IdResponseBag);
+            return false;
+        }
 
         if (!AreAllResponseBagItemsInspected())
         {
@@ -864,6 +873,10 @@ public class ResponseEquipmentManager : MonoBehaviour
 
         OnResponseBagContentsChanged?.Invoke();
         StateChanged?.Invoke();
+
+        if (AreAllResponseBagItemsInspected())
+            PPESequenceManager.Resolve()?.NotifyBagContentsChecked();
+
         return true;
     }
 

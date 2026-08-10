@@ -38,6 +38,7 @@ public static class PPERayInteractableCatalog
         new Entry("chemical_boots", "PPE_ChemicalSafetyBoots", "Chemical safety boots (pair)"),
         new Entry("face_respirator", "PPE_FaceRespirator", "Face respirator"),
         new Entry("chemical_face_shield", "PPE_ChemicalFaceShield", "Chemical face shield"),
+        new Entry("inner_gloves", "PPE_InnerGloves", "Inner chemical gloves (first)"),
         new Entry("chemical_gloves", "PPE_ChemicalGloves", "Chemical gloves"),
         // Scene alias used by the current gloves root (PPE_Gloves).
         new Entry("gloves_alias", "PPE_Gloves", "Gloves (scene alias)"),
@@ -59,6 +60,7 @@ public static class PPERayInteractableCatalog
         "RespiratorSlot",
         "FaceShieldSlot",
         "GlovesSlot",
+        "InnerGlovesSlot",
         "Floor",
         "Ceiling",
         "Directional Light",

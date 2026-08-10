@@ -32,6 +32,7 @@ public static class PPEEquipmentSetup
         new EquipIdentity("PPE_ChemicalSafetyBoots", "ChemicalSafetyBoots", "내산성 화학보호 장화"),
         new EquipIdentity("PPE_FaceRespirator", "FaceRespirator", "전면형 호흡보호구"),
         new EquipIdentity("PPE_ChemicalFaceShield", "ChemicalFaceShield", "안면보호구"),
+        new EquipIdentity("PPE_InnerGloves", "InnerGloves", "내화학 보호 장갑"),
         new EquipIdentity("PPE_ChemicalGloves", "ChemicalGloves", "내화학 보호장갑"),
         new EquipIdentity("PPE_Gloves", "ChemicalGloves", "내화학 보호장갑"),
     };

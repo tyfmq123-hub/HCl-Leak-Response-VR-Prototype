@@ -25,7 +25,7 @@ public static class PPEPreparationRoomLayoutTool
 
     static readonly HashSet<string> SlotNames = new HashSet<string>
     {
-        "SuitSlot", "BootsSlot", "RespiratorSlot", "FaceShieldSlot", "GlovesSlot"
+        "SuitSlot", "BootsSlot", "RespiratorSlot", "FaceShieldSlot", "GlovesSlot", "InnerGlovesSlot"
     };
 
     [Serializable]
