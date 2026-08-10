@@ -92,6 +92,10 @@ namespace VRProject.ObjectInstallation
 
         void Awake()
         {
+            // Runtime bootstrap can add this component before supplying its existing Scene references.
+            if (rendererMaterials == null || rendererMaterials.Length == 0)
+                return;
+
             if (isInstalled)
                 ApplyInstalledState();
             else

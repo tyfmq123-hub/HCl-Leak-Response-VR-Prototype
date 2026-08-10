@@ -41,6 +41,11 @@ namespace VRProject.Valves
         [Tooltip("Maximum clockwise rotation from the initial wheel pose.")]
         [SerializeField, Min(0f)] float maxCloseRotationDegrees = 252f;
 
+        [Header("Close Convention (Runtime)")]
+        [Tooltip("Physical hinge-angle sign that means closing. Configured from valve front, hinge axis, and Close Direction.")]
+        [SerializeField, HideInInspector] float closeAngleSign = 1f;
+        [SerializeField, HideInInspector] bool closedLatched;
+
         [Header("Selection")]
         [SerializeField, Range(1, SupportedHandCapacity)] int maximumHands = SupportedHandCapacity;
 
@@ -62,7 +67,6 @@ namespace VRProject.Valves
         float targetHingeAngle;
         float minimumHingeAngle;
         float maximumHingeAngle;
-        float closureAngleSign = 1f;
         bool constraintReferenceInitialized;
         int activeHandCount;
         bool grabIsValid;
@@ -102,6 +106,9 @@ namespace VRProject.Valves
         public float MaxGrabSurfaceDistance => maxGrabSurfaceDistance;
         public float MaxOpenRotationDegrees => maxOpenRotationDegrees;
         public float MaxCloseRotationDegrees => maxCloseRotationDegrees;
+        public float CloseAngleSign => closeAngleSign;
+        public float CurrentLogicalClosureAngle => targetHingeAngle * closeAngleSign;
+        public bool IsClosedLatched => closedLatched;
         public int LastProcessFrame => lastProcessFrame;
         public bool LastProcessHadSelection => lastProcessHadSelection;
         public bool ProcessedThisFrame => lastProcessFrame == Time.frameCount;
@@ -171,6 +178,18 @@ namespace VRProject.Valves
             if (!grabIsValid || grabInteractable == null || grabInteractable.interactorsSelecting.Count == 0)
                 return;
 
+            if (closedLatched)
+            {
+                targetHingeAngle = ClosedPhysicalAngle;
+                lastTargetAngleBefore = targetHingeAngle;
+                lastTargetAngleAfter = targetHingeAngle;
+                lastAppliedDeltaAngle = 0f;
+                lastLimitHit = "CLOSED";
+                targetPose = CurrentConstrainedPose();
+                lastOutputRotation = targetPose.rotation;
+                return;
+            }
+
             // A 1->2 or 2->1 transition deliberately establishes a fresh baseline.
             // No angle is applied on this transition frame.
             RecaptureSelectedHands(grabInteractable);
@@ -190,6 +209,20 @@ namespace VRProject.Valves
 
             if (!grabIsValid || grabInteractable == null || grabInteractable.interactorsSelecting.Count == 0)
                 return;
+
+            if (closedLatched)
+            {
+                targetHingeAngle = ClosedPhysicalAngle;
+                lastTargetAngleBefore = targetHingeAngle;
+                lastTargetAngleAfter = targetHingeAngle;
+                lastAppliedDeltaAngle = 0f;
+                lastCombinedDeltaAngle = 0f;
+                lastCombinedDeltaValid = false;
+                lastLimitHit = "CLOSED";
+                targetPose = CurrentConstrainedPose();
+                lastOutputRotation = targetPose.rotation;
+                return;
+            }
 
             if (!HandSetMatches(grabInteractable))
             {
@@ -233,9 +266,10 @@ namespace VRProject.Valves
             }
             lastTargetAngleAfter = targetHingeAngle;
 
-            lastLimitHit = Mathf.Abs(targetHingeAngle - minimumHingeAngle) <= AngleEpsilon
+            float logicalClosureAngle = targetHingeAngle * closeAngleSign;
+            lastLimitHit = Mathf.Abs(logicalClosureAngle + maxOpenRotationDegrees) <= AngleEpsilon
                 ? "OPEN"
-                : Mathf.Abs(targetHingeAngle - maximumHingeAngle) <= AngleEpsilon ? "CLOSED" : "NONE";
+                : Mathf.Abs(logicalClosureAngle - maxCloseRotationDegrees) <= AngleEpsilon ? "CLOSED" : "NONE";
 
             Pose inputTargetPose = targetPose;
             Quaternion wheelRotationBefore = transform.rotation;
@@ -643,6 +677,41 @@ namespace VRProject.Valves
             return Mathf.Clamp(angle, minimum, maximum);
         }
 
+        public void ConfigureCloseConvention(float physicalCloseAngleSign)
+        {
+            closeAngleSign = physicalCloseAngleSign < 0f ? -1f : 1f;
+            ApplyConfiguredJointLimits();
+
+            if (constraintReferenceInitialized)
+            {
+                TryGetConfiguredLimits(out minimumHingeAngle, out maximumHingeAngle);
+                targetHingeAngle = Mathf.Clamp(targetHingeAngle, minimumHingeAngle, maximumHingeAngle);
+            }
+        }
+
+        public void ConfigureTravelLimits(float newMaxOpenRotationDegrees, float newMaxCloseRotationDegrees)
+        {
+            maxOpenRotationDegrees = Mathf.Max(0f, newMaxOpenRotationDegrees);
+            maxCloseRotationDegrees = Mathf.Max(0f, newMaxCloseRotationDegrees);
+            ApplyConfiguredJointLimits();
+
+            if (constraintReferenceInitialized)
+            {
+                TryGetConfiguredLimits(out minimumHingeAngle, out maximumHingeAngle);
+                targetHingeAngle = Mathf.Clamp(targetHingeAngle, minimumHingeAngle, maximumHingeAngle);
+            }
+        }
+
+        public void SetClosedLatched(bool latched)
+        {
+            closedLatched = latched;
+            if (!latched)
+                return;
+
+            targetHingeAngle = ClosedPhysicalAngle;
+            ClearRigidbodyVelocity();
+        }
+
         public bool ApplyConfiguredJointLimits()
         {
             if (hingeJoint == null)
@@ -659,24 +728,23 @@ namespace VRProject.Valves
             return true;
         }
 
-        public void SetClosureAngleSign(float sign)
-        {
-            closureAngleSign = float.IsFinite(sign) && sign < 0f ? -1f : 1f;
-            ApplyConfiguredJointLimits();
-        }
-
         public bool TryGetConfiguredLimits(out float minimum, out float maximum)
         {
-            bool closingUsesPositiveRawAngle = closureAngleSign >= 0f;
-            minimum = closingUsesPositiveRawAngle
-                ? -maxOpenRotationDegrees
-                : -maxCloseRotationDegrees;
-            maximum = closingUsesPositiveRawAngle
-                ? maxCloseRotationDegrees
-                : maxOpenRotationDegrees;
+            if (closeAngleSign >= 0f)
+            {
+                minimum = -maxOpenRotationDegrees;
+                maximum = maxCloseRotationDegrees;
+            }
+            else
+            {
+                minimum = -maxCloseRotationDegrees;
+                maximum = maxOpenRotationDegrees;
+            }
             return float.IsFinite(maxOpenRotationDegrees) && float.IsFinite(maxCloseRotationDegrees) &&
                 maxOpenRotationDegrees >= 0f && maxCloseRotationDegrees >= 0f;
         }
+
+        float ClosedPhysicalAngle => maxCloseRotationDegrees * closeAngleSign;
 
         public static Pose CalculateConstrainedPose(Vector3 center, Quaternion rotationAtGrab,
             Vector3 worldAxis, float angleDelta)

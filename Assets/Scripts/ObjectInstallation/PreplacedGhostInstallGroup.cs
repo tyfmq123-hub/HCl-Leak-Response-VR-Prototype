@@ -115,6 +115,19 @@ namespace VRProject.ObjectInstallation
             lastFailure = null;
         }
 
+        public void ConfigureRuntime(
+            string newAcceptedItemTypeId,
+            Transform newActivationCenter,
+            float newInstallRadius,
+            float newAbsorptionWeight,
+            PreplacedGhostInstallItem[] newItems)
+        {
+            Configure(newAcceptedItemTypeId, newActivationCenter, newInstallRadius, newItems);
+            installRadius = Mathf.Max(0f, newInstallRadius);
+            installZone = null;
+            absorptionWeight = Mathf.Clamp01(newAbsorptionWeight);
+        }
+
         public static bool ItemTypeIdsMatch(string first, string second)
         {
             if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
@@ -145,14 +158,7 @@ namespace VRProject.ObjectInstallation
                     continue;
                 }
 
-                Transform center = group.ActivationCenter;
-                if (center == null)
-                    continue;
-
-                float radius = group.ActivationRadius;
-                float sqrDistance = (center.position - releaseWorldPosition).sqrMagnitude;
-                if (sqrDistance > radius * radius ||
-                    !group.TryGetInstallDistanceSqr(releaseWorldPosition, out float installSqrDistance) ||
+                if (!group.TryGetInstallDistanceSqr(releaseWorldPosition, out float installSqrDistance) ||
                     installSqrDistance >= nearestSqrDistance)
                     continue;
 
@@ -161,6 +167,31 @@ namespace VRProject.ObjectInstallation
             }
 
             return nearest;
+        }
+
+        public bool TryGetNearestInstallPose(Vector3 worldPosition, out Transform nearestPose)
+        {
+            nearestPose = null;
+            float nearestSqrDistance = float.PositiveInfinity;
+            if (!IsFinite(worldPosition) || items == null)
+                return false;
+
+            for (int i = 0; i < items.Length; ++i)
+            {
+                PreplacedGhostInstallItem item = items[i];
+                if (item == null)
+                    continue;
+
+                float candidate = (item.transform.position - worldPosition).sqrMagnitude;
+                if (candidate < nearestSqrDistance)
+                {
+                    nearestSqrDistance = candidate;
+                    nearestPose = item.transform;
+                }
+            }
+
+            float radius = InstallRadius;
+            return nearestPose != null && nearestSqrDistance <= radius * radius;
         }
 
         bool TryGetInstallDistanceSqr(Vector3 releaseWorldPosition, out float sqrDistance)

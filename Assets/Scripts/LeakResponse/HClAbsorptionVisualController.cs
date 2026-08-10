@@ -104,6 +104,9 @@ namespace VRProject.LeakResponse
         bool puddleScaleCaptured;
         bool absorptionIsTransitioning;
         bool particleEmissionCaptured;
+        bool completionCleanupApplied;
+
+        public event Action AbsorptionCompleted;
 
         public int TotalAbsorbentCount => totalAbsorbentCount;
         public int AbsorbedCount => absorbedCount;
@@ -119,6 +122,49 @@ namespace VRProject.LeakResponse
             absorbedWeight >= totalAbsorptionWeight - 0.0001f &&
             !absorptionIsTransitioning &&
             colorTransitions.Count == 0;
+        public bool IsFinalCleanupComplete =>
+            completionCleanupApplied &&
+            IsAbsorptionComplete &&
+            currentLeakIntensity <= leakStopThreshold &&
+            (puddle == null || !puddle.gameObject.activeSelf);
+
+        public void ConfigureRuntime(
+            Transform newPuddle,
+            ValveWheelClosureController newValveStateProvider,
+            ParticleSystem newFallingDrops,
+            WaterSplashBurst newSplashBurst,
+            Transform newAbsorbentGroupsRoot,
+            PreplacedGhostInstallGroup[] newInstallGroups,
+            PreplacedGhostInstallGroup[] newContainmentGroups)
+        {
+            UnsubscribeFromValve();
+            UnsubscribeFromGroups();
+
+            puddle = newPuddle;
+            valveStateProvider = newValveStateProvider;
+            fallingDrops = newFallingDrops;
+            splashBurst = newSplashBurst;
+            absorbentGroupsRoot = newAbsorbentGroupsRoot;
+            installGroups = newInstallGroups ?? Array.Empty<PreplacedGhostInstallGroup>();
+            containmentGroups = newContainmentGroups ?? Array.Empty<PreplacedGhostInstallGroup>();
+            minPuddleScaleRatio = 0.1f;
+            puddleShrinkDuration = 2f;
+            puddleMaxSpreadMultiplier = 3f;
+            puddleSpreadDuration = 20f;
+            absorbColorDuration = 2f;
+            completionCleanupApplied = false;
+
+            DisableLegacyPuddleScaleWriter();
+            CaptureInitialPuddleScale();
+            CaptureFallingDropsEmission();
+            ResolveInstallGroups();
+            SubscribeToValve();
+            SubscribeToGroups();
+            SynchronizeInstalledGroups();
+
+            if (valveStateProvider != null)
+                SetLeakIntensity01(valveStateProvider.LeakIntensity01);
+        }
 
         sealed class ColorTarget
         {
@@ -232,6 +278,24 @@ namespace VRProject.LeakResponse
             UpdateAbsorptionRemainingRatio();
             ApplyPuddleScale();
             UpdateAbsorbentColors();
+
+            if (!completionCleanupApplied && IsAbsorptionComplete)
+            {
+                completionCleanupApplied = true;
+                CleanupLeakVisuals();
+                AbsorptionCompleted?.Invoke();
+                Debug.Log("[P102 Flow] Absorption cleanup complete", this);
+            }
+        }
+
+        public void CleanupLeakVisuals()
+        {
+            currentLeakIntensity = 0f;
+            if (fallingDrops != null)
+                fallingDrops.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            splashBurst?.StopLeak();
+            if (puddle != null)
+                puddle.gameObject.SetActive(false);
         }
 
         void DisableLegacyPuddleScaleWriter()

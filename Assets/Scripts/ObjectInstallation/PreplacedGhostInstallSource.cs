@@ -23,9 +23,13 @@ namespace VRProject.ObjectInstallation
         [Tooltip("Set this supply GameObject inactive only after a complete group installation succeeds.")]
         [SerializeField] bool consumeSourceOnSuccess = true;
 
+        [Header("Magnet Snap")]
+        [SerializeField, Min(0f)] float snapDuration = 0.2f;
+
         XRGrabInteractable subscribedGrabInteractable;
         Coroutine pendingReleaseRoutine;
         bool processing;
+        bool snapCanceled;
 
         public string ItemTypeId => itemTypeId;
         public XRGrabInteractable GrabInteractable => grabInteractable;
@@ -68,7 +72,8 @@ namespace VRProject.ObjectInstallation
         public void Configure(
             string newItemTypeId,
             XRGrabInteractable existingGrabInteractable,
-            bool newConsumeSourceOnSuccess)
+            bool newConsumeSourceOnSuccess,
+            float newSnapDuration = 0.2f)
         {
             bool wasSubscribed = subscribedGrabInteractable != null;
             if (wasSubscribed)
@@ -77,8 +82,9 @@ namespace VRProject.ObjectInstallation
             itemTypeId = newItemTypeId;
             grabInteractable = existingGrabInteractable;
             consumeSourceOnSuccess = newConsumeSourceOnSuccess;
+            snapDuration = Mathf.Max(0f, newSnapDuration);
 
-            if (wasSubscribed && isActiveAndEnabled)
+            if (isActiveAndEnabled)
                 Subscribe();
         }
 
@@ -107,13 +113,71 @@ namespace VRProject.ObjectInstallation
                 itemTypeId,
                 grabInteractable.transform.position);
 
-            bool succeeded = group != null &&
-                             group.TryInstallAll(itemTypeId, out int installedCount) &&
-                             installedCount > 0;
+            bool succeeded = false;
+            if (group != null && group.TryGetNearestInstallPose(
+                    grabInteractable.transform.position,
+                    out Transform snapPose))
+            {
+                snapCanceled = false;
+                yield return AnimateSourceToGhost(snapPose);
+                succeeded = !snapCanceled &&
+                            group.TryInstallAll(itemTypeId, out int installedCount) &&
+                            installedCount > 0;
+            }
             processing = false;
 
             if (succeeded && consumeSourceOnSuccess)
                 gameObject.SetActive(false);
+        }
+
+        IEnumerator AnimateSourceToGhost(Transform snapPose)
+        {
+            if (snapPose == null)
+                yield break;
+
+            Transform sourceTransform = grabInteractable.transform;
+            Rigidbody body = grabInteractable.GetComponent<Rigidbody>();
+            bool originalIsKinematic = body != null && body.isKinematic;
+            bool originalUseGravity = body != null && body.useGravity;
+            if (body != null)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.useGravity = false;
+                body.isKinematic = true;
+            }
+
+            Vector3 startPosition = sourceTransform.position;
+            Quaternion startRotation = sourceTransform.rotation;
+            float duration = Mathf.Max(0f, snapDuration);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                if (grabInteractable.interactorsSelecting.Count > 0)
+                {
+                    snapCanceled = true;
+                    break;
+                }
+
+                elapsed += Time.deltaTime;
+                float t = duration <= 0f ? 1f : Mathf.Clamp01(elapsed / duration);
+                float eased = t * t * (3f - 2f * t);
+                sourceTransform.SetPositionAndRotation(
+                    Vector3.LerpUnclamped(startPosition, snapPose.position, eased),
+                    Quaternion.SlerpUnclamped(startRotation, snapPose.rotation, eased));
+                yield return null;
+            }
+
+            if (!snapCanceled)
+                sourceTransform.SetPositionAndRotation(snapPose.position, snapPose.rotation);
+            if (body != null)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.useGravity = originalUseGravity;
+                body.isKinematic = originalIsKinematic;
+            }
         }
 
         void ResolveGrabInteractable()

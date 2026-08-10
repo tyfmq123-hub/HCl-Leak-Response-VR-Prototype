@@ -1,0 +1,15 @@
+{
+  "name": "VRProject.P102Logic.Tests",
+  "rootNamespace": "VRProject.LeakResponse.Tests",
+  "references": [
+    "VRProject.P102Logic.Runtime"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": false
+}
+

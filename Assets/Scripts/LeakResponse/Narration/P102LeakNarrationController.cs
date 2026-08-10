@@ -1,8 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using VRProject.ObjectInstallation;
 using VRProject.Valves;
 
@@ -48,6 +51,12 @@ namespace VRProject.LeakResponse.Narration
     public sealed class P102LeakNarrationController : MonoBehaviour
     {
         const string ResourceFolder = "LeakTTS/";
+        const string CsvResourcePath = "P102/Unity_TTS_Map";
+        const int RequiredCueCount = 26;
+        public const float RuntimeSubtitleFontSizeMin = 24f;
+        public const float RuntimeSubtitleFontSizeMax = 42f;
+        public static readonly Vector2 RuntimeSubtitlePanelAnchorMin = new Vector2(0.1f, 0.04f);
+        public static readonly Vector2 RuntimeSubtitlePanelAnchorMax = new Vector2(0.9f, 0.2f);
 
         [Header("Narration Output")]
         [SerializeField] AudioSource narrationSource;
@@ -58,9 +67,11 @@ namespace VRProject.LeakResponse.Narration
         [Header("Subtitle HUD")]
         [SerializeField] bool followCamera = true;
         [SerializeField] Transform subtitleCamera;
-        [SerializeField, Min(0.01f)] float subtitleDistance = 1f;
-        [SerializeField] float subtitleVerticalOffset = -0.24f;
+        [SerializeField, Min(0.01f)] float subtitleDistance = 0.9f;
+        [SerializeField] float subtitleVerticalOffset = -0.22f;
         [SerializeField, Min(0.00001f)] float subtitleScale = 0.0006f;
+        [Tooltip("Runtime subtitle HUD local position. X = left/right, Y = up/down, Z = eye distance.")]
+        [SerializeField] Vector3 subtitleHudLocalPosition = new Vector3(0f, -0.22f, 0.9f);
 
         [Header("Existing Scene Events")]
         [SerializeField] ValveWheelClosureController suctionValve;
@@ -85,52 +96,83 @@ namespace VRProject.LeakResponse.Narration
         P102LeakNarrationCue? currentCue;
         bool leakWasStopped;
         bool absorptionWasComplete;
+        bool bothValvesClosedHandled;
+
+        public event Action<P102LeakNarrationCue> CueStarted;
+        public event Action<P102LeakNarrationCue> CueCompleted;
 
         sealed class CueDefinition
         {
             public readonly string ResourceName;
             public readonly string Subtitle;
+            public readonly float FallbackDuration;
+            public readonly AudioClip Clip;
 
-            public CueDefinition(string resourceName, string subtitle)
+            public CueDefinition(string resourceName, string subtitle, float fallbackDuration,
+                AudioClip clip)
             {
                 ResourceName = resourceName;
                 Subtitle = subtitle;
+                FallbackDuration = fallbackDuration;
+                Clip = clip;
             }
         }
 
-        static readonly IReadOnlyDictionary<P102LeakNarrationCue, CueDefinition> CueDefinitions =
-            new Dictionary<P102LeakNarrationCue, CueDefinition>
-            {
-                { P102LeakNarrationCue.LeakSceneArrival, new CueDefinition("01_leak_scene_arrival", "주의, P-102 연결 배관의 플랜지 접합부에서 염산이 누출되고 있습니다.\n누출 구간을 격리하기 위해 P-102 흡입측과 토출측 차단밸브를 폐쇄하십시오.") },
-                { P102LeakNarrationCue.SuctionValveActivated, new CueDefinition("02_suction_valve_close_prompt", "먼저 외곽선으로 표시된 P-102 흡입측 차단밸브를 폐쇄하십시오.\n밸브 핸들을 반복해서 잡아 시계 방향으로 돌리고, 폐쇄 게이지를 끝까지 채우십시오.") },
-                { P102LeakNarrationCue.SuctionValveClosed, new CueDefinition("03_suction_valve_closed", "P-102 흡입측 차단밸브 폐쇄를 확인했습니다.\n누출 구간의 격리는 아직 완료되지 않았습니다.") },
-                { P102LeakNarrationCue.DischargeValveActivated, new CueDefinition("04_discharge_valve_close_prompt", "계속해서 외곽선으로 표시된 P-102 토출측 차단밸브를 닫으십시오.\n밸브 핸들을 반복해서 잡고 시계 방향으로 돌린 다음, 폐쇄 게이지를 끝까지 채우십시오.") },
-                { P102LeakNarrationCue.BothValvesClosed, new CueDefinition("05_both_valves_closed", "P-102 흡입측과 토출측 차단밸브가 모두 닫혔습니다.\n누출 구간의 격리가 완료되었습니다.") },
-                { P102LeakNarrationCue.LeakReductionStarted, new CueDefinition("06_leak_reduction_observe", "플랜지 접합부를 확인하고, 누출량의 변화를 관찰하십시오.") },
-                { P102LeakNarrationCue.LeakReductionCompleted, new CueDefinition("07_leak_reduction_complete", "플랜지 접합부의 누출량 감소를 확인했습니다.\n이제 바닥에 누출된 염산의 확산을 차단하십시오.") },
-                { P102LeakNarrationCue.AbsorbentSockPlacementActivated, new CueDefinition("08_absorbent_sock_place_prompt", "누출된 염산의 확산을 막기 위해 화학물질용 흡착삭을 배치하십시오.\n준비된 흡착삭을 잡아 바닥에 반투명하게 표시된 위치에 놓으십시오.") },
-                { P102LeakNarrationCue.AllAbsorbentSocksPlaced, new CueDefinition("09_absorbent_sock_placed", "흡착삭 배치가 완료되었습니다.\n누출액의 확산 경로가 차단되었습니다.") },
-                { P102LeakNarrationCue.AbsorbentPadPlacementActivated, new CueDefinition("10_absorbent_pad_place_prompt", "흡착삭 안쪽에 남아 있는 염산을 흡수하십시오.\n준비된 흡착패드를 잡아 반투명하게 표시된 위치에 놓으십시오.") },
-                { P102LeakNarrationCue.AllAbsorbentPadsPlaced, new CueDefinition("11_absorbent_pad_placed", "흡착패드 배치가 완료되었습니다.\n염산 흡수가 진행 중입니다.") },
-                { P102LeakNarrationCue.AbsorptionCompleted, new CueDefinition("12_absorption_complete", "잔류 염산의 흡수가 완료되었습니다.\n이제 오염된 흡착재를 회수하십시오.") },
-                { P102LeakNarrationCue.ContainerAndLidGhostActivated, new CueDefinition("13_container_lid_open_prompt", "오염된 흡착재를 회수하기 위해 수거용기의 뚜껑을 여십시오.\n뚜껑을 들어 올린 뒤, 수거용기 옆에 반투명하게 표시된 거치 위치에 놓으십시오.") },
-                { P102LeakNarrationCue.ContainerLidStowed, new CueDefinition("14_container_lid_stowed", "수거용기 뚜껑이 거치되었습니다.\n수거용기 옆에 비치된 회수용 집게를 잡으십시오.") },
-                { P102LeakNarrationCue.RecoveryTongsPickedUp, new CueDefinition("15_pad_pickup_prompt", "먼저 흡착패드를 회수하십시오.\n트리거를 눌러 흡착패드를 집고, 수거용기 안으로 옮기십시오.\n흡착패드가 수거용기 안에 들어오면 트리거를 놓으십시오.") },
-                { P102LeakNarrationCue.PadRecoveryIdle, new CueDefinition("16_pad_pickup_idle_reminder", "남아 있는 흡착패드를 계속 회수하십시오.") },
-                { P102LeakNarrationCue.AllPadsRecovered, new CueDefinition("17_all_pads_collected", "모든 흡착패드의 회수를 확인했습니다.\n이제 확산 경계를 유지하고 있는 흡착삭을 회수하십시오.") },
-                { P102LeakNarrationCue.SockRecoveryStarted, new CueDefinition("18_sock_pickup_prompt", "트리거를 눌러 흡착삭을 집고, 수거용기 안으로 옮기십시오.\n흡착삭이 수거용기 안으로 들어오면 트리거를 놓으십시오.") },
-                { P102LeakNarrationCue.SockRecoveryIdle, new CueDefinition("19_sock_pickup_idle_reminder", "남아 있는 흡착삭을 계속 회수하십시오.") },
-                { P102LeakNarrationCue.AllSocksRecovered, new CueDefinition("20_all_absorbents_collected", "모든 오염 흡착재의 회수를 확인했습니다.\n회수용 집게를 수거용기 옆 거치대에 반납하십시오.") },
-                { P102LeakNarrationCue.RecoveryTongsReturned, new CueDefinition("21_tongs_returned", "회수용 집게 반납을 확인했습니다.\n수거용기의 뚜껑을 닫으십시오.") },
-                { P102LeakNarrationCue.ContainerClosureGhostActivated, new CueDefinition("22_container_lid_close_prompt", "수거용기 옆에 거치된 뚜껑을 잡으십시오.\n뚜껑을 수거용기 위에 반투명하게 표시된 폐쇄 위치에 놓으십시오.") },
-                { P102LeakNarrationCue.ContainerClosedTaskCompleted, new CueDefinition("23_task_complete", "수거용기 뚜껑의 폐쇄 상태를 확인했습니다.\nP-102 누출 구간 차단 및 오염 흡착재 회수 작업을 완료했습니다.") },
-                { P102LeakNarrationCue.DirectContactAttempted, new CueDefinition("24_warning_direct_contact", "오염된 흡착재에 직접 접촉하지 마십시오.\n회수용 집게를 사용하십시오.") },
-                { P102LeakNarrationCue.SockRecoveryBeforePadsAttempted, new CueDefinition("25_warning_sock_before_pads", "흡착패드를 먼저 회수하십시오.\n흡착삭은 모든 흡착패드를 회수한 후 마지막으로 회수합니다.") },
-                { P102LeakNarrationCue.ContaminatedAbsorbentDroppedOutside, new CueDefinition("26_warning_dropped_outside", "수거용기 밖에 놓인 오염 흡착재를 집게로 다시 수거하십시오.") }
-            };
+        readonly Dictionary<P102LeakNarrationCue, CueDefinition> runtimeCueDefinitions =
+            new Dictionary<P102LeakNarrationCue, CueDefinition>();
+        bool runtimeDataLoadAttempted;
+        bool runtimeDataReady;
+        int loadedAudioClipCount;
 
         public bool IsPlaying => currentCue.HasValue;
         public int PendingCount => pendingCues.Count;
+        public P102LeakNarrationCue? CurrentCue => currentCue;
+        public AudioSource NarrationSource => narrationSource;
+        public RectTransform SubtitleRoot => subtitleRoot;
+        public TMP_Text SubtitleText => subtitleText;
+        public CanvasGroup SubtitleCanvasGroup => subtitleCanvasGroup;
+        public bool RuntimeDataReady => runtimeDataReady;
+        public int LoadedCueCount => runtimeCueDefinitions.Count;
+        public int LoadedAudioClipCount => loadedAudioClipCount;
+        public Vector3 SubtitleHudLocalPosition
+        {
+            get => subtitleHudLocalPosition;
+            set => subtitleHudLocalPosition = value;
+        }
+
+        public void ConfigureRuntime(
+            AudioSource newNarrationSource,
+            RectTransform newSubtitleRoot,
+            TMP_Text newSubtitleText,
+            CanvasGroup newSubtitleCanvasGroup,
+            Transform newSubtitleCamera,
+            ValveWheelClosureController newSuctionValve,
+            ValveWheelClosureController newDischargeValve,
+            ValveWheelClosureController newLeakStateProvider,
+            PreplacedGhostInstallGroup newSockInstallGroup,
+            PreplacedGhostInstallGroup newPadInstallGroup,
+            HClAbsorptionVisualController newAbsorptionController)
+        {
+            UnsubscribeFromSceneEvents();
+            LoadRuntimeCueData();
+            narrationSource = newNarrationSource != null ? newNarrationSource : GetComponent<AudioSource>();
+            subtitleRoot = newSubtitleRoot;
+            subtitleText = newSubtitleText;
+            subtitleCanvasGroup = newSubtitleCanvasGroup;
+            subtitleCamera = newSubtitleCamera;
+            suctionValve = newSuctionValve;
+            dischargeValve = newDischargeValve;
+            leakStateProvider = newLeakStateProvider;
+            sockInstallGroup = newSockInstallGroup;
+            padInstallGroup = newPadInstallGroup;
+            absorptionController = newAbsorptionController;
+            ConfigureNarrationSource();
+            ConfigureSubtitleHudLayout();
+            SetSubtitleVisible(false);
+
+            if (isActiveAndEnabled)
+                SubscribeToSceneEvents();
+        }
 
         void Reset()
         {
@@ -140,6 +182,7 @@ namespace VRProject.LeakResponse.Narration
 
         void Awake()
         {
+            LoadRuntimeCueData();
             if (narrationSource == null)
                 narrationSource = GetComponent<AudioSource>();
 
@@ -153,28 +196,40 @@ namespace VRProject.LeakResponse.Narration
             SubscribeToSceneEvents();
             leakWasStopped = IsLeakStopped();
             absorptionWasComplete = IsAbsorptionComplete();
+            if (queueRoutine == null && pendingCues.Count > 0)
+                queueRoutine = StartCoroutine(ProcessQueue());
         }
 
         IEnumerator Start()
         {
+            if (!runtimeDataReady)
+            {
+                Debug.LogError(
+                    $"[P102 Flow] Narration start is blocked because CSV/WAV resources are incomplete " +
+                    $"(CSV {runtimeCueDefinitions.Count}/26, WAV {loadedAudioClipCount}/26).", this);
+                yield break;
+            }
+
             if (followCamera)
                 yield return AttachSubtitleHudToCamera();
 
             if (!playArrivalOnStart)
                 yield break;
 
+            yield return new WaitForSecondsRealtime(1.25f);
+
             EnqueueOnce(P102LeakNarrationCue.LeakSceneArrival);
-
-            // Valve state is initialized in its Start(), so defer the initial-state check
-            // until every scene component has completed its first-frame initialization.
-            yield return null;
-
-            if (suctionValve != null && !suctionValve.IsFullyClosed)
-                EnqueueOnce(P102LeakNarrationCue.SuctionValveActivated);
         }
 
         void Update()
         {
+            Canvas canvas = subtitleRoot != null ? subtitleRoot.GetComponent<Canvas>() : null;
+            if (subtitleRoot != null && subtitleRoot.parent == subtitleCamera &&
+                (canvas == null || canvas.renderMode == RenderMode.WorldSpace))
+            {
+                subtitleRoot.localPosition = subtitleHudLocalPosition;
+            }
+
             bool leakIsStopped = IsLeakStopped();
             if (!leakWasStopped && leakIsStopped)
                 QueueLeakStoppedGuidanceIfReady();
@@ -226,8 +281,11 @@ namespace VRProject.LeakResponse.Narration
             if (playedOrScheduledCues.Contains(cue))
                 return false;
 
+            if (!EnqueueInternal(cue))
+                return false;
+
             playedOrScheduledCues.Add(cue);
-            return EnqueueInternal(cue);
+            return true;
         }
 
         public bool EnqueueRepeatable(P102LeakNarrationCue cue)
@@ -247,9 +305,11 @@ namespace VRProject.LeakResponse.Narration
 
         bool EnqueueInternal(P102LeakNarrationCue cue)
         {
-            if (!CueDefinitions.ContainsKey(cue))
+            if (!runtimeDataReady || !runtimeCueDefinitions.ContainsKey(cue))
             {
-                Debug.LogWarning($"[P-102 Narration] Cue '{cue}' has no authored definition.", this);
+                Debug.LogError(
+                    $"[P-102 Narration] Cue '{cue}' is unavailable because the CSV/WAV runtime map is incomplete.",
+                    this);
                 return false;
             }
 
@@ -259,6 +319,14 @@ namespace VRProject.LeakResponse.Narration
             pendingCues.Enqueue(cue);
             queuedCues.Add(cue);
 
+            if (cue == P102LeakNarrationCue.LeakReductionStarted)
+            {
+                CueDefinition definition = runtimeCueDefinitions[cue];
+                Debug.Log(
+                    $"[P102 Flow] Enqueued TTS key=06 ({cue}), " +
+                    $"AudioClip=Resources/{ResourceFolder}{definition.ResourceName}.wav", this);
+            }
+
             if (queueRoutine == null && isActiveAndEnabled)
                 queueRoutine = StartCoroutine(ProcessQueue());
 
@@ -267,35 +335,102 @@ namespace VRProject.LeakResponse.Narration
 
         IEnumerator ProcessQueue()
         {
+            // Ensure StartCoroutine has assigned queueRoutine before any failure path can clear it.
+            yield return null;
             while (pendingCues.Count > 0)
             {
                 P102LeakNarrationCue cue = pendingCues.Dequeue();
                 queuedCues.Remove(cue);
                 currentCue = cue;
 
-                CueDefinition definition = CueDefinitions[cue];
-                AudioClip clip = Resources.Load<AudioClip>(ResourceFolder + definition.ResourceName);
+                CueDefinition definition = runtimeCueDefinitions[cue];
+                AudioClip clip = definition.Clip;
+                ShowSubtitle(definition.Subtitle);
+                CueStarted?.Invoke(cue);
                 if (clip == null)
                 {
                     Debug.LogError(
-                        $"[P-102 Narration] Missing Resources audio clip '{ResourceFolder}{definition.ResourceName}'.",
+                        $"[P-102 Narration] Missing Resources audio clip " +
+                        $"'{ResourceFolder}{definition.ResourceName}'. The cue remains incomplete.",
                         this);
-                    currentCue = null;
-                    continue;
+                    AbortCurrentCueWithoutCompletion(cue);
+                    yield break;
                 }
 
-                ShowSubtitle(definition.Subtitle);
+                if (narrationSource == null || !narrationSource.enabled ||
+                    !narrationSource.gameObject.activeInHierarchy)
+                {
+                    Debug.LogError(
+                        $"[P-102 Narration] AudioSource is unavailable for TTS {(int)cue:00}; " +
+                        "the cue remains incomplete.", this);
+                    AbortCurrentCueWithoutCompletion(cue);
+                    yield break;
+                }
+
                 narrationSource.clip = clip;
                 narrationSource.Play();
+                Debug.Log(
+                    $"[P102 Flow] AudioSource playback started: TTS {(int)cue:00}, " +
+                    $"clip=Resources/{ResourceFolder}{definition.ResourceName}.wav, " +
+                    $"source={P102RuntimeUtility.GetHierarchyPath(narrationSource.transform)}", this);
+                yield return null;
+
+                if (!narrationSource.isPlaying || narrationSource.clip != clip)
+                {
+                    Debug.LogError(
+                        $"[P-102 Narration] AudioSource failed to enter playback for TTS {(int)cue:00}; " +
+                        "the cue remains incomplete.", this);
+                    AbortCurrentCueWithoutCompletion(cue);
+                    yield break;
+                }
 
                 while (narrationSource.isPlaying && narrationSource.clip == clip)
                     yield return null;
 
+                if (narrationSource.clip != clip)
+                {
+                    Debug.LogError(
+                        $"[P-102 Narration] AudioSource clip changed before TTS {(int)cue:00} finished; " +
+                        "the cue remains incomplete.", this);
+                    AbortCurrentCueWithoutCompletion(cue);
+                    yield break;
+                }
+
+                Debug.Log(
+                    $"[P102 Flow] AudioSource playback finished: TTS {(int)cue:00}, " +
+                    $"clip=Resources/{ResourceFolder}{definition.ResourceName}.wav", this);
+
                 SetSubtitleVisible(false);
                 currentCue = null;
+                CueCompleted?.Invoke(cue);
+                AdvanceValveStageAfterCue(cue);
+                Debug.Log($"[P102 Flow] TTS {(int)cue:00} completed", this);
             }
 
             queueRoutine = null;
+        }
+
+        void AdvanceValveStageAfterCue(P102LeakNarrationCue completedCue)
+        {
+            if (completedCue == P102LeakNarrationCue.LeakSceneArrival &&
+                suctionValve != null && !suctionValve.IsFullyClosed)
+            {
+                EnqueueOnce(P102LeakNarrationCue.SuctionValveActivated);
+            }
+        }
+
+        void AbortCurrentCueWithoutCompletion(P102LeakNarrationCue cue)
+        {
+            SetSubtitleVisible(false);
+            currentCue = null;
+            queueRoutine = null;
+            playedOrScheduledCues.Remove(cue);
+            foreach (P102LeakNarrationCue pendingCue in pendingCues)
+                playedOrScheduledCues.Remove(pendingCue);
+            pendingCues.Clear();
+            queuedCues.Clear();
+            Debug.LogError(
+                $"[P102 Flow] TTS {(int)cue:00} aborted; CueCompleted was not dispatched.", this);
         }
 
         void SubscribeToSceneEvents()
@@ -333,9 +468,11 @@ namespace VRProject.LeakResponse.Narration
 
         void OnAnyValveFullyClosed()
         {
-            if (!AreBothValvesClosed())
+            if (!AreBothValvesClosed() || bothValvesClosedHandled)
                 return;
 
+            bothValvesClosedHandled = true;
+            Debug.Log("[P102 Flow] DIS fully-closed event received exactly once.", this);
             EnqueueOnce(P102LeakNarrationCue.BothValvesClosed);
             EnqueueOnce(P102LeakNarrationCue.LeakReductionStarted);
             QueueLeakStoppedGuidanceIfReady();
@@ -346,8 +483,7 @@ namespace VRProject.LeakResponse.Narration
             if (!AreBothValvesClosed() || !IsLeakStopped())
                 return;
 
-            EnqueueOnce(P102LeakNarrationCue.LeakReductionCompleted);
-            EnqueueOnce(P102LeakNarrationCue.AbsorbentSockPlacementActivated);
+            EnqueueOnce(P102LeakNarrationCue.LeakReductionStarted);
         }
 
         void OnSockInstalled(PreplacedGhostInstallGroup installedGroup)
@@ -383,14 +519,203 @@ namespace VRProject.LeakResponse.Narration
             return absorptionController != null && absorptionController.IsAbsorptionComplete;
         }
 
+        void LoadRuntimeCueData()
+        {
+            if (runtimeDataLoadAttempted)
+                return;
+
+            runtimeDataLoadAttempted = true;
+            runtimeCueDefinitions.Clear();
+            loadedAudioClipCount = 0;
+            TextAsset csvAsset = Resources.Load<TextAsset>(CsvResourcePath);
+            if (csvAsset == null)
+            {
+                Debug.LogError(
+                    "[P102 Flow] Required narration CSV 'Assets/Resources/P102/Unity_TTS_Map.csv' " +
+                    "could not be loaded from Resources path 'P102/Unity_TTS_Map'.", this);
+                return;
+            }
+
+            List<string[]> rows = ParseCsv(csvAsset.text);
+            if (rows.Count < 2)
+            {
+                Debug.LogError("[P102 Flow] Narration CSV has no data rows.", csvAsset);
+                return;
+            }
+
+            string[] header = rows[0];
+            int numberColumn = FindColumn(header, "no");
+            int eventColumn = FindColumn(header, "event_enum");
+            int fileColumn = FindColumn(header, "file_name");
+            int durationColumn = FindColumn(header, "duration_sec");
+            int subtitleColumn = FindColumn(header, "subtitle_text");
+            if (numberColumn < 0 || eventColumn < 0 || fileColumn < 0 ||
+                durationColumn < 0 || subtitleColumn < 0)
+            {
+                Debug.LogError(
+                    "[P102 Flow] Narration CSV is missing one of: no, event_enum, file_name, duration_sec, subtitle_text.",
+                    csvAsset);
+                return;
+            }
+
+            for (int rowIndex = 1; rowIndex < rows.Count; ++rowIndex)
+            {
+                string[] row = rows[rowIndex];
+                int requiredColumn = Mathf.Max(
+                    Mathf.Max(numberColumn, eventColumn),
+                    Mathf.Max(fileColumn, Mathf.Max(durationColumn, subtitleColumn)));
+                if (row.Length <= requiredColumn || string.IsNullOrWhiteSpace(row[numberColumn]))
+                    continue;
+
+                if (!int.TryParse(row[numberColumn], NumberStyles.Integer, CultureInfo.InvariantCulture,
+                        out int cueNumber) ||
+                    !Enum.TryParse(row[eventColumn], true, out P102LeakNarrationCue cue) ||
+                    !Enum.IsDefined(typeof(P102LeakNarrationCue), cue) ||
+                    cueNumber != (int)cue)
+                {
+                    Debug.LogError(
+                        $"[P102 Flow] Narration CSV row {rowIndex + 1} has an invalid cue number/event mapping.",
+                        csvAsset);
+                    continue;
+                }
+
+                if (runtimeCueDefinitions.ContainsKey(cue))
+                {
+                    Debug.LogError($"[P102 Flow] Narration CSV contains duplicate cue '{cue}'.", csvAsset);
+                    continue;
+                }
+
+                if (!float.TryParse(row[durationColumn], NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out float duration) || duration <= 0f)
+                {
+                    Debug.LogError(
+                        $"[P102 Flow] Narration CSV cue {(int)cue:00} has invalid duration '{row[durationColumn]}'.",
+                        csvAsset);
+                    continue;
+                }
+
+                string fileName = row[fileColumn].Trim();
+                string resourceName = fileName.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
+                    ? fileName.Substring(0, fileName.Length - 4)
+                    : fileName;
+                AudioClip clip = Resources.Load<AudioClip>(ResourceFolder + resourceName);
+                if (clip == null)
+                {
+                    Debug.LogError(
+                        $"[P102 Flow] Required WAV for cue {(int)cue:00} is missing at " +
+                        $"Resources path '{ResourceFolder}{resourceName}'.", csvAsset);
+                }
+                else
+                {
+                    ++loadedAudioClipCount;
+                }
+
+                string subtitle = row[subtitleColumn].Replace("\\n", "\n");
+                runtimeCueDefinitions.Add(cue,
+                    new CueDefinition(resourceName, subtitle, duration, clip));
+            }
+
+            runtimeDataReady = runtimeCueDefinitions.Count == RequiredCueCount &&
+                               loadedAudioClipCount == RequiredCueCount;
+            if (runtimeDataReady)
+            {
+                Debug.Log("[P102 Flow] Narration resources ready: CSV 26/26, WAV 26/26.", this);
+            }
+            else
+            {
+                Debug.LogError(
+                    $"[P102 Flow] Narration resource validation failed: CSV {runtimeCueDefinitions.Count}/26, " +
+                    $"WAV {loadedAudioClipCount}/26.", this);
+            }
+        }
+
+        static int FindColumn(string[] header, string name)
+        {
+            if (header == null)
+                return -1;
+            for (int i = 0; i < header.Length; ++i)
+            {
+                if (string.Equals(header[i].Trim().TrimStart('\ufeff'), name,
+                        StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+            return -1;
+        }
+
+        static List<string[]> ParseCsv(string csv)
+        {
+            var rows = new List<string[]>();
+            if (string.IsNullOrEmpty(csv))
+                return rows;
+
+            var row = new List<string>();
+            var field = new StringBuilder();
+            bool quoted = false;
+            for (int i = 0; i < csv.Length; ++i)
+            {
+                char character = csv[i];
+                if (quoted)
+                {
+                    if (character == '"')
+                    {
+                        if (i + 1 < csv.Length && csv[i + 1] == '"')
+                        {
+                            field.Append('"');
+                            ++i;
+                        }
+                        else
+                        {
+                            quoted = false;
+                        }
+                    }
+                    else
+                    {
+                        field.Append(character);
+                    }
+                    continue;
+                }
+
+                if (character == '"')
+                    quoted = true;
+                else if (character == ',')
+                {
+                    row.Add(field.ToString());
+                    field.Clear();
+                }
+                else if (character == '\n')
+                {
+                    row.Add(field.ToString());
+                    field.Clear();
+                    rows.Add(row.ToArray());
+                    row.Clear();
+                }
+                else if (character != '\r')
+                {
+                    field.Append(character);
+                }
+            }
+
+            if (field.Length > 0 || row.Count > 0)
+            {
+                row.Add(field.ToString());
+                rows.Add(row.ToArray());
+            }
+
+            return rows;
+        }
+
         void ConfigureNarrationSource()
         {
             if (narrationSource == null)
                 return;
 
+            narrationSource.enabled = true;
             narrationSource.playOnAwake = false;
             narrationSource.loop = false;
             narrationSource.spatialBlend = 0f;
+            narrationSource.mute = false;
+            if (narrationSource.volume <= 0.001f)
+                narrationSource.volume = 1f;
         }
 
         IEnumerator AttachSubtitleHudToCamera()
@@ -420,12 +745,7 @@ namespace VRProject.LeakResponse.Narration
             }
 
             subtitleRoot.SetParent(subtitleCamera, false);
-            subtitleRoot.localPosition = new Vector3(
-                0f,
-                subtitleVerticalOffset,
-                subtitleDistance);
-            subtitleRoot.localRotation = Quaternion.identity;
-            subtitleRoot.localScale = Vector3.one * subtitleScale;
+            ConfigureSubtitleHudLayout();
         }
 
         void ConfigureSubtitleHudLayout()
@@ -433,36 +753,95 @@ namespace VRProject.LeakResponse.Narration
             if (subtitleRoot != null)
             {
                 Canvas subtitleCanvas = subtitleRoot.GetComponent<Canvas>();
-                if (subtitleCanvas != null)
-                    subtitleCanvas.renderMode = RenderMode.WorldSpace;
+                Camera headCamera = subtitleCamera != null
+                    ? subtitleCamera.GetComponent<Camera>()
+                    : null;
+                if (subtitleCanvas != null && headCamera != null)
+                {
+                    subtitleCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    subtitleCanvas.worldCamera = headCamera;
+                    subtitleCanvas.planeDistance = Mathf.Clamp(subtitleDistance, 0.85f, 1f);
+                    subtitleCanvas.overrideSorting = true;
+                    subtitleCanvas.sortingOrder = 32000;
+                    subtitleRoot.localPosition = Vector3.zero;
+                    subtitleRoot.localRotation = Quaternion.identity;
+                    subtitleRoot.localScale = Vector3.one;
 
-                subtitleRoot.sizeDelta = new Vector2(1100f, 200f);
-                subtitleRoot.localScale = Vector3.one * subtitleScale;
+                    CanvasScaler scaler = subtitleRoot.GetComponent<CanvasScaler>() ??
+                                          subtitleRoot.gameObject.AddComponent<CanvasScaler>();
+                    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                    scaler.referenceResolution = new Vector2(1920f, 1080f);
+                    scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                    scaler.matchWidthOrHeight = 0.5f;
+                }
+                else
+                {
+                    if (subtitleCanvas != null)
+                        subtitleCanvas.renderMode = RenderMode.WorldSpace;
+                    subtitleRoot.sizeDelta = new Vector2(1100f, 200f);
+                    subtitleRoot.localPosition = subtitleHudLocalPosition;
+                    subtitleRoot.localRotation = Quaternion.identity;
+                    subtitleRoot.localScale = Vector3.one * subtitleScale;
+                }
+
+                GraphicRaycaster[] raycasters =
+                    subtitleRoot.GetComponentsInChildren<GraphicRaycaster>(true);
+                for (int i = 0; i < raycasters.Length; ++i)
+                    raycasters[i].enabled = false;
+
+                Image panel = subtitleRoot.GetComponentInChildren<Image>(true);
+                if (panel != null)
+                {
+                    panel.color = new Color(0f, 0f, 0f, 0.78f);
+                    panel.sprite = P102RuntimeUtility.GetRoundedPanelSprite();
+                    panel.type = Image.Type.Sliced;
+                    panel.raycastTarget = false;
+                    RectTransform imagePanelRect = panel.rectTransform;
+                    imagePanelRect.anchorMin = RuntimeSubtitlePanelAnchorMin;
+                    imagePanelRect.anchorMax = RuntimeSubtitlePanelAnchorMax;
+                    imagePanelRect.pivot = new Vector2(0.5f, 0.5f);
+                    imagePanelRect.offsetMin = Vector2.zero;
+                    imagePanelRect.offsetMax = Vector2.zero;
+                }
             }
 
             if (subtitleCanvasGroup != null &&
                 subtitleCanvasGroup.transform is RectTransform panelRect &&
-                panelRect != subtitleRoot)
+                panelRect != subtitleRoot && panelRect.GetComponent<Image>() == null)
             {
                 SetStretchRect(panelRect, Vector2.zero, Vector2.zero);
             }
 
             if (subtitleText != null)
             {
+                TMP_FontAsset runtimeSubtitleFont = P102RuntimeUtility.LoadRuntimeFont();
+                if (runtimeSubtitleFont != null)
+                    subtitleText.font = runtimeSubtitleFont;
+
                 if (subtitleText.rectTransform != subtitleRoot)
                 {
                     SetStretchRect(
                         subtitleText.rectTransform,
-                        new Vector2(45f, 20f),
-                        new Vector2(-45f, -20f));
+                        new Vector2(36f, 14f),
+                        new Vector2(-36f, -14f));
                 }
 
                 subtitleText.alignment = TextAlignmentOptions.Center;
                 subtitleText.textWrappingMode = TextWrappingModes.Normal;
+                subtitleText.overflowMode = TextOverflowModes.Overflow;
                 subtitleText.enableAutoSizing = true;
-                subtitleText.fontSizeMin = 30f;
-                subtitleText.fontSizeMax = 46f;
-                subtitleText.fontSize = 46f;
+                subtitleText.fontSizeMin = RuntimeSubtitleFontSizeMin;
+                subtitleText.fontSizeMax = RuntimeSubtitleFontSizeMax;
+                subtitleText.fontSize = RuntimeSubtitleFontSizeMax;
+                subtitleText.outlineColor = new Color32(0, 0, 0, 230);
+                subtitleText.outlineWidth = 0.16f;
+                subtitleText.raycastTarget = false;
+            }
+
+            if (subtitleRoot != null)
+            {
+                P102RuntimeUtility.DisableGraphicRaycasts(subtitleRoot.gameObject);
+                P102RuntimeUtility.SetIgnoreRaycastRecursively(subtitleRoot.gameObject);
             }
         }
 
@@ -501,5 +880,6 @@ namespace VRProject.LeakResponse.Narration
                     subtitleText.text = string.Empty;
             }
         }
+
     }
 }

@@ -44,6 +44,26 @@ namespace VRProject.Valves.Tests
             Assert.That(closure, Is.LessThan(30f));
         }
 
+        [Test]
+        public void FrontAxisConvention_MapsClockwiseToLogicalCloseForEitherOrientation()
+        {
+            Assert.That(ValveWheelClosureController.CalculateCloseAngleSign(
+                Vector3.forward, Vector3.forward,
+                ValveWheelClosureController.CloseDirection.ClockwiseFromFront), Is.EqualTo(-1f));
+            Assert.That(ValveWheelClosureController.CalculateCloseAngleSign(
+                Vector3.back, Vector3.forward,
+                ValveWheelClosureController.CloseDirection.ClockwiseFromFront), Is.EqualTo(1f));
+        }
+
+        [Test]
+        public void FullyOpenTripleHaptic_RequiresPositiveStateAndOneTransition()
+        {
+            Assert.That(ValveWheelClosureController.ShouldTriggerFullyOpenHaptic(false, true, true), Is.False);
+            Assert.That(ValveWheelClosureController.ShouldTriggerFullyOpenHaptic(false, false, true), Is.False);
+            Assert.That(ValveWheelClosureController.ShouldTriggerFullyOpenHaptic(true, true, true), Is.False);
+            Assert.That(ValveWheelClosureController.ShouldTriggerFullyOpenHaptic(true, false, true), Is.True);
+        }
+
         [TestCase(0f, 1f)]
         [TestCase(30f, 0.7f)]
         [TestCase(100f, 0f)]
@@ -550,6 +570,58 @@ namespace VRProject.Valves.Tests
 
                 Assert.That(opened, Is.EqualTo(1));
                 Assert.That(closed, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void FullyClosedEvent_FiresBeforeLatchAndLatchBlocksReopen()
+        {
+            GameObject gameObject = new GameObject("Valve closed latch test");
+            try
+            {
+                ValveWheelClosureController controller = gameObject.AddComponent<ValveWheelClosureController>();
+                typeof(ValveWheelClosureController).GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Invoke(controller, null);
+                bool latchStateInsideEvent = true;
+                controller.OnFullyClosed.AddListener(() => latchStateInsideEvent = controller.IsClosedLatched);
+
+                controller.SetClosurePercent(100f);
+                controller.SetClosurePercent(0f);
+
+                Assert.That(latchStateInsideEvent, Is.False);
+                Assert.That(controller.IsClosedLatched, Is.True);
+                Assert.That(controller.ClosurePercent, Is.EqualTo(100f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void TransformerClosedLatch_PinsPhysicalWheelAtTheClosedEndpoint()
+        {
+            GameObject gameObject = new GameObject("Valve transformer closed latch test");
+            try
+            {
+                gameObject.AddComponent<Rigidbody>();
+                gameObject.AddComponent<HingeJoint>();
+                gameObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
+                ValveWheelGrabTransformer transformer = gameObject.AddComponent<ValveWheelGrabTransformer>();
+                transformer.ConfigureTravelLimits(0f, 504f);
+                transformer.ConfigureCloseConvention(-1f);
+
+                transformer.SetClosedLatched(true);
+
+                Assert.That(transformer.IsClosedLatched, Is.True);
+                Assert.That(transformer.CurrentLogicalClosureAngle, Is.EqualTo(504f).Within(0.0001f));
+                Assert.That(ValveWheelClosureController.CalculateClosurePercent(
+                    0f, transformer.CurrentLogicalClosureAngle, 0f, 504f),
+                    Is.EqualTo(100f).Within(0.0001f));
             }
             finally
             {

@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace VRProject.Valves
 {
@@ -44,6 +46,7 @@ namespace VRProject.Valves
         [Header("Valve State")]
         [SerializeField, Range(0f, 100f)] float initialClosurePercent = 30f;
         [SerializeField] CloseDirection closeDirection = CloseDirection.ClockwiseFromFront;
+        [Tooltip("Legacy serialized field retained for Scene compatibility. It is intentionally ignored; Front + Axis + Close Direction are authoritative.")]
         [SerializeField] bool invertRotationDirection;
         [SerializeField, Min(0.0001f)] float changeEpsilon = 0.01f;
 
@@ -67,6 +70,9 @@ namespace VRProject.Valves
         bool initialized;
         bool wasFullyOpen;
         bool wasFullyClosed;
+        bool closedLatched;
+        bool fullyOpenHapticArmed;
+        Coroutine fullyOpenHapticRoutine;
 
         public float ClosurePercent => currentClosurePercent;
         public float Closure01 => currentClosurePercent * 0.01f;
@@ -77,8 +83,10 @@ namespace VRProject.Valves
         public ValveState CurrentState => currentState;
         public RotationDirection CurrentRotationDirection => currentRotationDirection;
         public bool IsGrabbed => isGrabbed;
+        public bool IsClosedLatched => closedLatched;
         public float MaxOpenRotationDegrees => grabTransformer != null ? grabTransformer.MaxOpenRotationDegrees : 0f;
         public float MaxCloseRotationDegrees => grabTransformer != null ? grabTransformer.MaxCloseRotationDegrees : 0f;
+        public float InitialClosurePercent => initialClosurePercent;
         public FloatEvent OnClosurePercentChanged => onClosurePercentChanged;
         public FloatEvent OnLeakIntensityChanged => onLeakIntensityChanged;
         public UnityEvent OnFullyOpened => onFullyOpened;
@@ -102,7 +110,7 @@ namespace VRProject.Valves
             initialHingeAngle = hingeJoint != null && float.IsFinite(hingeJoint.angle) ? hingeJoint.angle : 0f;
             currentHingeAngle = initialHingeAngle;
             closureAngleSign = DetermineClosureAngleSign();
-            grabTransformer?.SetClosureAngleSign(closureAngleSign);
+            grabTransformer?.ConfigureCloseConvention(closureAngleSign);
             ApplyJointLimits();
         }
 
@@ -112,6 +120,9 @@ namespace VRProject.Valves
             initialized = true;
             wasFullyOpen = IsFullyOpen;
             wasFullyClosed = IsFullyClosed;
+            fullyOpenHapticArmed = currentClosurePercent > changeEpsilon;
+            if (IsFullyClosed)
+                LatchClosed();
 
             if (leakOutput == null)
                 Debug.LogWarning($"[{nameof(ValveWheelClosureController)}] No leak output is connected on '{name}'. State and events remain available.", this);
@@ -130,10 +141,9 @@ namespace VRProject.Valves
             // HingeJoint.angle can wrap after 180 degrees. The transformer owns the unwrapped,
             // clamped logical angle, so closure state uses that value whenever it is available.
             float logicalAngle = grabTransformer != null && grabTransformer.ConstraintReferenceInitialized
-                ? grabTransformer.CurrentTargetAngle
+                ? grabTransformer.CurrentLogicalClosureAngle
                 : currentHingeAngle - initialHingeAngle;
-            float signedAngle = logicalAngle * closureAngleSign;
-            float closure = CalculateClosurePercent(initialClosurePercent, signedAngle,
+            float closure = CalculateClosurePercent(initialClosurePercent, logicalAngle,
                 MaxOpenRotationDegrees, MaxCloseRotationDegrees);
             ApplyState(closure, false, true);
             isGrabbed = grabInteractable != null && grabInteractable.isSelected;
@@ -142,6 +152,28 @@ namespace VRProject.Valves
         public void SetClosurePercent(float percent)
         {
             ApplyState(percent, true, initialized);
+        }
+
+        public void ConfigureRuntime(float newInitialClosurePercent, float newMaxOpenRotationDegrees,
+            float newMaxCloseRotationDegrees, CloseDirection newCloseDirection)
+        {
+            initialClosurePercent = Mathf.Clamp(newInitialClosurePercent, 0f, 100f);
+            closeDirection = newCloseDirection;
+            invertRotationDirection = false;
+            closedLatched = false;
+            grabTransformer?.SetClosedLatched(false);
+            grabTransformer?.ConfigureTravelLimits(newMaxOpenRotationDegrees, newMaxCloseRotationDegrees);
+            closureAngleSign = DetermineClosureAngleSign();
+            grabTransformer?.ConfigureCloseConvention(closureAngleSign);
+            ApplyJointLimits();
+
+            if (initialized)
+            {
+                ApplyState(initialClosurePercent, true, false);
+                wasFullyOpen = IsFullyOpen;
+                wasFullyClosed = IsFullyClosed;
+                fullyOpenHapticArmed = currentClosurePercent > changeEpsilon;
+            }
         }
 
         public void ApplyJointLimits()
@@ -182,6 +214,8 @@ namespace VRProject.Valves
         void ApplyState(float percent, bool force, bool invokeBoundaryEvents)
         {
             float clamped = Mathf.Clamp(percent, 0f, 100f);
+            if (closedLatched && clamped < 100f)
+                clamped = 100f;
             float previous = currentClosurePercent;
             float delta = clamped - previous;
 
@@ -210,13 +244,29 @@ namespace VRProject.Valves
             if (leakChanged)
                 leakOutput?.SetLeakIntensity01(currentLeakIntensity);
 
-            if (!invokeBoundaryEvents)
-                return;
+            if (clamped > changeEpsilon && !IsFullyClosed)
+                fullyOpenHapticArmed = true;
 
-            if (IsFullyOpen && !wasFullyOpen)
-                onFullyOpened?.Invoke();
-            if (IsFullyClosed && !wasFullyClosed)
-                onFullyClosed?.Invoke();
+            if (invokeBoundaryEvents)
+            {
+                if (IsFullyOpen && !wasFullyOpen)
+                {
+                    onFullyOpened?.Invoke();
+                    if (ShouldTriggerFullyOpenHaptic(fullyOpenHapticArmed, wasFullyOpen, IsFullyOpen))
+                    {
+                        fullyOpenHapticArmed = false;
+                        StartFullyOpenHaptic();
+                    }
+                }
+
+                if (IsFullyClosed && !wasFullyClosed)
+                {
+                    // Boundary observers must run before the mechanical latch is applied.
+                    onFullyClosed?.Invoke();
+                    SendHapticToSelectingInteractors(0.75f, 0.9f);
+                    LatchClosed();
+                }
+            }
             wasFullyOpen = IsFullyOpen;
             wasFullyClosed = IsFullyClosed;
         }
@@ -224,13 +274,71 @@ namespace VRProject.Valves
         float DetermineClosureAngleSign()
         {
             if (hingeJoint == null)
-                return invertRotationDirection ? -1f : 1f;
+                return closeDirection == CloseDirection.ClockwiseFromFront ? -1f : 1f;
 
             Transform front = valveFrontReference != null ? valveFrontReference : transform;
             Vector3 axisWorld = transform.TransformDirection(hingeJoint.axis).normalized;
-            float alignment = Vector3.Dot(axisWorld, front.forward) >= 0f ? 1f : -1f;
-            float sign = closeDirection == CloseDirection.ClockwiseFromFront ? -alignment : alignment;
-            return invertRotationDirection ? -sign : sign;
+            return CalculateCloseAngleSign(axisWorld, front.forward, closeDirection);
+        }
+
+        public static float CalculateCloseAngleSign(Vector3 axisWorld, Vector3 frontForward,
+            CloseDirection direction)
+        {
+            float alignment = Vector3.Dot(axisWorld.normalized, frontForward.normalized) >= 0f ? 1f : -1f;
+            return direction == CloseDirection.ClockwiseFromFront ? -alignment : alignment;
+        }
+
+        public static bool ShouldTriggerFullyOpenHaptic(bool armed, bool wasOpen, bool isOpen)
+        {
+            return armed && !wasOpen && isOpen;
+        }
+
+        void LatchClosed()
+        {
+            if (closedLatched)
+                return;
+
+            closedLatched = true;
+            grabTransformer?.SetClosedLatched(true);
+            if (wheelRigidbody != null)
+            {
+                wheelRigidbody.linearVelocity = Vector3.zero;
+                wheelRigidbody.angularVelocity = Vector3.zero;
+            }
+        }
+
+        void StartFullyOpenHaptic()
+        {
+            if (fullyOpenHapticRoutine != null)
+                StopCoroutine(fullyOpenHapticRoutine);
+            fullyOpenHapticRoutine = StartCoroutine(PlayFullyOpenHaptic());
+        }
+
+        IEnumerator PlayFullyOpenHaptic()
+        {
+            for (int pulse = 0; pulse < 3; ++pulse)
+            {
+                SendHapticToSelectingInteractors(0.55f, 0.08f);
+                if (pulse < 2)
+                    yield return new WaitForSecondsRealtime(0.16f);
+            }
+
+            fullyOpenHapticRoutine = null;
+        }
+
+        void SendHapticToSelectingInteractors(float amplitude, float duration)
+        {
+            if (grabInteractable == null)
+                return;
+
+            for (int i = 0; i < grabInteractable.interactorsSelecting.Count; ++i)
+                TrySendHapticImpulse(grabInteractable.interactorsSelecting[i], amplitude, duration);
+        }
+
+        static bool TrySendHapticImpulse(object interactor, float amplitude, float duration)
+        {
+            return interactor is XRBaseInputInteractor inputInteractor &&
+                   inputInteractor.SendHapticImpulse(amplitude, duration);
         }
 
         void ResolveReferences()
