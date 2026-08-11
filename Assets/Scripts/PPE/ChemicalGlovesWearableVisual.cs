@@ -24,12 +24,16 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     [Tooltip("Host should start inactive in the scene; gloves start inactive under Visuals.")]
     [SerializeField] bool startHidden = true;
 
+    bool applyingPersistentState;
+
     public bool IsVisible =>
         (leftGlove != null && leftGlove.activeSelf) ||
         (rightGlove != null && rightGlove.activeSelf);
 
     void OnEnable()
     {
+        if (applyingPersistentState)
+            return;
         ShowWearable();
     }
 
@@ -59,6 +63,26 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     public void ResetWearable()
     {
         HideWearable();
+    }
+
+    /// <summary>
+    /// Applies the cross-scene glove visual without changing the Stage XR profile's
+    /// ray/interactor state. PPE-room ShowWearable keeps its original behaviour.
+    /// </summary>
+    public void ApplyPersistentState(bool leftWorn, bool rightWorn)
+    {
+        var anyWorn = leftWorn || rightWorn;
+        applyingPersistentState = true;
+        if (gameObject.activeSelf != anyWorn)
+            gameObject.SetActive(anyWorn);
+        applyingPersistentState = false;
+
+        if (leftGlove != null && leftGlove.activeSelf != leftWorn)
+            leftGlove.SetActive(leftWorn);
+        if (rightGlove != null && rightGlove.activeSelf != rightWorn)
+            rightGlove.SetActive(rightWorn);
+
+        SetQuestMeshesActive(!anyWorn);
     }
 
     void SetGlovesActive(bool active)

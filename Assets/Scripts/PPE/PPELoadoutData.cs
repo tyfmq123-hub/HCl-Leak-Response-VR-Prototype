@@ -76,13 +76,15 @@ public class PPELoadoutData : MonoBehaviour
         if (existing != null)
         {
             Instance = existing;
-            DontDestroyOnLoad(existing.gameObject);
+            if (Application.isPlaying)
+                DontDestroyOnLoad(existing.gameObject);
             return Instance;
         }
 
         var go = new GameObject(nameof(PPELoadoutData));
-        DontDestroyOnLoad(go);
         Instance = go.AddComponent<PPELoadoutData>();
+        if (Application.isPlaying)
+            DontDestroyOnLoad(go);
         return Instance;
     }
 
@@ -95,7 +97,8 @@ public class PPELoadoutData : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        if (Application.isPlaying)
+            DontDestroyOnLoad(gameObject);
     }
 
     void OnDestroy()

@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d6d4fd310ed4c5489f6d13ddfeb9f50, type: 3}
+  m_Name: PreEntry
+  m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
+  stage: 2
+  sourceScenePath: Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity
+  spawnPosition: {x: 0, y: 0.84, z: -18.76}
+  spawnEulerAngles: {x: -0, y: 0, z: 0}
+  componentStates:
+  - relativePath: 
+    typeName: Unity.XR.CoreUtils.XROrigin, Unity.XR.CoreUtils, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Inputs.InputActionManager, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.XRBodyTransformer, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionMediator, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.ContinuousMoveProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation.TeleportationProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Visual/VRHandPoseTool_VisualOffset_Left/LeftHand
+    typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Visual/VRHandPoseTool_VisualOffset_Left/LeftHand
+    typeName: VRHandPoseTool.ControllerHandGripAnimator, Senghwan.VRHandPoseTool.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype
+    typeName: JH.EntrySafety.EntrySafetyHclDetectorView, JH.EntrySafety.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype/Visual/DetectorDisplay
+    typeName: TMPro.TextMeshPro, Unity.TextMeshPro, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype/Visual/DetectorDisplay
+    typeName: JH.EntrySafety.EntrySafetyHclDetectorDisplayBillboard, JH.EntrySafety.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.Camera, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.AudioListener, UnityEngine.AudioModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Hand Visualizer
+    typeName: UnityEngine.XR.Hands.Samples.VisualizerSample.HandVisualizer, Unity.XR.Hands.Samples.VisualizerSample,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandTrackingEvents, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandSkeletonDriver, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandMeshController, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandTrackingEvents, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandSkeletonDriver, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandMeshController, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: EntrySafetyEquipmentTransferZone
+    typeName: JH.EntrySafety.EntrySafetyEquipmentTransferZone, JH.EntrySafety.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Right Controller
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1

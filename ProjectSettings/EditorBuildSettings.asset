@@ -6,14 +6,23 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/PPE_PreparationRoom 1.unity
+    path: Assets/Scenes/App/App.unity
+    guid: 1f476d899ddb97942a29b2b7767fc665
+  - enabled: 1
+    path: Assets/Scenes/App/Start.unity
+    guid: 67fddc2a7b4acb0488942ca7c39c47fd
+  - enabled: 1
+    path: Assets/Scenes/PPE_PreparationRoom.unity
     guid: 6afc537469d45804f8f0dfdbca57491d
+  - enabled: 1
+    path: Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity
+    guid: fe230134fef5b8a438806396473c6686
   - enabled: 1
     path: Assets/Scenes/SSH_VR_Project.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity
-    guid: fe230134fef5b8a438806396473c6686
+    path: Assets/Scenes/App/Complete.unity
+    guid: a4cd82b4959b0ef468c422b25cd39a51
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ad32b387f060dcc48938a8a699c4da9c, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

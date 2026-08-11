@@ -1,0 +1,257 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d6d4fd310ed4c5489f6d13ddfeb9f50, type: 3}
+  m_Name: PPE
+  m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
+  stage: 1
+  sourceScenePath: Assets/Scenes/PPE_PreparationRoom.unity
+  spawnPosition: {x: 0, y: 0, z: 0}
+  spawnEulerAngles: {x: -0, y: 0, z: 0}
+  componentStates:
+  - relativePath: 
+    typeName: Unity.XR.CoreUtils.XROrigin, Unity.XR.CoreUtils, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: 
+    typeName: UnityEngine.XR.Interaction.Toolkit.Inputs.InputActionManager, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.Camera, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.AudioListener, UnityEngine.AudioModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera
+    typeName: UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera/TunnelingVignette
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort.TunnelingVignetteController,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Main Camera/TunnelingVignette
+    typeName: UnityEngine.Rendering.SortingGroup, UnityEngine.CoreModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandTrackingEvents, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandSkeletonDriver, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Left Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandMeshController, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandTrackingEvents, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandSkeletonDriver, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/VR Hand Pose Tool Tracking/Right Hand Tracking
+    typeName: UnityEngine.XR.Hands.XRHandMeshController, Unity.XR.Hands, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Visuals/XR Controller Left
+    typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.ControllerAnimator,
+      Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Visuals/PPE_VrHand_Left_Wearable
+    typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Visuals/PPE_VrHand_Left_Wearable
+    typeName: Hand, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Ray Interactor
+    typeName: UnityEngine.Rendering.SortingGroup, UnityEngine.CoreModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Feedback.SimpleHapticFeedback, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller
+    typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Visuals/XR Controller Right
+    typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.ControllerAnimator,
+      Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Visuals/PPE_VrHand_Right_Wearable
+    typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Right Controller/Visuals/PPE_VrHand_Right_Wearable
+    typeName: Hand, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Right Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Ray Interactor
+    typeName: UnityEngine.Rendering.SortingGroup, UnityEngine.CoreModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Ray Interactor
+    typeName: UnityEngine.XR.Interaction.Toolkit.Feedback.SimpleHapticFeedback, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: PlayerBodyAnchor
+    typeName: PlayerBodyAnchorFollower, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable
+    typeName: ResponseBagWearableVisual, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable
+    typeName: WearableResponseBagVisualController, Assembly-CSharp, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/GasDetectorSlot
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/GasDetectorSlot
+    typeName: PPEInteractableOutline, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/GasDetectorSlot
+    typeName: ResponseBagContentHoverItem, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentSockSlot
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentSockSlot
+    typeName: PPEInteractableOutline, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentSockSlot
+    typeName: ResponseBagContentHoverItem, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentPadSlot
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentPadSlot
+    typeName: PPEInteractableOutline, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenVisual/BagContentsRoot/AbsorbentPadSlot
+    typeName: ResponseBagContentHoverItem, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenInteractable
+    typeName: UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: PlayerBodyAnchor/ResponseBag_Wearable/BagOpenInteractable
+    typeName: PPEInteractableOutline, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: ChemicalGloves_WearableHost
+    typeName: ChemicalGlovesWearableVisual, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionMediator, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Locomotion
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.XRBodyTransformer, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Locomotion/Turn
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Locomotion/Turn
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Move
+    typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.DynamicMoveProvider,
+      Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 1
+  - relativePath: Locomotion/Grab Move
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.GrabMoveProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Grab Move
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.GrabMoveProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Grab Move
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement.TwoHandedGrabMoveProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Teleportation
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation.TeleportationProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Climb
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Climbing.ClimbProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Climb/Climb Teleport
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Climbing.ClimbTeleportInteractor,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Climb/Climb Teleport
+    typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.ClimbTeleportDestinationIndicator,
+      Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    enabled: 0
+  - relativePath: Locomotion/Gravity
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Gravity.GravityProvider,
+      Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Locomotion/Jump
+    typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Jump.JumpProvider, Unity.XR.Interaction.Toolkit,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    enabled: 0
