@@ -27,6 +27,8 @@ public class PPELoadoutData : MonoBehaviour
 {
     public static PPELoadoutData Instance { get; private set; }
 
+    static bool allowEnsure = true;
+
     /// <summary>Canonical wearable ItemIds stored as Equipped.</summary>
     public static readonly string[] CanonicalEquippedItemIds =
     {
@@ -66,25 +68,72 @@ public class PPELoadoutData : MonoBehaviour
     public IReadOnlyList<string> EquippedItemIds => equippedList;
     public IReadOnlyList<string> PreparedItemIds => preparedList;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        Instance = null;
+        allowEnsure = true;
+    }
+
+#if UNITY_EDITOR
+    static PPELoadoutData()
+    {
+        UnityEditor.EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+    }
+
+    static void OnPlayModeStateChanged(UnityEditor.PlayModeStateChange state)
+    {
+        if (state == UnityEditor.PlayModeStateChange.ExitingPlayMode)
+        {
+            allowEnsure = false;
+            DestroyPersistentInstanceImmediate();
+        }
+        else if (state == UnityEditor.PlayModeStateChange.EnteredPlayMode)
+        {
+            allowEnsure = true;
+        }
+    }
+#endif
+
+    static void DestroyPersistentInstanceImmediate()
+    {
+        if (Instance == null)
+            return;
+
+        var go = Instance.gameObject;
+        Instance = null;
+        if (go != null)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                UnityEngine.Object.DestroyImmediate(go);
+            else
+#endif
+                UnityEngine.Object.Destroy(go);
+        }
+    }
+
     /// <summary>Creates or returns the persistent loadout object.</summary>
     public static PPELoadoutData Ensure()
     {
         if (Instance != null)
             return Instance;
 
+        // Never spawn DontDestroyOnLoad objects while the editor/app is tearing down.
+        if (!allowEnsure || !Application.isPlaying)
+            return null;
+
         var existing = FindAnyObjectByType<PPELoadoutData>(FindObjectsInactive.Include);
         if (existing != null)
         {
             Instance = existing;
-            if (Application.isPlaying)
-                DontDestroyOnLoad(existing.gameObject);
+            DontDestroyOnLoad(existing.gameObject);
             return Instance;
         }
 
         var go = new GameObject(nameof(PPELoadoutData));
+        DontDestroyOnLoad(go);
         Instance = go.AddComponent<PPELoadoutData>();
-        if (Application.isPlaying)
-            DontDestroyOnLoad(go);
         return Instance;
     }
 
@@ -99,6 +148,11 @@ public class PPELoadoutData : MonoBehaviour
         Instance = this;
         if (Application.isPlaying)
             DontDestroyOnLoad(gameObject);
+    }
+
+    void OnApplicationQuit()
+    {
+        allowEnsure = false;
     }
 
     void OnDestroy()
@@ -158,6 +212,13 @@ public class PPELoadoutData : MonoBehaviour
 
             equipment.CopyEquippedIdsTo(equippedList);
             equipment.CopyPreparedIdsTo(preparedList);
+
+            if (ContainsId(preparedList, PPEEquipmentManager.IdResponseBag)
+                && !ContainsId(equippedList, PPEEquipmentManager.IdResponseBag))
+            {
+                equippedList.Add(PPEEquipmentManager.IdResponseBag);
+            }
+
             FilterToCanonicalListsInPlace();
 
             for (var i = 0; i < equippedList.Count; i++)
@@ -178,10 +239,11 @@ public class PPELoadoutData : MonoBehaviour
     /// <summary>Draft sync only. Does not mark <see cref="PPELoadoutSource.PpeSceneResult"/>.</summary>
     public static void SyncFromScene()
     {
-        if (!Application.isPlaying)
+        if (!Application.isPlaying || !allowEnsure)
             return;
 
-        Ensure().CaptureFromManagers();
+        var data = Ensure();
+        data?.CaptureFromManagers();
     }
 
     /// <summary>
@@ -192,7 +254,12 @@ public class PPELoadoutData : MonoBehaviour
     {
         var snapshot = BuildPpeSceneSnapshotFromManagers();
         snapshot.source = PPELoadoutSource.PpeSceneResult;
-        var data = Ensure();
+
+        // Prefer existing DDOL instance. Avoid creating one during scene/play-mode teardown.
+        var data = Instance != null ? Instance : Ensure();
+        if (data == null)
+            return null;
+
         data.ReplaceWithSnapshot(snapshot);
         return data;
     }
@@ -219,6 +286,14 @@ public class PPELoadoutData : MonoBehaviour
             var prepared = new List<string>();
             equipment.CopyEquippedIdsTo(equipped);
             equipment.CopyPreparedIdsTo(prepared);
+
+            // Spec: ResponseBag is Equipped only. Promote legacy prepared-only entries.
+            if (ContainsId(prepared, PPEEquipmentManager.IdResponseBag)
+                && !ContainsId(equipped, PPEEquipmentManager.IdResponseBag))
+            {
+                equipped.Add(PPEEquipmentManager.IdResponseBag);
+            }
+
             AppendCanonicalEquipped(equipped, snapshot.equippedItemIds);
             AppendCanonicalPrepared(prepared, snapshot.preparedItemIds);
         }

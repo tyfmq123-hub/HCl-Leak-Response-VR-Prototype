@@ -39,6 +39,9 @@ public static class PPELoadoutPresets
     public static PPELoadoutData ReplaceLoadout(PPELoadoutSnapshot snapshot)
     {
         var data = PPELoadoutData.Ensure();
+        if (data == null)
+            return null;
+
         data.ApplySnapshot(snapshot); // ApplySnapshot clears first
         return data;
     }
@@ -46,9 +49,13 @@ public static class PPELoadoutPresets
     /// <summary>
     /// Clears previous DDOL loadout, then applies <see cref="FieldReadyComplete"/>
     /// with <see cref="PPELoadoutSource.FieldReadyPreset"/>.
+    /// Call only for explicit field-only / module-select start — never because lists look empty.
     /// </summary>
     public static PPELoadoutData BeginFieldStandaloneWithOfficialPreset()
     {
+        // Source is the only gate callers should use before invoking this.
+        // Replacing an existing PpeSceneResult is allowed only when the user explicitly
+        // chose field-standalone (module select), not when gear lists are partial.
         return ReplaceLoadout(FieldReadyComplete);
     }
 
@@ -61,7 +68,7 @@ public static class PPELoadoutPresets
         if (PPELoadoutData.Instance != null)
             PPELoadoutData.Instance.Clear();
         else
-            PPELoadoutData.Ensure().Clear();
+            PPELoadoutData.Ensure()?.Clear();
     }
 
     /// <summary>
