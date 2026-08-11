@@ -9,6 +9,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 
 [InitializeOnLoad]
 public static class AppPlayModeSmokeRunner
@@ -229,6 +230,17 @@ public static class AppPlayModeSmokeRunner
         var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         Require(systems.Length == 1, $"{label}: active EventSystem count={systems.Length}.");
 
+        if (expectedStage == TrainingStage.LeakResponse)
+        {
+            var xrRoot = app.XRProfiles.CommonXrOrigin.transform;
+            RequireInactive(xrRoot, "Camera Offset/Hand Visualizer", label);
+            RequireInactive(xrRoot, "Camera Offset/VR Hand Pose Tool Tracking", label);
+
+            var moveProvider = xrRoot.GetComponent<ContinuousMoveProvider>();
+            Require(moveProvider != null && moveProvider.enabled && moveProvider.gameObject.activeInHierarchy,
+                $"{label}: ContinuousMoveProvider is not active.");
+        }
+
         var contentScenes = 0;
         for (var i = 0; i < SceneManager.sceneCount; i++)
         {
@@ -238,6 +250,13 @@ public static class AppPlayModeSmokeRunner
         }
         Require(contentScenes == 1, $"{label}: simultaneously loaded content Scenes={contentScenes}.");
         report.Add($"PASS {label}: XR=1, MainCamera=1, AudioListener=1, EventSystem=1, ContentScene=1");
+    }
+
+    static void RequireInactive(Transform root, string relativePath, string label)
+    {
+        var target = root != null ? root.Find(relativePath) : null;
+        Require(target == null || !target.gameObject.activeInHierarchy,
+            $"{label}: controller-only XR object is active: {relativePath}.");
     }
 
     static bool IsContentLoaded(string path)

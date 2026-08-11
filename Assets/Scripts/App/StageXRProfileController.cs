@@ -17,6 +17,9 @@ namespace HClTraining.App
     [DisallowMultipleComponent]
     public sealed class StageXRProfileController : MonoBehaviour
     {
+        const string HandVisualizerPath = "Camera Offset/Hand Visualizer";
+        const string HandTrackingPath = "Camera Offset/VR Hand Pose Tool Tracking";
+
         [SerializeField] GameObject commonXrOrigin;
         [SerializeField] StageXRProfile[] profiles;
 
@@ -120,11 +123,29 @@ namespace HClTraining.App
             LastReboundReferenceCount = RebindSceneReferences(scene, sourceOrigin.transform, commonXrOrigin.transform);
             DisableLegacyXrObjects(scene, sourceOrigin.gameObject);
 
+            // LeakResponse is controller-only. Its legacy source rig contains XR Hands sample
+            // objects that must not be copied into the active common rig.
+            if (stage == TrainingStage.LeakResponse)
+                ApplyLeakResponseControllerOnlyPolicy(commonXrOrigin.transform);
+
             LastAppliedProfile = profile != null ? profile.name : stage.ToString();
             Debug.Log(
                 $"[Stage XR Profile] Applied {LastAppliedProfile}; spawn={commonXrOrigin.transform.position}; " +
                 $"reboundReferences={LastReboundReferenceCount}.", this);
             return true;
+        }
+
+        static void ApplyLeakResponseControllerOnlyPolicy(Transform xrRoot)
+        {
+            SetObjectActive(xrRoot, HandVisualizerPath, false);
+            SetObjectActive(xrRoot, HandTrackingPath, false);
+        }
+
+        static void SetObjectActive(Transform root, string relativePath, bool active)
+        {
+            var target = root != null ? root.Find(relativePath) : null;
+            if (target != null)
+                target.gameObject.SetActive(active);
         }
 
         bool ConfigureStartRay(string relativePath, string actionMapName, out string error)
