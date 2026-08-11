@@ -15412,7 +15412,7 @@ MonoBehaviour:
     anchorLocalOffset: {x: 0, y: 0, z: 0}
   - nameContains: PPE_ChemicalSafetyBoots
     scaleMultiplier: 1
-    yawOffsetDegrees: 180
+    yawOffsetDegrees: 90
     pitchOffsetDegrees: 0
     faceCameraYawOnly: 1
     anchorLocalOffset: {x: 0, y: 0, z: 0}
@@ -15428,6 +15428,12 @@ MonoBehaviour:
     pitchOffsetDegrees: 0
     faceCameraYawOnly: 0
     anchorLocalOffset: {x: 0, y: 0, z: 0}
+  - nameContains: PPE_InnerGloves
+    scaleMultiplier: 1.1
+    yawOffsetDegrees: 180
+    pitchOffsetDegrees: -90
+    faceCameraYawOnly: 1
+    anchorLocalOffset: {x: 0, y: 0.04, z: 0}
   - nameContains: PPE_ChemicalGloves
     scaleMultiplier: 1.1
     yawOffsetDegrees: 180

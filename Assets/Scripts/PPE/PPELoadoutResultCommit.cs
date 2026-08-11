@@ -4,8 +4,9 @@ using UnityEngine.Events;
 /// <summary>
 /// PPE-room helper: wire a Confirm / Proceed button to
 /// <see cref="CommitResult"/> so the loadout is finalized once as
-/// <see cref="PPELoadoutSource.PpeSceneResult"/> before Single-loading the next scene.
+/// <see cref="PPELoadoutSource.PpeSceneResult"/>.
 /// Do not place <see cref="PPELoadoutSceneBootstrap"/> in the PPE room.
+/// Do not Clear the loadout on scene transition (Integration owns scene flow).
 /// </summary>
 [DisallowMultipleComponent]
 public class PPELoadoutResultCommit : MonoBehaviour
@@ -24,6 +25,12 @@ public class PPELoadoutResultCommit : MonoBehaviour
     public void CommitResult()
     {
         var data = PPELoadoutPresets.CommitPpeSceneResult();
+        if (data == null)
+        {
+            Debug.LogWarning("[PPE Loadout Commit] Commit skipped (loadout unavailable).", this);
+            return;
+        }
+
         if (logCommit)
         {
             Debug.Log(

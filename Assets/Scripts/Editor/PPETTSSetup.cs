@@ -21,7 +21,7 @@ public static class PPETTSSetup
         "03_WearInOrder.wav",
         "04_PointWithRay.wav",
         "05_OutlineShowsSelectable.wav",
-        "06_TriggerSelectThenEquip.wav",
+        "06_GripSelectThenEquip.wav",
         "07_BButtonCancel.wav",
         "08_WearInnerGloves.wav",
         "09_InnerGlovesEquipped.wav",
@@ -117,6 +117,47 @@ public static class PPETTSSetup
 
         tts.EditorSetClips(assigned);
         EditorUtility.SetDirty(tts);
+
+        // Ensure clips preload so Play() works on first frame in headset builds.
+        for (var i = 0; i < ClipFiles.Length; i++)
+        {
+            var path = ClipFolder + "/" + ClipFiles[i];
+            var importer = AssetImporter.GetAtPath(path) as AudioImporter;
+            if (importer == null)
+                continue;
+
+            var settings = importer.defaultSampleSettings;
+            var dirty = false;
+            if (!settings.preloadAudioData)
+            {
+                settings.preloadAudioData = true;
+                dirty = true;
+            }
+
+            if (settings.loadType != AudioClipLoadType.DecompressOnLoad)
+            {
+                settings.loadType = AudioClipLoadType.DecompressOnLoad;
+                dirty = true;
+            }
+
+            if (settings.compressionFormat != AudioCompressionFormat.PCM)
+            {
+                settings.compressionFormat = AudioCompressionFormat.PCM;
+                dirty = true;
+            }
+
+            if (!importer.forceToMono)
+            {
+                importer.forceToMono = true;
+                dirty = true;
+            }
+
+            if (dirty)
+            {
+                importer.defaultSampleSettings = settings;
+                importer.SaveAndReimport();
+            }
+        }
 
         // Avoid double intro with legacy player.
         var intro = Object.FindAnyObjectByType<PPERoomIntroVoice>(FindObjectsInactive.Include);
