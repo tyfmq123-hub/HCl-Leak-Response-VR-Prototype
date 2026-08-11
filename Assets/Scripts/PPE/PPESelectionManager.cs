@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 /// <summary>
 /// Maintains a single sticky PPE selection and notifies the preview controller.
 /// Grip once: select + preview. Grip again (via XRInteractionConfirmRouter): equip.
-/// While a PPE is selected, other PPE selects are ignored until Right-hand B cancel.
+/// Right-hand B (SecondaryButton) clears the current selection.
 /// Left-hand Y is reserved for PPE checklist visibility toggle.
 /// </summary>
 public class PPESelectionManager : MonoBehaviour
@@ -243,22 +243,10 @@ public class PPESelectionManager : MonoBehaviour
         ownedEquipConfirmAction.AddBinding("<OculusTouchController>{LeftHand}/gripPressed");
     }
 
-    public void SelectPPE(PPEOutlineHighlight target) => TrySelectPPE(target);
-
-    /// <summary>
-    /// Sticky-selects <paramref name="target"/>. While another PPE is already previewed,
-    /// selection is locked until Right B cancel (<see cref="ClearSelection"/>).
-    /// </summary>
-    public bool TrySelectPPE(PPEOutlineHighlight target)
+    public void SelectPPE(PPEOutlineHighlight target)
     {
         if (target == null)
-            return false;
-
-        if (currentSelectedPPE != null && currentSelectedPPE != target)
-        {
-            ShowMustCancelBeforeSwitchFeedback();
-            return false;
-        }
+            return;
 
         var isBag = IsResponseBagHighlight(target);
 
@@ -270,7 +258,7 @@ public class PPESelectionManager : MonoBehaviour
         {
             // Keep sticky highlight — equip only via XRInteractionConfirmRouter Grip confirm.
             currentSelectedPPE.SetSelected(true);
-            return true;
+            return;
         }
 
         var previous = currentSelectedPPE;
@@ -302,15 +290,6 @@ public class PPESelectionManager : MonoBehaviour
             feedback?.ShowMessage(
                 "Y\uB85C \uB0B4\uBD80 \uD655\uC778 \uD6C4 Grip\uC73C\uB85C \uC900\uBE44\uD558\uC138\uC694.");
         }
-
-        return true;
-    }
-
-    static void ShowMustCancelBeforeSwitchFeedback()
-    {
-        var feedback = FindAnyObjectByType<PPEEquipFeedbackUI>(FindObjectsInactive.Include);
-        feedback?.ShowMessage(
-            "B\uB85C \uC120\uD0DD\uC744 \uCDE8\uC18C\uD55C \uB4A4 \uB2E4\uB978 \uBCF4\uD638\uAD6C\uB97C \uC120\uD0DD\uD558\uC138\uC694.");
     }
 
     static bool IsResponseBagHighlight(PPEOutlineHighlight target)

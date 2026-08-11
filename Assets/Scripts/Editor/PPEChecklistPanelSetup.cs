@@ -30,17 +30,19 @@ public static class PPEChecklistPanelSetup
         public PPEChecklistPanel.ChecklistSource Source;
     }
 
-    // Wear order matches PPESequenceManager / TTS prompts.
-    static readonly RowSpec[] WearOrderRows =
+    static readonly RowSpec[] PpeRows =
     {
-        new RowSpec { ObjectName = "InnerGlovesRow", Label = "1. \uC18D\uC7A5\uAC11", ItemId = PPESequenceManager.IdInnerGloves, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "ChemicalSuitRow", Label = "2. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5", ItemId = PPEEquipmentManager.IdChemicalSuit, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "ChemicalBootsRow", Label = "3. \uB0B4\uD654\uD559 \uC548\uC804\uC7A5\uD654", ItemId = PPEEquipmentManager.IdChemicalBoots, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "FaceRespiratorRow", Label = "4. \uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceRespirator, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "ResponseBagRow", Label = "5. \uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29", ItemId = PPEEquipmentManager.IdResponseBag, Source = PPEChecklistPanel.ChecklistSource.ResponseBagPrepared },
-        new RowSpec { ObjectName = "FaceShieldRow", Label = "6. \uC548\uBA74\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceShield, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "ChemicalGlovesRow", Label = "7. \uC678\uBD80 \uBCF4\uD638\uC7A5\uAC11", ItemId = PPEEquipmentManager.IdChemicalGloves, Source = PPEChecklistPanel.ChecklistSource.Equipped },
-        new RowSpec { ObjectName = "WasteContainerRow", Label = "8. \uC720\uD574\uD3D0\uAE30\uBB3C \uC218\uAC70\uC6A9\uAE30", ItemId = PPEEquipmentManager.IdWasteContainer, Source = PPEChecklistPanel.ChecklistSource.Prepared },
+        new RowSpec { ObjectName = "FaceShieldRow", Label = "\uC548\uBA74\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceShield, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "FaceRespiratorRow", Label = "\uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceRespirator, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalSuitRow", Label = "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5", ItemId = PPEEquipmentManager.IdChemicalSuit, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalGlovesRow", Label = "\uB0B4\uD654\uD559 \uBCF4\uD638\uC7A5\uAC11", ItemId = PPEEquipmentManager.IdChemicalGloves, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalBootsRow", Label = "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638 \uC7A5\uD654", ItemId = PPEEquipmentManager.IdChemicalBoots, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+    };
+
+    static readonly RowSpec[] EquipmentRows =
+    {
+        new RowSpec { ObjectName = "ResponseBagRow", Label = "\uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29", ItemId = PPEEquipmentManager.IdResponseBag, Source = PPEChecklistPanel.ChecklistSource.ResponseBagPrepared },
+        new RowSpec { ObjectName = "WasteContainerRow", Label = "\uC720\uD574\uD3D0\uAE30\uBB3C \uC218\uAC70\uC6A9\uAE30", ItemId = PPEEquipmentManager.IdWasteContainer, Source = PPEChecklistPanel.ChecklistSource.Prepared },
     };
 
     [MenuItem("Tools/PPE/Setup Checklist Panel", false, 28)]
@@ -140,12 +142,19 @@ public static class PPEChecklistPanelSetup
 
         var ppeSection = CreateRect("PPESection", panel);
         AddVertical(ppeSection.gameObject, 6, new RectOffset(0, 0, 4, 4));
-        PreferHeight(ppeSection, 720f);
-        CreateText(ppeSection, "PPESectionLabel", "\uCC29\uC6A9 \uC21C\uC11C", 30f, SectionYellow, FontStyles.Bold, 40f);
-        foreach (var spec in WearOrderRows)
+        PreferHeight(ppeSection, 430f);
+        CreateText(ppeSection, "PPESectionLabel", "PPE", 30f, SectionYellow, FontStyles.Bold, 40f);
+        foreach (var spec in PpeRows)
             CreateRow(ppeSection, spec);
 
-        CreateText(panel, "StatusText", "\uCC29\uC6A9 \uC21C\uC11C 0/8", 28f, StatusGray, FontStyles.Normal, 48f);
+        var equipmentSection = CreateRect("EquipmentSection", panel);
+        AddVertical(equipmentSection.gameObject, 6, new RectOffset(0, 0, 10, 4));
+        PreferHeight(equipmentSection, 220f);
+        CreateText(equipmentSection, "EquipmentSectionLabel", "\uB300\uC751\uC7A5\uBE44", 30f, SectionYellow, FontStyles.Bold, 40f);
+        foreach (var spec in EquipmentRows)
+            CreateRow(equipmentSection, spec);
+
+        CreateText(panel, "StatusText", "PPE 0/5  \u00B7  \uB300\uC751\uC7A5\uBE44 0/2", 28f, StatusGray, FontStyles.Normal, 48f);
 
         Undo.AddComponent<PPEChecklistPanel>(canvasGo);
         report.AppendLine("Created hierarchy under PPE_System (or scene root).");
@@ -196,44 +205,8 @@ public static class PPEChecklistPanelSetup
         so.FindProperty("equipmentManager").objectReferenceValue = manager;
 
         var rowList = new System.Collections.Generic.List<(RowSpec Spec, Transform RowRoot)>();
-        CollectRows(canvasGo.transform, WearOrderRows, rowList);
-
-        // Ensure missing rows (e.g. InnerGloves) exist under PPESection in wear order.
-        var section = FindDeep(canvasGo.transform, "PPESection");
-        if (section != null)
-        {
-            for (var i = 0; i < WearOrderRows.Length; i++)
-            {
-                var spec = WearOrderRows[i];
-                if (FindDeep(canvasGo.transform, spec.ObjectName) != null)
-                    continue;
-
-                CreateRow(section, spec);
-            }
-
-            rowList.Clear();
-            CollectRows(canvasGo.transform, WearOrderRows, rowList);
-
-            var sibling = 0;
-            var title = section.Find("PPESectionLabel");
-            if (title != null)
-            {
-                title.SetSiblingIndex(0);
-                sibling = 1;
-            }
-
-            for (var i = 0; i < rowList.Count; i++)
-            {
-                var rowRoot = rowList[i].RowRoot;
-                if (rowRoot.parent != section)
-                    rowRoot.SetParent(section, false);
-                rowRoot.SetSiblingIndex(sibling++);
-            }
-        }
-
-        var equipmentSection = FindDeep(canvasGo.transform, "EquipmentSection");
-        if (equipmentSection != null)
-            equipmentSection.gameObject.SetActive(false);
+        CollectRows(canvasGo.transform, PpeRows, rowList);
+        CollectRows(canvasGo.transform, EquipmentRows, rowList);
 
         var rowsProp = so.FindProperty("rows");
         rowsProp.arraySize = rowList.Count;

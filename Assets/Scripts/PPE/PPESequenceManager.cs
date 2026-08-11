@@ -134,14 +134,13 @@ public class PPESequenceManager : MonoBehaviour
 
     void OnDestroy()
     {
-        // Only finalize an already-existing loadout. Never Ensure()/spawn DDOL from OnDestroy —
-        // that leaves "PPELoadoutData" behind when stopping Play Mode.
+        // Leaving the PPE room without an explicit confirm still records the real
+        // (possibly partial/empty) result so validation cannot apply FieldReadyPreset.
         if (Application.isPlaying
             && Instance == this
-            && PPELoadoutData.Instance != null
-            && PPELoadoutData.Instance.Source == PPELoadoutSource.None)
+            && PPELoadoutReader.Source == PPELoadoutSource.None)
         {
-            PPELoadoutPresets.CommitPpeSceneResult();
+            PPELoadoutData.CommitPpeSceneResultFromManagers();
         }
 
         if (Instance == this)
@@ -227,7 +226,7 @@ public class PPESequenceManager : MonoBehaviour
             sequenceComplete = true;
             OnRequiredStepChanged?.Invoke(null);
             // Finalize before completed listeners so they see Source=PpeSceneResult.
-            PPELoadoutPresets.CommitPpeSceneResult();
+            PPELoadoutData.CommitPpeSceneResultFromManagers();
             OnPPESequenceCompleted?.Invoke();
             Debug.Log("[PPE Sequence] Preparation sequence complete.", this);
             return true;

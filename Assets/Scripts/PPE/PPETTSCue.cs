@@ -8,7 +8,7 @@ public enum PPETTSCue
     WearInOrder = 3,
     PointWithRay = 4,
     OutlineShowsSelectable = 5,
-    GripSelectThenEquip = 6,
+    TriggerSelectThenEquip = 6,
     BButtonCancel = 7,
     WearInnerGloves = 8,
     InnerGlovesEquipped = 9,

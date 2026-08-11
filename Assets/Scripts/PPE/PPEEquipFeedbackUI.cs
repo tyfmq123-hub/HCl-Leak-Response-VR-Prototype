@@ -122,10 +122,6 @@ public class PPEEquipFeedbackUI : MonoBehaviour
         if (item == null)
             return;
 
-        // TTS already shows timed Korean subtitles for equip steps — skip short duplicate toast.
-        if (PPETTSManager.Instance != null)
-            return;
-
         var name = string.IsNullOrWhiteSpace(item.DisplayName) ? item.ItemId : item.DisplayName;
         ShowMessage(BuildEquipMessage(name));
     }
@@ -153,12 +149,6 @@ public class PPEEquipFeedbackUI : MonoBehaviour
 
     /// <summary>Shows <paramref name="message"/> and restarts the hide timer.</summary>
     public void ShowMessage(string message)
-    {
-        ShowMessage(message, displayDuration);
-    }
-
-    /// <summary>Shows <paramref name="message"/> for <paramref name="durationSeconds"/> (e.g. TTS clip length).</summary>
-    public void ShowMessage(string message, float durationSeconds)
     {
         ResolveReferences();
         EnsureHangulFont();
@@ -199,18 +189,12 @@ public class PPEEquipFeedbackUI : MonoBehaviour
         if (hideRoutine != null)
             StopCoroutine(hideRoutine);
 
-        var hold = Mathf.Max(0.35f, durationSeconds);
-        hideRoutine = StartCoroutine(HideAfterDelay(hold));
+        hideRoutine = StartCoroutine(HideAfterDelay());
     }
 
     IEnumerator HideAfterDelay()
     {
-        yield return HideAfterDelay(displayDuration);
-    }
-
-    IEnumerator HideAfterDelay(float holdSeconds)
-    {
-        yield return new WaitForSeconds(holdSeconds);
+        yield return new WaitForSeconds(displayDuration);
 
         if (canvasGroup != null && fadeOutDuration > 0f)
         {
