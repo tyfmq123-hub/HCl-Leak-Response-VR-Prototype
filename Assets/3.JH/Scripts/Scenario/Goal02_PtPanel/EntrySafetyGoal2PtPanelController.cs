@@ -84,9 +84,21 @@ namespace JH.EntrySafety
 
         private void Awake()
         {
+            ResolveLiveXrRefs();
             _p102PressFallbackWorldPosition = _p102Press == null ? Vector3.zero : _p102Press.position;
             CacheP102RunningFontSize();
             ResetPresentation();
+        }
+
+        private void ResolveLiveXrRefs()
+        {
+            // Common XR Origin is named differently from the stage XR Origin.
+            _xrOrigin = EntrySafetyAppXrResolve.PreferLive(_xrOrigin, "Common XR Origin");
+            if (_xrOrigin == null)
+                _xrOrigin = EntrySafetyAppXrResolve.PreferLive(null, "XR Origin (VR)");
+
+            _head = EntrySafetyAppXrResolve.PreferLive(_head, "Main Camera");
+            _rightHand = EntrySafetyAppXrResolve.PreferLive(_rightHand, "Right Controller");
         }
 
         private void OnDestroy()
@@ -102,6 +114,7 @@ namespace JH.EntrySafety
 
         public void ResetPresentation()
         {
+            ResolveLiveXrRefs();
             _pressureMpa = _initialPressureMpa;
             _pressureElapsed = 0f;
             _pumpStopped = false;
@@ -191,6 +204,7 @@ namespace JH.EntrySafety
 
         public void UpdateStopProximity(bool isStopStep, Vector3 rightHandTrackingPosition, bool hasRightHandPose)
         {
+            ResolveLiveXrRefs();
             if (!isStopStep || _pumpStopped || _xrOrigin == null || _p102Press == null)
             {
                 _isRightHandInsideStopZone = false;
@@ -261,6 +275,7 @@ namespace JH.EntrySafety
 
         private void MoveHeadToPanelFocus()
         {
+            ResolveLiveXrRefs();
             if (_xrOrigin == null || _head == null || _panelFocus == null)
                 return;
 

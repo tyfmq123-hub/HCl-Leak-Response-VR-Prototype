@@ -54,6 +54,7 @@ namespace JH.EntrySafety
                             _windChangeController != null && _windsockGazeTarget != null;
             if (!_isConfigured)
             {
+                _stateMachine = null;
                 ReportConfigurationErrorOnce();
                 enabled = false;
                 return;
@@ -116,7 +117,7 @@ namespace JH.EntrySafety
 
         private void Update()
         {
-            if (!_isConfigured || _stateMachine.IsSectionCompleted)
+            if (!_isConfigured || _stateMachine == null || _stateMachine.IsSectionCompleted)
                 return;
 
             // While guidance TTS is playing, freeze most progression so the user can finish listening.
@@ -351,6 +352,9 @@ namespace JH.EntrySafety
 
         private void Advance(EntrySafetyStep expectedStep)
         {
+            if (_stateMachine == null)
+                return;
+
             if (_stateMachine.TryCompleteStep(expectedStep, EntrySafetyCompletionMode.Normal))
             {
                 _lastStep = _stateMachine.CurrentStep;
@@ -360,6 +364,9 @@ namespace JH.EntrySafety
 
         private void RefreshGuidance()
         {
+            if (_stateMachine == null || _guidanceCoordinator == null)
+                return;
+
             var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.MoveToNextArea && !_goal2OutroStarted && _goal02TtsPlayer != null)
             {

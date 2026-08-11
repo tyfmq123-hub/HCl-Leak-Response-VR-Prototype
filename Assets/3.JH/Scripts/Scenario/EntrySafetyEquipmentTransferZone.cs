@@ -23,6 +23,7 @@ namespace JH.EntrySafety
         {
             _timer = new EntrySafetyZoneDwellTimer(_requiredDwellSeconds);
             ApplyScaleToBoxColliderIfNeeded();
+            ResolveRuntimeBindings();
         }
 
         private void OnValidate()
@@ -32,6 +33,7 @@ namespace JH.EntrySafety
 
         public void UpdateZone(bool isActive, float deltaTime)
         {
+            ResolveRuntimeBindings();
             if (_leftHand == null || _zoneCollider == null)
             {
                 IsLeftHandInside = false;
@@ -50,6 +52,24 @@ namespace JH.EntrySafety
         {
             IsLeftHandInside = false;
             _timer?.Reset();
+        }
+
+        private void ResolveRuntimeBindings()
+        {
+            _leftHand = EntrySafetyAppXrResolve.PreferLive(_leftHand, "Left Controller");
+            _zoneCollider = EntrySafetyAppXrResolve.PreferLiveCollider(_zoneCollider, "Bag_Body_Static");
+
+            // Last resort: local box on this object (solo-play / missing bag collider).
+            if (_zoneCollider == null || !_zoneCollider.gameObject.activeInHierarchy)
+            {
+                var localBox = GetComponent<BoxCollider>();
+                if (localBox != null)
+                {
+                    if (!localBox.enabled)
+                        localBox.enabled = true;
+                    _zoneCollider = localBox;
+                }
+            }
         }
 
         private void ApplyScaleToBoxColliderIfNeeded()

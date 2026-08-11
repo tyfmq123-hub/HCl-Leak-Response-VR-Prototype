@@ -20,11 +20,13 @@ namespace JH.EntrySafety
 
         private void LateUpdate()
         {
+            ResolveLiveXrRefs();
             ApplyFallback();
         }
 
         public bool ApplyFallback()
         {
+            ResolveLiveXrRefs();
             if (_head == null)
                 return false;
 
@@ -32,6 +34,13 @@ namespace JH.EntrySafety
             applied |= ApplyFallbackToController(_leftController, _leftControllerFromHead, _leftLocalEulerAngles);
             applied |= ApplyFallbackToController(_rightController, _rightControllerFromHead, _rightLocalEulerAngles);
             return applied;
+        }
+
+        private void ResolveLiveXrRefs()
+        {
+            _head = EntrySafetyAppXrResolve.PreferLive(_head, "Main Camera");
+            _leftController = EntrySafetyAppXrResolve.PreferLive(_leftController, "Left Controller");
+            _rightController = EntrySafetyAppXrResolve.PreferLive(_rightController, "Right Controller");
         }
 
         private bool ApplyFallbackToHead()

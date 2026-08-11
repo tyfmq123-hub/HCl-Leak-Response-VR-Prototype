@@ -23,15 +23,16 @@ namespace JH.EntrySafety
         private Renderer _guideMarkerRenderer;
         private Material _guideMaterial;
 
-        public Camera GazeCamera => _mainCamera;
+        public Camera GazeCamera => PreferCamera();
 
         public bool TryGetTarget(out EntrySafetyGazeTargetId targetId)
         {
             targetId = EntrySafetyGazeTargetId.None;
-            if (_mainCamera == null)
+            var camera = PreferCamera();
+            if (camera == null)
                 return false;
 
-            var ray = CreateGazeRay();
+            var ray = CreateGazeRay(camera);
             var hitCount = Physics.RaycastNonAlloc(ray, _hits, _maxDistance, _layerMask, _queryTriggerInteraction);
             var closestTargetDistance = float.PositiveInfinity;
             for (var i = 0; i < hitCount; i++)
@@ -45,7 +46,7 @@ namespace JH.EntrySafety
                 targetId = target.TargetId;
             }
 
-            UpdateGuideRay(ray, targetId != EntrySafetyGazeTargetId.None
+            UpdateGuideRay(camera, ray, targetId != EntrySafetyGazeTargetId.None
                 ? closestTargetDistance
                 : Mathf.Min(_guideRayIdleLength, _maxDistance), targetId != EntrySafetyGazeTargetId.None);
             return targetId != EntrySafetyGazeTargetId.None;
@@ -53,7 +54,8 @@ namespace JH.EntrySafety
 
         public void SetGuideRayVisible(bool visible)
         {
-            if (_mainCamera == null)
+            var camera = PreferCamera();
+            if (camera == null)
                 return;
 
             _showGuideRay = visible;
@@ -66,25 +68,31 @@ namespace JH.EntrySafety
                 return;
             }
 
-            EnsureGuideVisual();
+            EnsureGuideVisual(camera);
             ApplyGuideVisualState();
         }
 
-        private Ray CreateGazeRay()
+        private Camera PreferCamera()
+        {
+            _mainCamera = EntrySafetyAppXrResolve.PreferLiveMainCamera(_mainCamera);
+            return _mainCamera;
+        }
+
+        private Ray CreateGazeRay(Camera camera)
         {
             var viewport = new Vector3(
                 Mathf.Clamp01(_gazeViewportPoint.x),
                 Mathf.Clamp01(_gazeViewportPoint.y),
                 0f);
-            return _mainCamera.ViewportPointToRay(viewport, Camera.MonoOrStereoscopicEye.Mono);
+            return camera.ViewportPointToRay(viewport, Camera.MonoOrStereoscopicEye.Mono);
         }
 
-        private void UpdateGuideRay(Ray ray, float distance, bool hasTarget)
+        private void UpdateGuideRay(Camera camera, Ray ray, float distance, bool hasTarget)
         {
             if (!_showGuideRay)
                 return;
 
-            EnsureGuideVisual();
+            EnsureGuideVisual(camera);
             var endPosition = ray.GetPoint(distance);
             _guideLine.SetPosition(0, ray.origin);
             _guideLine.SetPosition(1, endPosition);
@@ -108,13 +116,17 @@ namespace JH.EntrySafety
                 _guideMarker.gameObject.SetActive(showVisual);
         }
 
-        private void EnsureGuideVisual()
+        private void EnsureGuideVisual(Camera camera)
         {
             if (_guideLine != null)
+            {
+                if (_guideLine.transform.parent != camera.transform)
+                    _guideLine.transform.SetParent(camera.transform, false);
                 return;
+            }
 
             var guideObject = new GameObject("EntrySafetyGazeGuideRay");
-            guideObject.transform.SetParent(_mainCamera.transform, false);
+            guideObject.transform.SetParent(camera.transform, false);
             _guideLine = guideObject.AddComponent<LineRenderer>();
             _guideLine.useWorldSpace = true;
             _guideLine.positionCount = 2;
