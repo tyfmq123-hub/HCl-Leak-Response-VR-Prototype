@@ -52,12 +52,14 @@ namespace JH.EntrySafety
         private void Awake()
         {
             EnsureTriggerTimers();
+            EnsureDetectorOnLiveXr();
             if (_detectorInstance != null)
                 _detectorInstance.SetActive(false);
         }
 
         public bool TryEquip()
         {
+            EnsureDetectorOnLiveXr();
             if (IsEquipped || _detectorInstance == null)
                 return false;
 
@@ -131,6 +133,7 @@ namespace JH.EntrySafety
 
         public void ResetDetector()
         {
+            EnsureDetectorOnLiveXr();
             IsEquipped = false;
             HasInitialResult = false;
             HasReducedResult = false;
@@ -149,5 +152,21 @@ namespace JH.EntrySafety
                 _reducedTriggerTimer = new EntrySafetyTriggerHoldTimer(_requiredHoldSeconds);
         }
 
+        private void EnsureDetectorOnLiveXr()
+        {
+            if (_detectorInstance == null)
+                return;
+
+            // App disables the stage XR Origin. Keep the real detector prefab and move it onto the live hand.
+            var liveVisual = EntrySafetyAppXrResolve.FindActiveLeftControllerVisual();
+            if (liveVisual == null)
+                return;
+
+            var detectorTransform = _detectorInstance.transform;
+            if (detectorTransform.parent == liveVisual)
+                return;
+
+            EntrySafetyAppXrResolve.ReparentOnto(detectorTransform, liveVisual, keepWorldPose: false);
+        }
     }
 }
