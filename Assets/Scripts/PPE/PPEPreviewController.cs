@@ -58,12 +58,22 @@ public class PPEPreviewController : MonoBehaviour
         {
             nameContains = "PPE_ChemicalSafetyBoots",
             scaleMultiplier = 1f,
-            // FBX often faces -Z; yaw 180 puts toe/front toward the HMD.
-            yawOffsetDegrees = 180f,
+            // Toe toward HMD: 90° yaw (-90 + half turn).
+            yawOffsetDegrees = 90f,
             faceCameraYawOnly = true,
         },
         new PreviewOverride { nameContains = "PPE_FaceRespirator", scaleMultiplier = 1.05f, yawOffsetDegrees = 0f },
         new PreviewOverride { nameContains = "PPE_ChemicalFaceShield", scaleMultiplier = 1f, yawOffsetDegrees = 0f },
+        // First-sequence inner gloves (PPE_glrove). Shelf mesh is flipped vs outer gloves.
+        new PreviewOverride
+        {
+            nameContains = "PPE_InnerGloves",
+            scaleMultiplier = 1.1f,
+            yawOffsetDegrees = 180f,
+            pitchOffsetDegrees = -90f,
+            faceCameraYawOnly = true,
+            anchorLocalOffset = new Vector3(0f, 0.04f, 0f),
+        },
         // Shelf gloves lie flat (thin on Y). Yaw-only + pitch stands them for reading.
         new PreviewOverride
         {

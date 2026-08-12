@@ -133,7 +133,18 @@ public class PPELoadoutSceneBootstrap : MonoBehaviour
 
         // Source is the only gate. Partial/empty PpeSceneResult must never be overwritten.
         if (existing != null && existing.HasResolvedLoadout)
+        {
+            if (missingLoadoutMode == MissingLoadoutMode.ApplyFieldReadyPreset
+                && existing.HasRecordedPpeResult
+                && (existing.EquippedItemIds == null || existing.EquippedItemIds.Count == 0))
+            {
+                Debug.Log(
+                    "[PPE Loadout Bootstrap] Keeping empty PpeSceneResult — will not apply FieldReady preset.",
+                    this);
+            }
+
             return existing;
+        }
 
         switch (missingLoadoutMode)
         {

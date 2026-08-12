@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit.UI;
 
 /// <summary>
 /// World-space preparation checklist. Displays manager state only -
 /// never stores its own completion flags.
+/// Rows always follow <see cref="PPESequenceManager"/> wear order (same as TTS).
 /// Toggle visibility via on-panel button or left-controller Y (SecondaryButton).
 /// </summary>
 [DisallowMultipleComponent]
@@ -73,12 +76,84 @@ public class PPEChecklistPanel : MonoBehaviour
     static readonly string LabelHide = "\uB2EB\uAE30";
     static readonly string LabelShow = "\uC5F4\uAE30";
 
+    struct WearOrderSpec
+    {
+        public string ObjectName;
+        public string Label;
+        public string ItemId;
+        public ChecklistSource Source;
+    }
+
+    /// <summary>
+    /// Exact wear order used by PPESequenceManager / TTS.
+    /// Labels use Hangul already present in the room font atlas where possible.
+    /// </summary>
+    static readonly WearOrderSpec[] WearOrderSpecs =
+    {
+        new WearOrderSpec
+        {
+            ObjectName = "InnerGlovesRow",
+            Label = "1. \uC18D\uC7A5\uAC11",
+            ItemId = PPESequenceManager.IdInnerGloves,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "ChemicalSuitRow",
+            Label = "2. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5",
+            ItemId = PPEEquipmentManager.IdChemicalSuit,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "ChemicalBootsRow",
+            Label = "3. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638 \uC7A5\uD654",
+            ItemId = PPEEquipmentManager.IdChemicalBoots,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "FaceRespiratorRow",
+            Label = "4. \uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C",
+            ItemId = PPEEquipmentManager.IdFaceRespirator,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "ResponseBagRow",
+            Label = "5. \uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29",
+            ItemId = PPEEquipmentManager.IdResponseBag,
+            Source = ChecklistSource.ResponseBagPrepared,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "FaceShieldRow",
+            Label = "6. \uC548\uBA74\uBCF4\uD638\uAD6C",
+            ItemId = PPEEquipmentManager.IdFaceShield,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "ChemicalGlovesRow",
+            Label = "7. \uB0B4\uD654\uD559 \uBCF4\uD638\uC7A5\uAC11",
+            ItemId = PPEEquipmentManager.IdChemicalGloves,
+            Source = ChecklistSource.Equipped,
+        },
+        new WearOrderSpec
+        {
+            ObjectName = "WasteContainerRow",
+            Label = "8. \uC720\uD574\uD3D0\uAE30\uBB3C \uC218\uAC70\uC6A9\uAE30",
+            ItemId = PPEEquipmentManager.IdWasteContainer,
+            Source = ChecklistSource.Prepared,
+        },
+    };
+
     public bool IsContentVisible => contentVisible;
 
     void Awake()
     {
         EnsureUiRefs();
-        EnsureRowsWired();
+        ApplyWearSequenceOrder();
         EnsureUiInteraction();
         EnsureToggleButton();
         EnsureToggleAction();
@@ -98,6 +173,9 @@ public class PPEChecklistPanel : MonoBehaviour
 
     void Start()
     {
+        // Second pass after other UI scripts finish Awake.
+        ApplyWearSequenceOrder();
+        ApplyHangulFontIfAvailable();
         TrySubscribe();
         RefreshFromManager();
     }
@@ -122,7 +200,6 @@ public class PPEChecklistPanel : MonoBehaviour
         }
     }
 
-    /// <summary>UI / Y: flip checklist panel visibility.</summary>
     public void ToggleContentVisibility()
     {
         SetContentVisible(!contentVisible);
@@ -164,22 +241,87 @@ public class PPEChecklistPanel : MonoBehaviour
     }
 
     /// <summary>
-    /// Rebuild row bindings from hierarchy when scene serialization is missing/corrupt.
+    /// Force hierarchy + labels into wear-order 1..8.
+    /// Scene rows use absolute anchored positions (no VerticalLayoutGroup), so sibling
+    /// reordering alone does nothing — we rewrite Y positions and numbered labels.
     /// </summary>
-    void EnsureRowsWired()
+    void ApplyWearSequenceOrder()
     {
-        if (rows != null && rows.Length > 0 && HasAnyRowVisual(rows))
-            return;
-
         var root = contentRoot != null ? contentRoot.transform : transform;
-        var built = new System.Collections.Generic.List<ChecklistRow>(8);
-        TryAddRow(built, root, "FaceShieldRow", PPEEquipmentManager.IdFaceShield, ChecklistSource.Equipped);
-        TryAddRow(built, root, "FaceRespiratorRow", PPEEquipmentManager.IdFaceRespirator, ChecklistSource.Equipped);
-        TryAddRow(built, root, "ChemicalSuitRow", PPEEquipmentManager.IdChemicalSuit, ChecklistSource.Equipped);
-        TryAddRow(built, root, "ChemicalGlovesRow", PPEEquipmentManager.IdChemicalGloves, ChecklistSource.Equipped);
-        TryAddRow(built, root, "ChemicalBootsRow", PPEEquipmentManager.IdChemicalBoots, ChecklistSource.Equipped);
-        TryAddRow(built, root, "ResponseBagRow", PPEEquipmentManager.IdResponseBag, ChecklistSource.ResponseBagPrepared);
-        TryAddRow(built, root, "WasteContainerRow", PPEEquipmentManager.IdWasteContainer, ChecklistSource.Prepared);
+        var listParent = FindDeep(root, "PPESection");
+        if (listParent == null)
+            listParent = root;
+
+        var sectionLabelTf = FindDeep(listParent, "PPESectionLabel");
+        var sectionLabel = sectionLabelTf != null
+            ? sectionLabelTf.GetComponent<TextMeshProUGUI>()
+            : null;
+        if (sectionLabel != null)
+            sectionLabel.text = "\uCC29\uC6A9 \uC21C\uC11C";
+
+        // Old "\uB300\uC751\uC7A5\uBE44" block — hide so only wear-order 1..8 shows.
+        var equipmentSection = FindDeep(root, "EquipmentSection");
+        if (equipmentSection != null)
+            equipmentSection.gameObject.SetActive(false);
+        var equipmentLabel = FindDeep(root, "EquipmentSectionLabel");
+        if (equipmentLabel != null)
+            equipmentLabel.gameObject.SetActive(false);
+
+        RemoveDuplicateRows(root);
+
+        var built = new List<ChecklistRow>(WearOrderSpecs.Length);
+        var ordered = new List<Transform>(WearOrderSpecs.Length);
+
+        for (var i = 0; i < WearOrderSpecs.Length; i++)
+        {
+            var spec = WearOrderSpecs[i];
+            var rowRoot = FindDeep(root, spec.ObjectName);
+            if (rowRoot == null)
+                rowRoot = CreateRuntimeRow(listParent, spec);
+            if (rowRoot == null)
+                continue;
+
+            ordered.Add(rowRoot);
+
+            var label = rowRoot.Find("Label")?.GetComponent<TextMeshProUGUI>();
+            if (label != null)
+                label.text = spec.Label;
+
+            built.Add(new ChecklistRow
+            {
+                itemId = spec.ItemId,
+                source = spec.Source,
+                labelText = label,
+                indicator = rowRoot.Find("Indicator")?.GetComponent<Image>(),
+                indicatorMark = rowRoot.Find("Indicator/Mark")?.GetComponent<TextMeshProUGUI>(),
+            });
+        }
+
+        // Title stays at top; section label then rows 1..8 stacked by Y.
+        const float x = 36f;
+        const float width = 708f;
+        const float rowHeight = 72f;
+        const float rowGap = 6f;
+        var y = -100f;
+
+        if (sectionLabelTf != null)
+        {
+            if (sectionLabelTf.parent != listParent)
+                sectionLabelTf.SetParent(listParent, false);
+            PlaceRect(sectionLabelTf as RectTransform, x, y, width, 40f);
+            sectionLabelTf.SetSiblingIndex(1);
+            y -= 48f;
+        }
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var row = ordered[i];
+            if (row.parent != listParent)
+                row.SetParent(listParent, false);
+            PlaceRect(row as RectTransform, x, y, width, rowHeight);
+            row.SetSiblingIndex(sectionLabelTf != null ? i + 2 : i + 1);
+            y -= rowHeight + rowGap;
+        }
 
         if (built.Count > 0)
             rows = built.ToArray();
@@ -190,42 +332,95 @@ public class PPEChecklistPanel : MonoBehaviour
             if (status != null)
                 statusText = status.GetComponent<TextMeshProUGUI>();
         }
-    }
 
-    static bool HasAnyRowVisual(ChecklistRow[] list)
-    {
-        for (var i = 0; i < list.Length; i++)
+        if (statusText != null)
         {
-            var row = list[i];
-            if (row != null && (row.indicator != null || row.indicatorMark != null || row.labelText != null))
-                return true;
+            var statusRt = statusText.rectTransform;
+            if (statusRt.parent != listParent)
+                statusRt.SetParent(listParent, false);
+            PlaceRect(statusRt, x, y - 8f, width, 48f);
+            statusRt.SetAsLastSibling();
         }
 
-        return false;
+        var layout = listParent.GetComponent<RectTransform>();
+        if (layout != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(layout);
     }
 
-    static void TryAddRow(
-        System.Collections.Generic.List<ChecklistRow> list,
-        Transform root,
-        string rowObjectName,
-        string itemId,
-        ChecklistSource source)
+    static void PlaceRect(RectTransform rt, float x, float y, float width, float height)
     {
-        var rowRoot = FindDeep(root, rowObjectName);
-        if (rowRoot == null)
+        if (rt == null)
             return;
 
-        var label = rowRoot.Find("Label")?.GetComponent<TextMeshProUGUI>();
-        var indicator = rowRoot.Find("Indicator")?.GetComponent<Image>();
-        var mark = rowRoot.Find("Indicator/Mark")?.GetComponent<TextMeshProUGUI>();
-        list.Add(new ChecklistRow
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = new Vector2(x, y);
+        rt.sizeDelta = new Vector2(width, height);
+        rt.localScale = Vector3.one;
+        rt.localRotation = Quaternion.identity;
+    }
+
+    void RemoveDuplicateRows(Transform root)
+    {
+        for (var s = 0; s < WearOrderSpecs.Length; s++)
         {
-            itemId = itemId,
-            source = source,
-            labelText = label,
-            indicator = indicator,
-            indicatorMark = mark,
-        });
+            var name = WearOrderSpecs[s].ObjectName;
+            var matches = new List<Transform>();
+            CollectByName(root, name, matches);
+            // Keep the first, destroy extras (usually runtime Instantiates).
+            for (var i = 1; i < matches.Count; i++)
+            {
+                if (matches[i] != null)
+                    Destroy(matches[i].gameObject);
+            }
+        }
+    }
+
+    static void CollectByName(Transform root, string objectName, List<Transform> results)
+    {
+        if (root == null)
+            return;
+        if (root.name == objectName)
+            results.Add(root);
+        for (var i = 0; i < root.childCount; i++)
+            CollectByName(root.GetChild(i), objectName, results);
+    }
+
+    Transform CreateRuntimeRow(Transform parent, WearOrderSpec spec)
+    {
+        if (parent == null)
+            return null;
+
+        var searchRoot = contentRoot != null ? contentRoot.transform : transform;
+        Transform template = FindDeep(searchRoot, "ChemicalSuitRow");
+        if (template == null)
+            template = FindDeep(searchRoot, "FaceShieldRow");
+
+        GameObject go;
+        if (template != null)
+        {
+            go = Instantiate(template.gameObject, parent, false);
+            go.name = spec.ObjectName;
+            go.SetActive(true);
+        }
+        else
+        {
+            go = new GameObject(spec.ObjectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(HorizontalLayoutGroup));
+            go.transform.SetParent(parent, false);
+            var indicator = new GameObject("Indicator", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            indicator.transform.SetParent(go.transform, false);
+            var mark = new GameObject("Mark", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            mark.transform.SetParent(indicator.transform, false);
+            var label = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            label.transform.SetParent(go.transform, false);
+        }
+
+        var labelTmp = go.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+        if (labelTmp != null)
+            labelTmp.text = spec.Label;
+
+        return go.transform;
     }
 
     static Transform FindDeep(Transform root, string objectName)
@@ -308,14 +503,6 @@ public class PPEChecklistPanel : MonoBehaviour
         toggleButtonLabel.color = Color.white;
         toggleButtonLabel.raycastTarget = false;
 
-        var font = Resources.Load<TMP_FontAsset>("PPE/PPE_HangulFont");
-        if (font != null && font.material != null)
-        {
-            toggleButtonLabel.font = font;
-            toggleButtonLabel.fontSharedMaterial = font.material;
-        }
-
-        // Keep button above other panel content in hierarchy draw/layout order.
         btnGo.transform.SetAsLastSibling();
     }
 
@@ -376,69 +563,7 @@ public class PPEChecklistPanel : MonoBehaviour
     {
         if (!context.performed)
             return;
-
-        // While inspecting the world bag (pre-equip), Left Y reveals bag contents instead of the checklist.
-        var response = ResponseEquipmentManager.Instance != null
-            ? ResponseEquipmentManager.Instance
-            : FindAnyObjectByType<ResponseEquipmentManager>();
-        if (response != null)
-        {
-            if (response.IsWorldBagCurrentlySelected() && !response.ResponseBagPrepared)
-                return;
-        }
-
         ToggleContentVisibility();
-    }
-
-    void TrySubscribe()
-    {
-        ResolveManagers();
-
-        if (equipmentManager != null && subscribedEquipment != equipmentManager)
-        {
-            if (subscribedEquipment != null)
-            {
-                subscribedEquipment.EquipmentSucceeded -= OnEquipmentSucceeded;
-                subscribedEquipment.PreparationChanged -= OnPreparationChanged;
-                subscribedEquipment.StateChanged -= OnStateChanged;
-            }
-
-            equipmentManager.EquipmentSucceeded += OnEquipmentSucceeded;
-            equipmentManager.PreparationChanged += OnPreparationChanged;
-            equipmentManager.StateChanged += OnStateChanged;
-            subscribedEquipment = equipmentManager;
-        }
-
-        if (responseEquipmentManager != null && subscribedResponse != responseEquipmentManager)
-        {
-            if (subscribedResponse != null)
-            {
-                subscribedResponse.StateChanged -= OnResponseStateChanged;
-                subscribedResponse.OnResponseBagPreparedChanged -= OnResponseBagPreparedChanged;
-            }
-
-            responseEquipmentManager.StateChanged += OnResponseStateChanged;
-            responseEquipmentManager.OnResponseBagPreparedChanged += OnResponseBagPreparedChanged;
-            subscribedResponse = responseEquipmentManager;
-        }
-    }
-
-    void Unsubscribe()
-    {
-        if (subscribedEquipment != null)
-        {
-            subscribedEquipment.EquipmentSucceeded -= OnEquipmentSucceeded;
-            subscribedEquipment.PreparationChanged -= OnPreparationChanged;
-            subscribedEquipment.StateChanged -= OnStateChanged;
-            subscribedEquipment = null;
-        }
-
-        if (subscribedResponse != null)
-        {
-            subscribedResponse.StateChanged -= OnResponseStateChanged;
-            subscribedResponse.OnResponseBagPreparedChanged -= OnResponseBagPreparedChanged;
-            subscribedResponse = null;
-        }
     }
 
     void ResolveManagers()
@@ -458,6 +583,53 @@ public class PPEChecklistPanel : MonoBehaviour
         }
     }
 
+    void TrySubscribe()
+    {
+        ResolveManagers();
+
+        if (equipmentManager != null && subscribedEquipment != equipmentManager)
+        {
+            UnsubscribeEquipment();
+            equipmentManager.EquipmentSucceeded += OnEquipmentSucceeded;
+            equipmentManager.PreparationChanged += OnPreparationChanged;
+            equipmentManager.StateChanged += OnStateChanged;
+            subscribedEquipment = equipmentManager;
+        }
+
+        if (responseEquipmentManager != null && subscribedResponse != responseEquipmentManager)
+        {
+            UnsubscribeResponse();
+            responseEquipmentManager.StateChanged += OnResponseStateChanged;
+            responseEquipmentManager.OnResponseBagPreparedChanged += OnResponseBagPreparedChanged;
+            subscribedResponse = responseEquipmentManager;
+        }
+    }
+
+    void Unsubscribe()
+    {
+        UnsubscribeEquipment();
+        UnsubscribeResponse();
+    }
+
+    void UnsubscribeEquipment()
+    {
+        if (subscribedEquipment == null)
+            return;
+        subscribedEquipment.EquipmentSucceeded -= OnEquipmentSucceeded;
+        subscribedEquipment.PreparationChanged -= OnPreparationChanged;
+        subscribedEquipment.StateChanged -= OnStateChanged;
+        subscribedEquipment = null;
+    }
+
+    void UnsubscribeResponse()
+    {
+        if (subscribedResponse == null)
+            return;
+        subscribedResponse.StateChanged -= OnResponseStateChanged;
+        subscribedResponse.OnResponseBagPreparedChanged -= OnResponseBagPreparedChanged;
+        subscribedResponse = null;
+    }
+
     void OnEquipmentSucceeded(PPEEquipable _) => RefreshFromManager();
     void OnPreparationChanged(string _, bool __) => RefreshFromManager();
     void OnStateChanged() => RefreshFromManager();
@@ -468,10 +640,8 @@ public class PPEChecklistPanel : MonoBehaviour
     {
         ResolveManagers();
 
-        var ppeDone = 0;
-        var ppeTotal = 0;
-        var equipDone = 0;
-        var equipTotal = 0;
+        var done = 0;
+        var total = 0;
 
         if (rows != null)
         {
@@ -488,27 +658,14 @@ public class PPEChecklistPanel : MonoBehaviour
                 var complete = IsRowComplete(row);
                 ApplyRowVisual(row, complete);
 
-                if (row.source == ChecklistSource.Equipped)
-                {
-                    ppeTotal++;
-                    if (complete)
-                        ppeDone++;
-                }
-                else
-                {
-                    equipTotal++;
-                    if (complete)
-                        equipDone++;
-                }
+                total++;
+                if (complete)
+                    done++;
             }
         }
 
         if (statusText != null)
-        {
-            statusText.text = string.Format(
-                "PPE {0}/{1}  \u00B7  \uB300\uC751\uC7A5\uBE44 {2}/{3}",
-                ppeDone, ppeTotal, equipDone, equipTotal);
-        }
+            statusText.text = string.Format("\uCC29\uC6A9 \uC21C\uC11C {0}/{1}", done, total);
     }
 
     bool IsRowComplete(ChecklistRow row)
@@ -527,14 +684,19 @@ public class PPEChecklistPanel : MonoBehaviour
                     && equipmentManager.IsPrepared(row.itemId);
 
             case ChecklistSource.Equipped:
-            default:
                 return equipmentManager != null
                     && equipmentManager.IsEquipped(row.itemId);
+
+            default:
+                return false;
         }
     }
 
     void ApplyRowVisual(ChecklistRow row, bool complete)
     {
+        if (row == null)
+            return;
+
         if (row.indicator != null)
             row.indicator.color = complete ? completeIndicatorColor : incompleteIndicatorColor;
 
@@ -548,8 +710,27 @@ public class PPEChecklistPanel : MonoBehaviour
     void ApplyHangulFontIfAvailable()
     {
         var font = Resources.Load<TMP_FontAsset>("PPE/PPE_HangulFont");
-        if (font == null || font.material == null)
+        if (font == null)
             return;
+
+        // Ensure digits / new hangul glyphs exist (dynamic atlas).
+        var needed = new StringBuilder(256);
+        needed.Append("0123456789. ");
+        needed.Append(LabelHide).Append(LabelShow);
+        needed.Append("\uCC29\uC6A9 \uC21C\uC11C");
+        for (var i = 0; i < WearOrderSpecs.Length; i++)
+            needed.Append(WearOrderSpecs[i].Label);
+        needed.Append(incompleteMark).Append(completeMark);
+        font.TryAddCharacters(needed.ToString());
+
+        var fallback = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        if (fallback != null
+            && (font.fallbackFontAssetTable == null || !font.fallbackFontAssetTable.Contains(fallback)))
+        {
+            if (font.fallbackFontAssetTable == null)
+                font.fallbackFontAssetTable = new List<TMP_FontAsset>();
+            font.fallbackFontAssetTable.Add(fallback);
+        }
 
         var texts = GetComponentsInChildren<TextMeshProUGUI>(true);
         for (var i = 0; i < texts.Length; i++)
@@ -557,7 +738,9 @@ public class PPEChecklistPanel : MonoBehaviour
             if (texts[i] == null)
                 continue;
             texts[i].font = font;
-            texts[i].fontSharedMaterial = font.material;
+            if (font.material != null)
+                texts[i].fontSharedMaterial = font.material;
+            texts[i].SetAllDirty();
         }
     }
 }
