@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using VRProject.LeakResponse.Logic;
@@ -31,6 +32,8 @@ namespace VRProject.LeakResponse.Narration
             "INT_AbsorbentPad_01_ObjectGhost3",
         };
 
+        const float AbsorbentMagnetRadius = 1f;
+
         static P102LeakRuntimeBootstrap activeInstance;
         readonly SingleExecutionGate configureGate = new SingleExecutionGate();
         P102LeakNarrationController gatedNarration;
@@ -43,13 +46,28 @@ namespace VRProject.LeakResponse.Narration
         static void ResetRuntimeState()
         {
             activeInstance = null;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void EnsureRuntimeBootstrap()
         {
-            P102LeakRuntimeBootstrap existing =
-                P102RuntimeUtility.FindSceneComponent<P102LeakRuntimeBootstrap>();
+            for (int i = 0; i < SceneManager.sceneCount; ++i)
+                EnsureRuntimeBootstrap(SceneManager.GetSceneAt(i));
+        }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            EnsureRuntimeBootstrap(scene);
+        }
+
+        static void EnsureRuntimeBootstrap(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+                return;
+
+            P102LeakRuntimeBootstrap existing = FindSceneComponent<P102LeakRuntimeBootstrap>(scene);
             if (existing != null && existing.gameObject.activeInHierarchy)
             {
                 existing.enabled = true;
@@ -63,12 +81,38 @@ namespace VRProject.LeakResponse.Narration
                     "An active runtime bootstrap will repair the Scene instead.", existing);
             }
 
-            if (P102RuntimeUtility.FindSceneObject("ENV_LeakPipeGateValveWheel_suc") == null &&
-                P102RuntimeUtility.FindSceneObject("ENV_LeakPipeGateValveWheel_dis") == null)
+            if (FindSceneObject(scene, "ENV_LeakPipeGateValveWheel_suc") == null &&
+                FindSceneObject(scene, "ENV_LeakPipeGateValveWheel_dis") == null)
                 return;
 
             var root = new GameObject(BootstrapName);
+            SceneManager.MoveGameObjectToScene(root, scene);
             root.AddComponent<P102LeakRuntimeBootstrap>();
+        }
+
+        static T FindSceneComponent<T>(Scene scene) where T : Component
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                T component = root.GetComponentInChildren<T>(true);
+                if (component != null)
+                    return component;
+            }
+            return null;
+        }
+
+        static GameObject FindSceneObject(Scene scene, string exactName)
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < transforms.Length; ++i)
+                {
+                    if (string.Equals(transforms[i].name, exactName, StringComparison.Ordinal))
+                        return transforms[i].gameObject;
+                }
+            }
+            return null;
         }
 
         void Awake()
@@ -107,6 +151,8 @@ namespace VRProject.LeakResponse.Narration
         {
             if (!configureGate.TryEnter())
                 return;
+
+            DisableLeakSceneHandVisuals();
 
             ValveWheelClosureController suctionValve = FindValve("ENV_LeakPipeGateValveWheel_suc");
             ValveWheelClosureController dischargeValve = FindValve("ENV_LeakPipeGateValveWheel_dis");
@@ -185,7 +231,8 @@ namespace VRProject.LeakResponse.Narration
                 "ENV_LeakPipeFlange2_01_dis", "Flange Root");
             P102FlangeGazeRuntime gaze = ResolveOrCreateHelper<P102FlangeGazeRuntime>();
             gaze.Configure(narration, flangeRoot,
-                leakPointObject != null ? leakPointObject.transform : null, cameraTransform);
+                leakPointObject != null ? leakPointObject.transform : null, cameraTransform,
+                dischargeValve != null ? dischargeValve.transform : null);
 
             P102RecoveryRuntime recovery = ResolveOrCreateHelper<P102RecoveryRuntime>();
             recovery.Configure(sockGroup, padGroup, absorption, narration);
@@ -225,7 +272,7 @@ namespace VRProject.LeakResponse.Narration
                 existing.ConfigureRuntime(
                     typeId,
                     existing.ActivationCenter,
-                    existing.InstallRadius > 0f ? existing.InstallRadius : 0.5f,
+                    Mathf.Max(existing.InstallRadius, AbsorbentMagnetRadius),
                     absorptionWeight,
                     existing.Items);
                 return existing;
@@ -276,7 +323,8 @@ namespace VRProject.LeakResponse.Narration
                 groupObject.transform.position = center / items.Count;
                 group = groupObject.AddComponent<PreplacedGhostInstallGroup>();
             }
-            group.ConfigureRuntime(typeId, group.transform, 0.5f, absorptionWeight, items.ToArray());
+            group.ConfigureRuntime(typeId, group.transform, AbsorbentMagnetRadius,
+                absorptionWeight, items.ToArray());
             return group;
         }
 
@@ -322,6 +370,12 @@ namespace VRProject.LeakResponse.Narration
                     "Installation remains blocked.", sourceObject);
                 return null;
             }
+
+            sourceGrab.useDynamicAttach = true;
+            sourceGrab.matchAttachPosition = true;
+            sourceGrab.matchAttachRotation = false;
+            sourceGrab.snapToColliderVolume = true;
+            sourceGrab.selectMode = InteractableSelectMode.Multiple;
 
             PreplacedGhostInstallSource source =
                 P102RuntimeUtility.GetOrAdd<PreplacedGhostInstallSource>(sourceObject);
@@ -462,6 +516,22 @@ namespace VRProject.LeakResponse.Narration
             if (resolved is Behaviour behaviour)
                 behaviour.enabled = true;
             return resolved;
+        }
+
+        void DisableLeakSceneHandVisuals()
+        {
+            string[] objectNames = { "Hand Visualizer", "VR Hand Pose Tool Tracking" };
+            for (int i = 0; i < objectNames.Length; ++i)
+            {
+                GameObject handVisual = FindSceneObject(gameObject.scene, objectNames[i]);
+                if (handVisual == null)
+                    continue;
+
+                handVisual.SetActive(false);
+                Debug.Log(
+                    $"[P102 Flow] LeakResponse hand visual disabled: " +
+                    P102RuntimeUtility.GetHierarchyPath(handVisual.transform), handVisual);
+            }
         }
 
         static ValveWheelClosureController FindValve(string exactName)

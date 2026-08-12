@@ -65,7 +65,7 @@ namespace VRProject.LeakResponse
         [SerializeField] Color absorbedFinalColor = new Color32(75, 82, 86, 255);
 
         [Tooltip("Seconds used to blend each newly installed item from its installed material color.")]
-        [SerializeField, Min(0.01f)] float absorbColorDuration = 2f;
+        [SerializeField, Min(0.01f)] float absorbColorDuration = 7f;
 
         [Header("Install Groups")]
         [Tooltip("Optional common root searched when Install Groups is empty. This Transform is used when omitted.")]
@@ -151,7 +151,7 @@ namespace VRProject.LeakResponse
             puddleShrinkDuration = 2f;
             puddleMaxSpreadMultiplier = 3f;
             puddleSpreadDuration = 20f;
-            absorbColorDuration = 2f;
+            absorbColorDuration = 7f;
             completionCleanupApplied = false;
 
             DisableLegacyPuddleScaleWriter();

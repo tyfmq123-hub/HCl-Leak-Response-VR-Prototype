@@ -14,6 +14,7 @@ namespace VRProject.LeakResponse.Narration
         }
 
         static readonly Color GuidanceColor = new Color(0.72f, 0.98f, 1f, 0.92f);
+        static readonly Color DischargeArrowColor = new Color(0f, 0.42f, 1f, 1f);
         const float WrongDirectionDisplaySeconds = 0.65f;
 
         sealed class ValveGuidanceVisual
@@ -25,6 +26,8 @@ namespace VRProject.LeakResponse.Narration
             public LineRenderer[] DirectionLines;
             public Vector3 PlaneNormal;
             public float WrongDirectionUntil;
+            public Mesh DischargeArrowMesh;
+            public Material DischargeArrowMaterial;
         }
 
         ValveWheelClosureController suctionValve;
@@ -55,7 +58,7 @@ namespace VRProject.LeakResponse.Narration
 
             if (suctionValve != null)
             {
-                suctionVisual = CreateGuidanceVisual(suctionValve, "SUC");
+                suctionVisual = CreateGuidanceVisual(suctionValve, "SUC", false);
                 suctionProgress = CreateProgress(suctionValve, "흡입측 밸브 폐쇄", cameraTransform,
                     suctionFixedAnchor, "SUC");
                 suctionValve.OnFullyClosed.AddListener(OnSuctionClosed);
@@ -63,7 +66,7 @@ namespace VRProject.LeakResponse.Narration
 
             if (dischargeValve != null)
             {
-                dischargeVisual = CreateGuidanceVisual(dischargeValve, "DIS");
+                dischargeVisual = CreateGuidanceVisual(dischargeValve, "DIS", true);
                 dischargeProgress = CreateProgress(dischargeValve, "토출측 밸브 폐쇄", cameraTransform,
                     dischargeFixedAnchor, "DIS");
                 dischargeValve.OnFullyClosed.AddListener(OnDischargeClosed);
@@ -163,6 +166,8 @@ namespace VRProject.LeakResponse.Narration
 
         void DestroyVisuals()
         {
+            DestroyVisualAssets(suctionVisual);
+            DestroyVisualAssets(dischargeVisual);
             DestroyRuntimeObject(suctionVisual != null ? suctionVisual.Root : null);
             DestroyRuntimeObject(dischargeVisual != null ? dischargeVisual.Root : null);
             DestroyRuntimeObject(suctionProgress != null ? suctionProgress.gameObject : null);
@@ -173,7 +178,16 @@ namespace VRProject.LeakResponse.Narration
             dischargeProgress = null;
         }
 
-        static void DestroyRuntimeObject(GameObject runtimeObject)
+        static void DestroyVisualAssets(ValveGuidanceVisual visual)
+        {
+            if (visual == null)
+                return;
+
+            DestroyRuntimeObject(visual.DischargeArrowMesh);
+            DestroyRuntimeObject(visual.DischargeArrowMaterial);
+        }
+
+        static void DestroyRuntimeObject(Object runtimeObject)
         {
             if (runtimeObject == null)
                 return;
@@ -202,7 +216,8 @@ namespace VRProject.LeakResponse.Narration
             return progress;
         }
 
-        static ValveGuidanceVisual CreateGuidanceVisual(ValveWheelClosureController valve, string suffix)
+        static ValveGuidanceVisual CreateGuidanceVisual(ValveWheelClosureController valve, string suffix,
+            bool isDischarge)
         {
             var visual = new ValveGuidanceVisual
             {
@@ -216,46 +231,44 @@ namespace VRProject.LeakResponse.Narration
             visual.Root.transform.rotation = Quaternion.LookRotation(visual.PlaneNormal, planeUp);
 
             float halfSize = GetMarkerHalfSize(valve);
-            float cornerLength = Mathf.Clamp(halfSize * 0.28f, 0.045f, 0.11f);
+            float cornerLength = Mathf.Clamp(halfSize * 0.32f, 0.08f, 0.16f);
             for (int i = 0; i < 4; ++i)
             {
                 float xSign = (i == 0 || i == 3) ? -1f : 1f;
                 float ySign = i < 2 ? 1f : -1f;
-                LineRenderer corner = CreateLine($"CornerMarker_{i + 1:00}", visual.Root.transform, 3, 0.009f);
+                LineRenderer corner = CreateLine($"CornerMarker_{i + 1:00}", visual.Root.transform, 3, 0.018f);
                 corner.SetPosition(0, new Vector3(xSign * (halfSize - cornerLength), ySign * halfSize, 0f));
                 corner.SetPosition(1, new Vector3(xSign * halfSize, ySign * halfSize, 0f));
                 corner.SetPosition(2, new Vector3(xSign * halfSize, ySign * (halfSize - cornerLength), 0f));
                 visual.MarkerLines[i] = corner;
             }
 
-            LineRenderer pointer = CreateLine("TopPointer", visual.Root.transform, 4, 0.011f);
-            float pointerY = halfSize + 0.075f;
-            pointer.SetPositions(new[]
-            {
-                new Vector3(-0.04f, pointerY + 0.045f, 0f),
-                new Vector3(0f, pointerY, 0f),
-                new Vector3(0.04f, pointerY + 0.045f, 0f),
-                new Vector3(0f, pointerY, 0f),
-            });
+            // Keep a disabled LineRenderer for backwards-compatible runtime structure/tests.
+            // The visible discharge arrow is a fixed planar mesh so its segments cannot
+            // billboard independently or pulse wider when viewed from the side.
+            LineRenderer pointer = CreateLine("DischargeValvePointer_Disabled", visual.Root.transform, 2, 0.01f);
+            pointer.enabled = false;
+            if (isDischarge)
+                CreateStableDischargeArrow(visual, halfSize);
             visual.MarkerLines[4] = pointer;
 
             visual.WrongDirectionRoot = new GameObject("CorrectClockwiseDirection_Transient");
             visual.WrongDirectionRoot.transform.SetParent(visual.Root.transform, false);
-            LineRenderer arc = CreateLine("ClockwiseArc", visual.WrongDirectionRoot.transform, 17, 0.012f);
-            float arrowRadius = halfSize + 0.035f;
+            LineRenderer arc = CreateLine("ClockwiseArc", visual.WrongDirectionRoot.transform, 17, 0.026f);
+            float arrowRadius = halfSize + 0.075f;
             for (int i = 0; i < arc.positionCount; ++i)
             {
-                float degrees = Mathf.Lerp(155f, -55f, i / (float)(arc.positionCount - 1));
+                float degrees = Mathf.Lerp(35f, -145f, i / (float)(arc.positionCount - 1));
                 float radians = degrees * Mathf.Deg2Rad;
                 arc.SetPosition(i, new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0f) * arrowRadius);
             }
             visual.DirectionLines[0] = arc;
 
             Vector3 tip = arc.GetPosition(arc.positionCount - 1);
-            LineRenderer headA = CreateLine("ArrowHeadA", visual.WrongDirectionRoot.transform, 2, 0.014f);
-            LineRenderer headB = CreateLine("ArrowHeadB", visual.WrongDirectionRoot.transform, 2, 0.014f);
-            headA.SetPositions(new[] { tip + new Vector3(-0.015f, 0.065f, 0f), tip });
-            headB.SetPositions(new[] { tip + new Vector3(-0.07f, 0.005f, 0f), tip });
+            LineRenderer headA = CreateLine("ArrowHeadA", visual.WrongDirectionRoot.transform, 2, 0.03f);
+            LineRenderer headB = CreateLine("ArrowHeadB", visual.WrongDirectionRoot.transform, 2, 0.03f);
+            headA.SetPositions(new[] { tip + new Vector3(-0.025f, 0.11f, 0f), tip });
+            headB.SetPositions(new[] { tip + new Vector3(-0.12f, 0.01f, 0f), tip });
             visual.DirectionLines[1] = headA;
             visual.DirectionLines[2] = headB;
 
@@ -263,6 +276,57 @@ namespace VRProject.LeakResponse.Narration
             UpdateVisualAnchor(visual);
             SetVisualVisible(visual, false);
             return visual;
+        }
+
+        static void CreateStableDischargeArrow(ValveGuidanceVisual visual, float halfSize)
+        {
+            var arrowObject = new GameObject("DischargeValveArrowMesh");
+            arrowObject.transform.SetParent(visual.Root.transform, false);
+
+            float tipX = halfSize + 0.12f;
+            float neckX = tipX + 0.34f;
+            float tailX = halfSize + 1.05f;
+            const float bodyHalfHeight = 0.11f;
+            const float headHalfHeight = 0.34f;
+
+            var mesh = new Mesh { name = "P102 Discharge Valve Arrow Runtime" };
+            mesh.vertices = new[]
+            {
+                new Vector3(tailX, bodyHalfHeight, 0f),
+                new Vector3(neckX, bodyHalfHeight, 0f),
+                new Vector3(neckX, -bodyHalfHeight, 0f),
+                new Vector3(tailX, -bodyHalfHeight, 0f),
+                new Vector3(neckX, headHalfHeight, 0f),
+                new Vector3(tipX, 0f, 0f),
+                new Vector3(neckX, -headHalfHeight, 0f),
+            };
+            mesh.triangles = new[]
+            {
+                0, 1, 2,
+                0, 2, 3,
+                4, 5, 6,
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            MeshFilter filter = arrowObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            MeshRenderer renderer = arrowObject.AddComponent<MeshRenderer>();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            Material material = P102RuntimeUtility.CreateCyanMaterial(
+                "P102 Discharge Valve Arrow Material", DischargeArrowColor);
+            if (material != null)
+            {
+                if (material.HasProperty("_Cull"))
+                    material.SetFloat("_Cull", 0f);
+                if (material.HasProperty("_CullMode"))
+                    material.SetFloat("_CullMode", 0f);
+                renderer.sharedMaterial = material;
+            }
+
+            visual.DischargeArrowMesh = mesh;
+            visual.DischargeArrowMaterial = material;
         }
 
         static LineRenderer CreateLine(string objectName, Transform parent, int pointCount, float width)
@@ -299,8 +363,8 @@ namespace VRProject.LeakResponse.Narration
         static float GetMarkerHalfSize(ValveWheelClosureController valve)
         {
             if (valve != null && P102RuntimeUtility.TryGetRendererBounds(valve.gameObject, out Bounds bounds))
-                return Mathf.Clamp(bounds.extents.magnitude * 0.78f, 0.18f, 0.48f);
-            return 0.3f;
+                return Mathf.Clamp(bounds.extents.magnitude * 0.88f, 0.30f, 0.55f);
+            return 0.38f;
         }
 
         static void UpdateVisual(ValveGuidanceVisual visual, bool active)
@@ -315,10 +379,10 @@ namespace VRProject.LeakResponse.Narration
             for (int i = 0; i < visual.MarkerLines.Length; ++i)
             {
                 LineRenderer marker = visual.MarkerLines[i];
-                if (marker == null)
+                if (marker == null || !marker.enabled)
                     continue;
                 marker.startColor = marker.endColor = pulseColor;
-                marker.widthMultiplier = Mathf.Lerp(0.007f, 0.012f, pulse);
+                marker.widthMultiplier = Mathf.Lerp(0.016f, 0.024f, pulse);
             }
 
             if (visual.Valve != null && visual.Valve.IsGrabbed &&
@@ -343,7 +407,7 @@ namespace VRProject.LeakResponse.Narration
             Vector3 center = P102RuntimeUtility.TryGetRendererBounds(visual.Valve.gameObject, out Bounds bounds)
                 ? bounds.center
                 : visual.Valve.transform.position;
-            visual.Root.transform.position = center + visual.PlaneNormal * 0.035f;
+            visual.Root.transform.position = center - visual.PlaneNormal * 0.08f;
         }
 
         static void SetVisualVisible(ValveGuidanceVisual visual, bool visible)

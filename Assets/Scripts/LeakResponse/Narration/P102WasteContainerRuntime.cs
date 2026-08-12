@@ -11,6 +11,9 @@ namespace VRProject.LeakResponse.Narration
     public sealed class P102WasteContainerRuntime : MonoBehaviour
     {
         const int RequiredDepositCount = 7;
+        const float IntakeHorizontalMargin = 0.35f;
+        const float IntakeHeightAboveRim = 1f;
+        const float IntakeDepthBelowRim = 0.28f;
 
         readonly UniqueDepositGate depositGate = new UniqueDepositGate(RequiredDepositCount);
 
@@ -21,6 +24,7 @@ namespace VRProject.LeakResponse.Narration
         Transform closedGhost;
         XRGrabInteractable lidGrab;
         Rigidbody lidRigidbody;
+        Rigidbody bodyRigidbody;
         P102LeakNarrationController narration;
         HClAbsorptionVisualController absorptionController;
         Vector3 closedPosition;
@@ -89,12 +93,8 @@ namespace VRProject.LeakResponse.Narration
             closedPosition = lidObject.transform.position;
             closedRotation = lidObject.transform.rotation;
 
-            if (sideGhost == null)
-            {
-                GameObject existingSideGhost =
-                    P102RuntimeUtility.FindSceneObject("HazWasteContainer_Lid_ObjectGhost_Runtime");
-                sideGhost = existingSideGhost != null ? existingSideGhost.transform : CreateSideGhost();
-            }
+            EnsureContainerBodyPhysics();
+
             GameObject existingClosedGhost =
                 P102RuntimeUtility.FindSceneObject("HazWasteContainer_Lid_ClosedGhost_Runtime");
             closedGhost = existingClosedGhost != null
@@ -105,20 +105,34 @@ namespace VRProject.LeakResponse.Narration
             SetGhostVisible(closedGhost, false);
 
             lidRigidbody = P102RuntimeUtility.GetOrAdd<Rigidbody>(lidObject);
-            P102RuntimeUtility.EnsureBoundsCollider(lidObject, false);
+            lidRigidbody.linearVelocity = Vector3.zero;
+            lidRigidbody.angularVelocity = Vector3.zero;
+            lidRigidbody.useGravity = false;
+            lidRigidbody.isKinematic = true;
+            BoxCollider lidCollider = P102RuntimeUtility.EnsureBoundsCollider(lidObject, false);
+            if (lidCollider != null)
+                lidCollider.enabled = false;
+            BoxCollider lidHandleCollider = EnsureLidHandleGrabCollider();
             lidGrab = P102RuntimeUtility.GetOrAdd<XRGrabInteractable>(lidObject);
-            lidGrab.colliders.Clear();
-            Collider[] lidColliders = lidObject.GetComponents<Collider>();
-            for (int i = 0; i < lidColliders.Length; ++i)
-                lidGrab.colliders.Add(lidColliders[i]);
-            lidGrab.selectExited.AddListener(OnLidSelectExited);
             lidGrab.enabled = false;
-
+            lidGrab.colliders.Clear();
+            if (lidHandleCollider != null)
+                lidGrab.colliders.Add(lidHandleCollider);
+            lidGrab.attachTransform = lidHandleCollider != null
+                ? lidHandleCollider.transform
+                : null;
+            lidGrab.useDynamicAttach = false;
+            lidGrab.matchAttachPosition = true;
+            lidGrab.matchAttachRotation = true;
+            lidGrab.snapToColliderVolume = false;
+            lidGrab.selectExited.AddListener(OnLidSelectExited);
             hasDepositBounds = P102RuntimeUtility.TryGetRendererBounds(bodyObject, out depositBounds);
             if (!hasDepositBounds)
                 Debug.LogError("[P102 Flow] Waste Container body bounds are unavailable. Deposits remain blocked.", this);
             if (sideGhost == null)
-                Debug.LogError("[P102 Flow] A lid stow ghost could not be resolved or created. Lid stow remains blocked.", this);
+                Debug.LogError(
+                    "[P102 Flow] Required Scene ghost 'HazWasteContainer_Lid_ObjectGhost' is missing. " +
+                    "Lid stow remains blocked; no runtime replacement is created.", this);
             if (absorptionController == null)
                 Debug.LogError("[P102 Flow] HClAbsorptionVisualController is missing. Final container lock remains blocked.", this);
 
@@ -140,15 +154,13 @@ namespace VRProject.LeakResponse.Narration
             if (!hasDepositBounds)
                 return false;
 
-            Bounds expanded = depositBounds;
-            expanded.Expand(new Vector3(0.08f, 0.15f, 0.08f));
-            return expanded.Contains(worldPosition);
+            return CreateIntakeBounds().Contains(worldPosition);
         }
 
         public bool TryDeposit(P102RecoveryItemState item)
         {
             if (item == null || !item.CanBeDeposited ||
-                !IsWithinDepositZone(item.transform.position) || !HasVisibleRenderer(item))
+                !IsItemWithinDepositZone(item) || !HasVisibleRenderer(item))
                 return false;
 
             int uniqueId = item.GetInstanceID();
@@ -170,6 +182,29 @@ namespace VRProject.LeakResponse.Narration
             }
 
             return true;
+        }
+
+        bool IsItemWithinDepositZone(P102RecoveryItemState item)
+        {
+            if (!hasDepositBounds || item == null)
+                return false;
+
+            Bounds intakeBounds = CreateIntakeBounds();
+            return P102RuntimeUtility.TryGetRendererBounds(item.gameObject, out Bounds itemBounds)
+                ? intakeBounds.Intersects(itemBounds)
+                : intakeBounds.Contains(item.transform.position);
+        }
+
+        Bounds CreateIntakeBounds()
+        {
+            float bottom = depositBounds.max.y - IntakeDepthBelowRim;
+            float top = depositBounds.max.y + IntakeHeightAboveRim;
+            return new Bounds(
+                new Vector3(depositBounds.center.x, (bottom + top) * 0.5f, depositBounds.center.z),
+                new Vector3(
+                    depositBounds.size.x + IntakeHorizontalMargin * 2f,
+                    top - bottom,
+                    depositBounds.size.z + IntakeHorizontalMargin * 2f));
         }
 
         void OnCueStarted(P102LeakNarrationCue cue)
@@ -281,26 +316,78 @@ namespace VRProject.LeakResponse.Narration
                 colliders[i].enabled = false;
             if (body != null)
             {
-                body.linearVelocity = Vector3.zero;
-                body.angularVelocity = Vector3.zero;
+                if (!body.isKinematic)
+                {
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
                 body.useGravity = false;
                 body.isKinematic = true;
             }
 
             int column = index % 3;
             int level = index / 3;
-            float x = Mathf.Lerp(depositBounds.min.x + depositBounds.size.x * 0.25f,
-                depositBounds.max.x - depositBounds.size.x * 0.25f, column / 2f);
-            float y = depositBounds.min.y + depositBounds.size.y * (0.2f + level * 0.23f);
-            float z = depositBounds.center.z;
+            float x = depositBounds.center.x + (column - 1) * depositBounds.size.x * 0.15f;
+            float y = depositBounds.min.y + depositBounds.size.y * (0.14f + level * 0.14f);
+            float z = depositBounds.center.z + (index % 2 == 0 ? -1f : 1f) *
+                depositBounds.size.z * 0.07f;
+            Vector3 targetPosition = new Vector3(x, y, z);
+            Quaternion targetRotation = bodyObject.transform.rotation *
+                                        Quaternion.Euler(index % 2 == 0 ? -8f : 8f,
+                                            index * 37f, index % 3 == 0 ? 10f : -6f);
             itemTransform.SetParent(bodyObject.transform, true);
-            itemTransform.position = new Vector3(x, y, z);
-            itemTransform.rotation = Quaternion.Euler(0f, index * 37f, 0f);
+            Vector3 startLocalScale = itemTransform.localScale;
+            float largestItemDimension = 0f;
+            if (P102RuntimeUtility.TryGetRendererBounds(item.gameObject, out Bounds itemBounds))
+            {
+                largestItemDimension = Mathf.Max(
+                    itemBounds.size.x, Mathf.Max(itemBounds.size.y, itemBounds.size.z));
+            }
+            float maximumStoredDimension = Mathf.Min(depositBounds.size.x, depositBounds.size.z) * 0.22f;
+            float compression = largestItemDimension > 0.0001f
+                ? Mathf.Clamp(maximumStoredDimension / largestItemDimension, 0.045f, 0.18f)
+                : 0.12f;
+            Vector3 squeeze = item.Kind == P102AbsorbentKind.Pad
+                ? new Vector3(compression, compression * 0.45f, compression)
+                : new Vector3(compression, compression * 0.70f, compression);
+            Vector3 targetLocalScale = Vector3.Scale(startLocalScale, squeeze);
             item.gameObject.SetActive(true);
             Renderer[] renderers = item.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; ++i)
                 renderers[i].enabled = true;
             ++visibleDepositedCount;
+            StartCoroutine(AnimateWasteIntoStack(
+                itemTransform, targetPosition, targetRotation, startLocalScale, targetLocalScale));
+        }
+
+        IEnumerator AnimateWasteIntoStack(Transform itemTransform, Vector3 targetPosition,
+            Quaternion targetRotation, Vector3 startLocalScale, Vector3 targetLocalScale)
+        {
+            if (itemTransform == null)
+                yield break;
+
+            Vector3 startPosition = itemTransform.position;
+            Quaternion startRotation = itemTransform.rotation;
+            const float duration = 0.38f;
+            float elapsed = 0f;
+            while (elapsed < duration && itemTransform != null)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = t * t * (3f - 2f * t);
+                itemTransform.SetPositionAndRotation(
+                    Vector3.LerpUnclamped(startPosition, targetPosition, eased),
+                    Quaternion.SlerpUnclamped(startRotation, targetRotation, eased));
+                itemTransform.localScale = Vector3.LerpUnclamped(
+                    startLocalScale, targetLocalScale, eased);
+                yield return null;
+            }
+
+            if (itemTransform != null)
+            {
+                itemTransform.SetPositionAndRotation(targetPosition, targetRotation);
+                itemTransform.localScale = targetLocalScale;
+            }
         }
 
         static bool HasVisibleRenderer(P102RecoveryItemState item)
@@ -330,19 +417,110 @@ namespace VRProject.LeakResponse.Narration
             }
         }
 
-        Transform CreateSideGhost()
+        void EnsureContainerBodyPhysics()
         {
-            if (!P102RuntimeUtility.TryGetRendererBounds(bodyObject, out Bounds bodyBounds) ||
-                !P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds))
-                return null;
+            if (bodyObject == null ||
+                !P102RuntimeUtility.TryGetRendererBounds(bodyObject, out Bounds bodyBounds))
+            {
+                return;
+            }
 
-            Vector3 sideDirection = containerRoot.transform.right;
-            float offset = Mathf.Max(bodyBounds.extents.x, bodyBounds.extents.z) +
-                           Mathf.Max(lidBounds.extents.x, lidBounds.extents.z) + 0.18f;
-            Vector3 position = bodyBounds.center + sideDirection.normalized * offset;
-            position.y = closedPosition.y;
-            return P102RuntimeUtility.CreateRuntimeGhost(
-                lidObject, "HazWasteContainer_Lid_ObjectGhost_Runtime", position, closedRotation);
+            bodyRigidbody = P102RuntimeUtility.GetOrAdd<Rigidbody>(bodyObject);
+            bodyRigidbody.linearVelocity = Vector3.zero;
+            bodyRigidbody.angularVelocity = Vector3.zero;
+            bodyRigidbody.useGravity = false;
+            bodyRigidbody.isKinematic = true;
+
+            const float wallThickness = 0.035f;
+            float wallHeight = Mathf.Max(0.1f, bodyBounds.size.y);
+            CreateOrUpdateBodyCollider(
+                "P102_WasteContainerBottomCollider_Runtime",
+                new Vector3(bodyBounds.center.x, bodyBounds.min.y + wallThickness * 0.5f, bodyBounds.center.z),
+                new Vector3(bodyBounds.size.x, wallThickness, bodyBounds.size.z));
+            CreateOrUpdateBodyCollider(
+                "P102_WasteContainerLeftWallCollider_Runtime",
+                new Vector3(bodyBounds.min.x + wallThickness * 0.5f, bodyBounds.center.y, bodyBounds.center.z),
+                new Vector3(wallThickness, wallHeight, bodyBounds.size.z));
+            CreateOrUpdateBodyCollider(
+                "P102_WasteContainerRightWallCollider_Runtime",
+                new Vector3(bodyBounds.max.x - wallThickness * 0.5f, bodyBounds.center.y, bodyBounds.center.z),
+                new Vector3(wallThickness, wallHeight, bodyBounds.size.z));
+            CreateOrUpdateBodyCollider(
+                "P102_WasteContainerFrontWallCollider_Runtime",
+                new Vector3(bodyBounds.center.x, bodyBounds.center.y, bodyBounds.min.z + wallThickness * 0.5f),
+                new Vector3(bodyBounds.size.x, wallHeight, wallThickness));
+            CreateOrUpdateBodyCollider(
+                "P102_WasteContainerBackWallCollider_Runtime",
+                new Vector3(bodyBounds.center.x, bodyBounds.center.y, bodyBounds.max.z - wallThickness * 0.5f),
+                new Vector3(bodyBounds.size.x, wallHeight, wallThickness));
+        }
+
+        BoxCollider EnsureLidHandleGrabCollider()
+        {
+            if (lidObject == null ||
+                !P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds))
+            {
+                return null;
+            }
+
+            Transform handle = lidObject.transform.Find("P102_LidHandleGrab_Runtime");
+            if (handle == null)
+            {
+                var handleObject = new GameObject("P102_LidHandleGrab_Runtime");
+                handle = handleObject.transform;
+                handle.SetParent(lidObject.transform, true);
+            }
+
+            Vector3 worldSize = new Vector3(
+                Mathf.Clamp(lidBounds.size.x * 0.46f, 0.18f, 0.42f),
+                Mathf.Clamp(lidBounds.size.y * 0.22f, 0.06f, 0.12f),
+                Mathf.Clamp(lidBounds.size.z * 0.18f, 0.08f, 0.20f));
+            handle.position = new Vector3(
+                lidBounds.center.x,
+                lidBounds.max.y - worldSize.y * 0.5f,
+                lidBounds.center.z);
+            handle.rotation = containerRoot.transform.rotation;
+            handle.localScale = Vector3.one;
+
+            BoxCollider collider = handle.GetComponent<BoxCollider>();
+            if (collider == null)
+                collider = handle.gameObject.AddComponent<BoxCollider>();
+            Vector3 scale = handle.lossyScale;
+            collider.center = Vector3.zero;
+            collider.size = new Vector3(
+                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
+                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(scale.y)),
+                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)));
+            collider.isTrigger = false;
+            collider.enabled = true;
+            return collider;
+        }
+
+        void CreateOrUpdateBodyCollider(string objectName, Vector3 worldCenter, Vector3 worldSize)
+        {
+            Transform colliderTransform = bodyObject.transform.Find(objectName);
+            if (colliderTransform == null)
+            {
+                var colliderObject = new GameObject(objectName);
+                colliderTransform = colliderObject.transform;
+                colliderTransform.SetParent(bodyObject.transform, true);
+            }
+
+            colliderTransform.position = worldCenter;
+            colliderTransform.rotation = Quaternion.identity;
+            colliderTransform.localScale = Vector3.one;
+            BoxCollider collider = colliderTransform.GetComponent<BoxCollider>();
+            if (collider == null)
+                collider = colliderTransform.gameObject.AddComponent<BoxCollider>();
+
+            Vector3 scale = colliderTransform.lossyScale;
+            collider.center = Vector3.zero;
+            collider.size = new Vector3(
+                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
+                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(scale.y)),
+                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)));
+            collider.isTrigger = false;
+            collider.enabled = true;
         }
 
         static void SetGhostVisible(Transform ghost, bool visible)
