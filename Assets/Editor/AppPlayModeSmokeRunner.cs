@@ -234,11 +234,16 @@ public static class AppPlayModeSmokeRunner
         {
             var xrRoot = app.XRProfiles.CommonXrOrigin.transform;
             RequireInactive(xrRoot, "Camera Offset/Hand Visualizer", label);
-            RequireInactive(xrRoot, "Camera Offset/VR Hand Pose Tool Tracking", label);
 
             var moveProvider = xrRoot.GetComponent<ContinuousMoveProvider>();
             Require(moveProvider != null && moveProvider.enabled && moveProvider.gameObject.activeInHierarchy,
                 $"{label}: ContinuousMoveProvider is not active.");
+            var moveAction = moveProvider != null && moveProvider.leftHandMoveInput != null &&
+                             moveProvider.leftHandMoveInput.inputActionReference != null
+                ? moveProvider.leftHandMoveInput.inputActionReference.action
+                : null;
+            Require(moveAction != null && moveAction.enabled,
+                $"{label}: left-hand Move input action is not enabled.");
         }
 
         var contentScenes = 0;

@@ -18,7 +18,6 @@ namespace HClTraining.App
     public sealed class StageXRProfileController : MonoBehaviour
     {
         const string HandVisualizerPath = "Camera Offset/Hand Visualizer";
-        const string HandTrackingPath = "Camera Offset/VR Hand Pose Tool Tracking";
 
         [SerializeField] GameObject commonXrOrigin;
         [SerializeField] StageXRProfile[] profiles;
@@ -122,6 +121,7 @@ namespace HClTraining.App
             CopySourceHierarchyState(sourceOrigin.transform, commonXrOrigin.transform);
             LastReboundReferenceCount = RebindSceneReferences(scene, sourceOrigin.transform, commonXrOrigin.transform);
             DisableLegacyXrObjects(scene, sourceOrigin.gameObject);
+            EnableCommonInput(commonXrOrigin.transform);
 
             // LeakResponse is controller-only. Its legacy source rig contains XR Hands sample
             // objects that must not be copied into the active common rig.
@@ -138,7 +138,17 @@ namespace HClTraining.App
         static void ApplyLeakResponseControllerOnlyPolicy(Transform xrRoot)
         {
             SetObjectActive(xrRoot, HandVisualizerPath, false);
-            SetObjectActive(xrRoot, HandTrackingPath, false);
+        }
+
+        static void EnableCommonInput(Transform xrRoot)
+        {
+            var managers = xrRoot.GetComponentsInChildren<InputActionManager>(true);
+            for (var i = 0; i < managers.Length; i++)
+            {
+                var manager = managers[i];
+                if (manager != null && manager.enabled && manager.gameObject.activeInHierarchy)
+                    manager.EnableInput();
+            }
         }
 
         static void SetObjectActive(Transform root, string relativePath, bool active)
