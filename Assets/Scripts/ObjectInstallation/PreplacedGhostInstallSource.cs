@@ -6,7 +6,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace VRProject.ObjectInstallation
 {
     /// <summary>
-    /// Uses the final Select Exit of one supply object to activate the nearest matching preplaced group.
+    /// After a supply is released, magnet-snaps it when it enters the nearest matching preplaced group.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class PreplacedGhostInstallSource : MonoBehaviour
@@ -30,6 +30,7 @@ namespace VRProject.ObjectInstallation
         Coroutine pendingReleaseRoutine;
         bool processing;
         bool snapCanceled;
+        bool releasedForMagnet;
 
         public string ItemTypeId => itemTypeId;
         public XRGrabInteractable GrabInteractable => grabInteractable;
@@ -62,6 +63,7 @@ namespace VRProject.ObjectInstallation
             }
 
             processing = false;
+            releasedForMagnet = false;
         }
 
         void OnDestroy()
@@ -83,14 +85,41 @@ namespace VRProject.ObjectInstallation
             grabInteractable = existingGrabInteractable;
             consumeSourceOnSuccess = newConsumeSourceOnSuccess;
             snapDuration = Mathf.Max(0f, newSnapDuration);
+            releasedForMagnet = false;
 
             if (isActiveAndEnabled)
                 Subscribe();
         }
 
+        void Update()
+        {
+            if (!releasedForMagnet || processing || pendingReleaseRoutine != null ||
+                grabInteractable == null || !grabInteractable.enabled ||
+                grabInteractable.interactorsSelecting.Count != 0)
+            {
+                return;
+            }
+
+            if (!TryResolveMagnetTarget(out PreplacedGhostInstallGroup group, out Transform snapPose))
+                return;
+
+            processing = true;
+            pendingReleaseRoutine = StartCoroutine(ProcessResolvedTarget(group, snapPose));
+        }
+
+        void OnSelectEntered(SelectEnterEventArgs args)
+        {
+            releasedForMagnet = false;
+            snapCanceled = true;
+        }
+
         void OnSelectExited(SelectExitEventArgs args)
         {
-            if (args.isCanceled || processing || pendingReleaseRoutine != null)
+            if (args.isCanceled)
+                return;
+
+            releasedForMagnet = true;
+            if (processing || pendingReleaseRoutine != null)
                 return;
 
             processing = true;
@@ -109,25 +138,43 @@ namespace VRProject.ObjectInstallation
                 yield break;
             }
 
-            PreplacedGhostInstallGroup group = PreplacedGhostInstallGroup.FindNearestCompatible(
-                itemTypeId,
-                grabInteractable.transform.position);
-
-            bool succeeded = false;
-            if (group != null && group.TryGetNearestInstallPose(
-                    grabInteractable.transform.position,
-                    out Transform snapPose))
+            if (!TryResolveMagnetTarget(out PreplacedGhostInstallGroup group, out Transform snapPose))
             {
-                snapCanceled = false;
-                yield return AnimateSourceToGhost(snapPose);
-                succeeded = !snapCanceled &&
-                            group.TryInstallAll(itemTypeId, out int installedCount) &&
-                            installedCount > 0;
+                processing = false;
+                yield break;
             }
-            processing = false;
 
-            if (succeeded && consumeSourceOnSuccess)
-                gameObject.SetActive(false);
+            yield return ProcessResolvedTarget(group, snapPose);
+        }
+
+        IEnumerator ProcessResolvedTarget(PreplacedGhostInstallGroup group, Transform snapPose)
+        {
+            snapCanceled = false;
+            yield return AnimateSourceToGhost(snapPose);
+            bool succeeded = !snapCanceled && group != null &&
+                             group.TryInstallAll(itemTypeId, out int installedCount) &&
+                             installedCount > 0;
+            processing = false;
+            pendingReleaseRoutine = null;
+
+            if (succeeded)
+            {
+                releasedForMagnet = false;
+                if (consumeSourceOnSuccess)
+                    gameObject.SetActive(false);
+            }
+        }
+
+        bool TryResolveMagnetTarget(out PreplacedGhostInstallGroup group, out Transform snapPose)
+        {
+            group = null;
+            snapPose = null;
+            if (grabInteractable == null || string.IsNullOrWhiteSpace(itemTypeId))
+                return false;
+
+            Vector3 sourcePosition = grabInteractable.transform.position;
+            group = PreplacedGhostInstallGroup.FindNearestCompatible(itemTypeId, sourcePosition);
+            return group != null && group.TryGetNearestInstallPose(sourcePosition, out snapPose);
         }
 
         IEnumerator AnimateSourceToGhost(Transform snapPose)
@@ -193,6 +240,7 @@ namespace VRProject.ObjectInstallation
 
             Unsubscribe();
             subscribedGrabInteractable = grabInteractable;
+            subscribedGrabInteractable.selectEntered.AddListener(OnSelectEntered);
             subscribedGrabInteractable.selectExited.AddListener(OnSelectExited);
         }
 
@@ -201,6 +249,7 @@ namespace VRProject.ObjectInstallation
             if (subscribedGrabInteractable == null)
                 return;
 
+            subscribedGrabInteractable.selectEntered.RemoveListener(OnSelectEntered);
             subscribedGrabInteractable.selectExited.RemoveListener(OnSelectExited);
             subscribedGrabInteractable = null;
         }

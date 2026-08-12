@@ -80,21 +80,29 @@ namespace VRProject.LeakResponse.Narration
     public sealed class P102FlangeGazeRuntime : MonoBehaviour
     {
         const float RequiredGazeSeconds = 3f;
-        const float MaximumGazeDistance = 8f;
+        const float MaximumGazeDistance = 12f;
         const float SurfaceClearanceMeters = 0.075f;
         const float VerticalClearanceMeters = 0.10f;
         const float CanvasScale = 0.001f;
+        const float CanvasWidthUnits = 390f;
         const float CanvasHeightUnits = 360f;
         const string CountdownObjectName = "P102_FlangeGazeCountdown_Runtime";
+        const string LeakMarkerObjectName = "P102_LeakPointMarker_Runtime";
+        const float LeakMarkerDiameterMeters = 0.18f;
+        const float GazeAcceptanceRadiusMeters = 0.16f;
+        const float MaximumGazeAngleDegrees = 9f;
+
+        static readonly Color MarkerIdleColor = new Color(1f, 0.78f, 0.04f, 1f);
+        static readonly Color MarkerGazingColor = new Color(0.15f, 1f, 0.22f, 1f);
 
         readonly ContinuousGazeTimer timer = new ContinuousGazeTimer(RequiredGazeSeconds);
         readonly HashSet<Collider> targetColliderSet = new HashSet<Collider>();
-        readonly RaycastHit[] raycastHits = new RaycastHit[32];
 
         P102LeakNarrationController narration;
         Transform flangeRoot;
         Transform leakPoint;
         Transform viewerCamera;
+        Vector3 fixedViewerDirection;
         Collider[] targetColliders = Array.Empty<Collider>();
         GameObject countdownRoot;
         P102RadialGaugeGraphic radialFill;
@@ -102,6 +110,10 @@ namespace VRProject.LeakResponse.Narration
         TMP_Text instructionText;
         Collider lastHitCollider;
         Collider leakPointCollider;
+        GameObject leakMarker;
+        Renderer leakMarkerRenderer;
+        Material leakMarkerMaterial;
+        Color currentMarkerColor;
         bool gazeStageActive;
         bool flangeStageEntered;
         bool wasGazing;
@@ -121,13 +133,15 @@ namespace VRProject.LeakResponse.Narration
         public float ConfiguredVerticalClearanceMeters => VerticalClearanceMeters;
 
         public void Configure(P102LeakNarrationController narrationController, Transform fixedFlangeRoot,
-            Transform leakPointTransform, Transform cameraTransform)
+            Transform leakPointTransform, Transform cameraTransform, Transform operatorFacingReference = null)
         {
             Unsubscribe();
             narration = narrationController;
             flangeRoot = fixedFlangeRoot;
             leakPoint = leakPointTransform;
             viewerCamera = ResolveActiveHeadCamera(cameraTransform);
+            fixedViewerDirection = ResolveFixedViewerDirection(
+                operatorFacingReference, flangeRoot, viewerCamera);
             timer.Reset();
             gazeStageActive = false;
             flangeStageEntered = false;
@@ -136,9 +150,11 @@ namespace VRProject.LeakResponse.Narration
             completionDispatchCount = 0;
 
             EnsureLeakPointCollider();
+            BuildOrReuseLeakMarker();
             ResolveTargetColliders();
             BuildOrReuseCountdown();
             SetCountdownVisible(false);
+            SetLeakMarkerVisible(false);
 
             if (narration != null)
             {
@@ -158,16 +174,20 @@ namespace VRProject.LeakResponse.Narration
 
         void LateUpdate()
         {
-            if (countdownRoot != null && countdownRoot.activeSelf)
-            {
-                P102RuntimeUtility.ApplyYawOnlyBillboard(
-                    countdownRoot.transform, viewerCamera, Time.unscaledDeltaTime);
-            }
+            // The countdown is deliberately fixed to the flange after its initial placement.
+            // Following HMD position here makes the panel slide across and cover the leak marker.
         }
 
         void OnDestroy()
         {
             Unsubscribe();
+            if (leakMarkerMaterial != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(leakMarkerMaterial);
+                else
+                    DestroyImmediate(leakMarkerMaterial);
+            }
         }
 
         void OnCueStarted(P102LeakNarrationCue cue)
@@ -179,6 +199,8 @@ namespace VRProject.LeakResponse.Narration
             gazeStageActive = false;
             timer.Reset();
             SetCountdownVisible(true);
+            SetLeakMarkerVisible(true);
+            SetLeakMarkerColor(MarkerIdleColor);
             UpdateListeningDisplay();
             Debug.Log("[P102 Gaze] Flange stage entered; waiting for TTS 06 to finish.", this);
         }
@@ -199,6 +221,8 @@ namespace VRProject.LeakResponse.Narration
                 wasGazing = false;
                 lastHitCollider = null;
                 SetCountdownVisible(true);
+                SetLeakMarkerVisible(true);
+                SetLeakMarkerColor(MarkerIdleColor);
                 UpdateCountdownText(false);
                 Debug.Log(
                     $"[P102 Gaze] Gaze activated after TTS 06. Head={P102RuntimeUtility.GetHierarchyPath(viewerCamera)}, " +
@@ -207,6 +231,7 @@ namespace VRProject.LeakResponse.Narration
             else if (cue == P102LeakNarrationCue.LeakReductionCompleted)
             {
                 SetCountdownVisible(false);
+                SetLeakMarkerVisible(false);
                 bool enqueued = narration != null &&
                                 narration.EnqueueOnce(P102LeakNarrationCue.AbsorbentSockPlacementActivated);
                 Debug.Log(
@@ -239,6 +264,7 @@ namespace VRProject.LeakResponse.Narration
             bool completedThisTick = timer.Tick(hoveringTarget, deltaTime);
             wasGazing = hoveringTarget;
             lastHitCollider = hitCollider;
+            SetLeakMarkerColor(hoveringTarget ? MarkerGazingColor : MarkerIdleColor);
             UpdateCountdownText(hoveringTarget);
 
             if (!completedThisTick)
@@ -252,6 +278,7 @@ namespace VRProject.LeakResponse.Narration
                 instructionText.text = "확인 완료";
             if (radialFill != null)
                 radialFill.FillAmount = 0f;
+            SetLeakMarkerColor(MarkerGazingColor);
             Debug.Log("[P102 Gaze] 3초 연속 Gaze 완료 (exactly once).", this);
             bool enqueued = narration != null &&
                             narration.EnqueueOnce(P102LeakNarrationCue.LeakReductionCompleted);
@@ -272,35 +299,43 @@ namespace VRProject.LeakResponse.Narration
         bool IsHeadRayHittingFlange(out Collider hitCollider)
         {
             hitCollider = null;
-            if (viewerCamera == null)
+            if (viewerCamera == null || leakPoint == null)
                 return false;
 
-            var ray = new Ray(viewerCamera.position, viewerCamera.forward);
-            int hitCount = Physics.RaycastNonAlloc(ray, raycastHits, MaximumGazeDistance,
-                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide);
-            float nearestDistance = float.PositiveInfinity;
-            Collider nearestCollider = null;
+            Vector3 markerCenter = leakMarkerRenderer != null
+                ? leakMarkerRenderer.bounds.center
+                : leakPoint.position;
+            Vector3 gazeDirection = viewerCamera.forward.normalized;
+            Vector3 toMarker = markerCenter - viewerCamera.position;
+            float markerDistance = toMarker.magnitude;
+            if (markerDistance <= 0.0001f || markerDistance > MaximumGazeDistance)
+                return false;
 
-            for (int i = 0; i < hitCount; ++i)
+            float acceptanceRadius = GazeAcceptanceRadiusMeters;
+            if (leakMarkerRenderer != null)
             {
-                Collider candidate = raycastHits[i].collider;
-                if (candidate == null || raycastHits[i].distance >= nearestDistance)
-                    continue;
-                if (candidate.transform == viewerCamera || candidate.transform.IsChildOf(viewerCamera))
-                    continue;
-
-                nearestDistance = raycastHits[i].distance;
-                nearestCollider = candidate;
+                acceptanceRadius = Mathf.Max(
+                    acceptanceRadius,
+                    leakMarkerRenderer.bounds.extents.magnitude * 1.15f);
             }
+            float physicalAllowanceDegrees = Mathf.Asin(
+                Mathf.Clamp01(acceptanceRadius / markerDistance)) * Mathf.Rad2Deg;
+            float allowedAngle = Mathf.Max(MaximumGazeAngleDegrees, physicalAllowanceDegrees);
+            if (Vector3.Angle(gazeDirection, toMarker) > allowedAngle)
+                return false;
 
-            hitCollider = nearestCollider;
-            return nearestCollider != null && targetColliderSet.Contains(nearestCollider);
+            // Judge the gaze from the visible marker direction only. Environment and hand
+            // colliders must not make the same flange work from one standing position but
+            // fail from another one.
+            hitCollider = leakPointCollider;
+            return leakPointCollider != null;
         }
 
         void ResolveTargetColliders()
         {
             targetColliderSet.Clear();
-            if (flangeRoot == null)
+            if (flangeRoot == null || leakPointCollider == null || !leakPointCollider.enabled ||
+                !leakPointCollider.gameObject.activeInHierarchy)
             {
                 targetColliders = Array.Empty<Collider>();
                 return;
@@ -313,9 +348,7 @@ namespace VRProject.LeakResponse.Narration
                 Collider candidate = candidates[i];
                 if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy)
                     continue;
-                if (candidate.GetComponentInParent<Canvas>() != null)
-                    continue;
-                if (IsLeakEffectCollider(candidate))
+                if (candidate.GetComponentInParent<Canvas>() != null || IsLeakEffectCollider(candidate))
                     continue;
 
                 resolved.Add(candidate);
@@ -326,6 +359,9 @@ namespace VRProject.LeakResponse.Narration
             }
 
             targetColliders = resolved.ToArray();
+            Debug.Log(
+                $"[P102 Gaze] Exact gaze target=" +
+                P102RuntimeUtility.GetHierarchyPath(leakPointCollider.transform), leakPointCollider);
         }
 
         void EnsureLeakPointCollider()
@@ -338,10 +374,88 @@ namespace VRProject.LeakResponse.Narration
             if (sphere == null)
                 sphere = leakPoint.gameObject.AddComponent<SphereCollider>();
             sphere.center = Vector3.zero;
-            sphere.radius = 0.16f;
+            Vector3 pointScale = leakPoint.lossyScale;
+            float maximumPointScale = Mathf.Max(
+                Mathf.Abs(pointScale.x), Mathf.Abs(pointScale.y), Mathf.Abs(pointScale.z));
+            sphere.radius = GazeAcceptanceRadiusMeters / Mathf.Max(0.0001f, maximumPointScale);
             sphere.isTrigger = true;
             sphere.enabled = true;
             leakPointCollider = sphere;
+        }
+
+        void BuildOrReuseLeakMarker()
+        {
+            if (leakPoint == null)
+                return;
+
+            Transform existing = leakPoint.Find(LeakMarkerObjectName);
+            if (existing != null)
+            {
+                leakMarker = existing.gameObject;
+            }
+            else
+            {
+                leakMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                leakMarker.name = LeakMarkerObjectName;
+                leakMarker.transform.SetParent(leakPoint, false);
+                Collider primitiveCollider = leakMarker.GetComponent<Collider>();
+                if (primitiveCollider != null)
+                {
+                    primitiveCollider.enabled = false;
+                    if (Application.isPlaying)
+                        Destroy(primitiveCollider);
+                    else
+                        DestroyImmediate(primitiveCollider);
+                }
+            }
+
+            leakMarker.transform.localPosition = Vector3.zero;
+            leakMarker.transform.localRotation = Quaternion.identity;
+            Vector3 parentScale = leakPoint.lossyScale;
+            leakMarker.transform.localScale = new Vector3(
+                LeakMarkerDiameterMeters / Mathf.Max(0.0001f, Mathf.Abs(parentScale.x)),
+                LeakMarkerDiameterMeters / Mathf.Max(0.0001f, Mathf.Abs(parentScale.y)),
+                LeakMarkerDiameterMeters / Mathf.Max(0.0001f, Mathf.Abs(parentScale.z)));
+            leakMarker.layer = leakPoint.gameObject.layer;
+
+            leakMarkerRenderer = leakMarker.GetComponent<Renderer>();
+            if (leakMarkerRenderer != null)
+            {
+                leakMarkerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                leakMarkerRenderer.receiveShadows = false;
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ??
+                                Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default");
+                if (shader != null && leakMarkerMaterial == null)
+                {
+                    leakMarkerMaterial = new Material(shader) { name = "P102 Leak Point Marker Runtime" };
+                }
+                if (leakMarkerMaterial != null)
+                    leakMarkerRenderer.sharedMaterial = leakMarkerMaterial;
+            }
+            SetLeakMarkerColor(MarkerIdleColor);
+        }
+
+        void SetLeakMarkerVisible(bool visible)
+        {
+            if (leakMarker != null)
+                leakMarker.SetActive(visible);
+        }
+
+        void SetLeakMarkerColor(Color color)
+        {
+            if (leakMarkerMaterial == null || currentMarkerColor == color)
+                return;
+
+            currentMarkerColor = color;
+            if (leakMarkerMaterial.HasProperty("_BaseColor"))
+                leakMarkerMaterial.SetColor("_BaseColor", color);
+            if (leakMarkerMaterial.HasProperty("_Color"))
+                leakMarkerMaterial.SetColor("_Color", color);
+            if (leakMarkerMaterial.HasProperty("_EmissionColor"))
+            {
+                leakMarkerMaterial.EnableKeyword("_EMISSION");
+                leakMarkerMaterial.SetColor("_EmissionColor", color * 1.4f);
+            }
         }
 
         static bool IsLeakEffectCollider(Collider candidate)
@@ -377,7 +491,7 @@ namespace VRProject.LeakResponse.Narration
                 Canvas canvas = countdownRoot.GetComponent<Canvas>();
                 canvas.renderMode = RenderMode.WorldSpace;
                 RectTransform rootRect = countdownRoot.GetComponent<RectTransform>();
-                rootRect.sizeDelta = new Vector2(390f, CanvasHeightUnits);
+                rootRect.sizeDelta = new Vector2(CanvasWidthUnits, CanvasHeightUnits);
 
                 Image panel = countdownRoot.AddComponent<Image>();
                 panel.color = new Color(0.015f, 0.035f, 0.045f, 0.90f);
@@ -487,36 +601,41 @@ namespace VRProject.LeakResponse.Narration
             Vector3 faceAxis = localBounds.size.z <= localBounds.size.x
                 ? Vector3.forward
                 : Vector3.right;
-            Vector3 observerLocalOffset = viewerCamera != null
-                ? flangeRoot.InverseTransformPoint(viewerCamera.position) - localBounds.center
-                : leakPoint != null
-                    ? flangeRoot.InverseTransformPoint(leakPoint.position) - localBounds.center
-                    : faceAxis;
+            Vector3 observerLocalOffset = flangeRoot.InverseTransformDirection(fixedViewerDirection);
             if (Vector3.Dot(observerLocalOffset, faceAxis) < 0f)
                 faceAxis = -faceAxis;
 
             float rootUpScale = Mathf.Max(0.0001f, flangeRoot.TransformVector(Vector3.up).magnitude);
             float faceScale = Mathf.Max(0.0001f, flangeRoot.TransformVector(faceAxis).magnitude);
+            Vector3 sideAxis = Vector3.Cross(Vector3.up, faceAxis).normalized;
+            if (sideAxis.sqrMagnitude < 0.0001f)
+                sideAxis = Vector3.right;
+            float sideScale = Mathf.Max(0.0001f, flangeRoot.TransformVector(sideAxis).magnitude);
             float localVerticalGap = VerticalClearanceMeters / rootUpScale;
             float localSurfaceGap = SurfaceClearanceMeters / faceScale;
+            float localHorizontalGap = 0.12f / sideScale;
             float faceExtent = Mathf.Abs(faceAxis.z) > 0.5f
                 ? localBounds.extents.z
                 : localBounds.extents.x;
+            float sideExtent = Mathf.Abs(sideAxis.z) > 0.5f
+                ? localBounds.extents.z
+                : localBounds.extents.x;
             float canvasHalfHeight = CanvasHeightUnits * CanvasScale * 0.5f;
+            float canvasHalfWidth = CanvasWidthUnits * CanvasScale * 0.5f;
 
             Vector3 localPosition = localBounds.center;
             localPosition += Vector3.up *
                              (localBounds.extents.y + localVerticalGap + canvasHalfHeight);
             localPosition += faceAxis * (faceExtent + localSurfaceGap);
+            localPosition += sideAxis *
+                             (sideExtent + localHorizontalGap + canvasHalfWidth);
 
             Transform countdownTransform = countdownRoot.transform;
             countdownTransform.localPosition = localPosition;
             countdownTransform.localScale = Vector3.one * CanvasScale;
             countdownTransform.rotation = P102RuntimeUtility.ResolveYawOnlyCanvasRotation(
                 countdownTransform.position,
-                viewerCamera != null
-                    ? viewerCamera.position
-                    : countdownTransform.position + flangeRoot.TransformDirection(faceAxis),
+                countdownTransform.position + fixedViewerDirection,
                 flangeRoot.rotation);
 
             Debug.Log(
@@ -620,6 +739,31 @@ namespace VRProject.LeakResponse.Narration
             }
 
             return null;
+        }
+
+        static Vector3 ResolveFixedViewerDirection(Transform operatorFacingReference,
+            Transform fixedRoot, Transform cameraTransform)
+        {
+            HingeJoint hinge = operatorFacingReference != null
+                ? operatorFacingReference.GetComponent<HingeJoint>()
+                : null;
+            if (hinge != null)
+            {
+                Vector3 towardOperator = Vector3.ProjectOnPlane(
+                    -operatorFacingReference.TransformDirection(hinge.axis), Vector3.up);
+                if (towardOperator.sqrMagnitude > 0.000001f)
+                    return towardOperator.normalized;
+            }
+
+            Vector3 anchorPosition = fixedRoot != null ? fixedRoot.position : Vector3.zero;
+            Vector3 towardCamera = cameraTransform != null
+                ? Vector3.ProjectOnPlane(cameraTransform.position - anchorPosition, Vector3.up)
+                : fixedRoot != null
+                    ? Vector3.ProjectOnPlane(-fixedRoot.forward, Vector3.up)
+                    : Vector3.forward;
+            return towardCamera.sqrMagnitude > 0.000001f
+                ? towardCamera.normalized
+                : Vector3.forward;
         }
 
         static bool IsActiveCamera(Transform candidate)

@@ -9,7 +9,7 @@ namespace VRProject.LeakResponse.Narration
     [DisallowMultipleComponent]
     public sealed class P102RecoveryTongsRuntime : MonoBehaviour
     {
-        const float PickupRadius = 0.15f;
+        const float PickupRadius = 0.25f;
         const float IdleReminderSeconds = 15f;
 
         GameObject tongsRoot;
@@ -62,32 +62,35 @@ namespace VRProject.LeakResponse.Narration
 
             if (tongsGhost == null)
             {
-                GameObject existingRuntimeGhost =
-                    P102RuntimeUtility.FindSceneObject("INT_RecoveryTongs_01_ObjectGhost_Runtime");
-                tongsGhost = existingRuntimeGhost != null
-                    ? existingRuntimeGhost.transform
-                    : P102RuntimeUtility.CreateRuntimeGhost(
-                        tongsRoot, "INT_RecoveryTongs_01_ObjectGhost_Runtime",
-                        tongsRoot.transform.position, tongsRoot.transform.rotation);
+                Debug.LogError(
+                    "[P102 Flow] Required Scene ghost 'INT_RecoveryTongs_01_ObjectGhost' is missing. " +
+                    "Tongs pickup and return remain blocked; no runtime replacement is created.", this);
+                return false;
             }
-            if (tongsGhost != null)
-                tongsGhost.gameObject.SetActive(false);
 
-            handleTransform = FindNamedPart(tongsRoot.transform, "BlackHandle") ??
-                              FindNamedPart(tongsRoot.transform, "Black Handle") ??
-                              FindNamedPart(tongsRoot.transform, "Handle") ??
-                              FindNamedPart(tongsRoot.transform, "Grip") ??
-                              CreateFallbackHandle(tongsRoot);
-            tipTransform = FindNamedPart(tongsRoot.transform, "Tip") ??
-                           FindNamedPart(tongsRoot.transform, "Jaw") ??
-                           CreateFallbackTip(tongsRoot);
+            tongsRoot.transform.SetPositionAndRotation(tongsGhost.position, tongsGhost.rotation);
+            tongsGhost.gameObject.SetActive(false);
+
+            handleTransform = CreateFallbackHandle(tongsRoot);
+            tipTransform = CreateFallbackTip(tongsRoot);
             tongsRigidbody = P102RuntimeUtility.GetOrAdd<Rigidbody>(tongsRoot);
-            P102RuntimeUtility.EnsureBoundsCollider(tongsRoot, false);
+            if (!tongsRigidbody.isKinematic)
+            {
+                tongsRigidbody.linearVelocity = Vector3.zero;
+                tongsRigidbody.angularVelocity = Vector3.zero;
+            }
+            tongsRigidbody.useGravity = false;
+            tongsRigidbody.isKinematic = true;
+            BoxCollider legacyFullBoundsCollider = tongsRoot.GetComponent<BoxCollider>();
+            if (legacyFullBoundsCollider != null)
+                legacyFullBoundsCollider.enabled = false;
+            BoxCollider handleGrabCollider = EnsureHandleGrabCollider(tongsRoot, handleTransform);
+            EnsureJawPhysicalCollider(tongsRoot, tipTransform);
             grabInteractable = P102RuntimeUtility.GetOrAdd<XRGrabInteractable>(tongsRoot);
+            grabInteractable.enabled = false;
             grabInteractable.colliders.Clear();
-            Collider[] tongsColliders = tongsRoot.GetComponents<Collider>();
-            for (int i = 0; i < tongsColliders.Length; ++i)
-                grabInteractable.colliders.Add(tongsColliders[i]);
+            if (handleGrabCollider != null)
+                grabInteractable.colliders.Add(handleGrabCollider);
 
             Transform attachTransform = handleTransform.Find("P102_TongsBlackHandleAttach_Runtime");
             if (attachTransform == null)
@@ -96,14 +99,15 @@ namespace VRProject.LeakResponse.Narration
                 attachTransform = attachObject.transform;
                 attachTransform.SetParent(handleTransform, false);
             }
-            attachTransform.localPosition = Vector3.zero;
+            attachTransform.localPosition = handleGrabCollider != null
+                ? handleGrabCollider.center
+                : Vector3.zero;
             attachTransform.localRotation = Quaternion.identity;
             grabInteractable.attachTransform = attachTransform;
-            grabInteractable.useDynamicAttach = false;
+            grabInteractable.useDynamicAttach = true;
             grabInteractable.matchAttachPosition = true;
-            grabInteractable.matchAttachRotation = true;
-            grabInteractable.enabled = false;
-
+            grabInteractable.matchAttachRotation = false;
+            grabInteractable.snapToColliderVolume = true;
             grabInteractable.selectEntered.AddListener(OnTongsSelected);
             grabInteractable.selectExited.AddListener(OnTongsReleased);
             grabInteractable.activated.AddListener(OnActivated);
@@ -140,6 +144,12 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            if (tongsRigidbody != null)
+            {
+                tongsRigidbody.useGravity = false;
+                tongsRigidbody.isKinematic = true;
+            }
+
             if (recoveryActionEnabled)
             {
                 pickupGuidanceStarted = true;
@@ -150,11 +160,33 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsReleased(SelectExitEventArgs args)
         {
-            if (args.isCanceled || returned || !returnEnabled || tongsGhost == null || tongsRoot == null)
+            if (args.isCanceled || returned || tongsRoot == null)
                 return;
 
-            if (Vector3.Distance(tongsRoot.transform.position, tongsGhost.position) <= 0.3f)
+            if (returnEnabled && tongsGhost != null &&
+                Vector3.Distance(tongsRoot.transform.position, tongsGhost.position) <= 0.3f)
+            {
                 StartCoroutine(SnapTongsToGhost());
+                return;
+            }
+
+            StartCoroutine(EnableReleasedTongsPhysics());
+        }
+
+        IEnumerator EnableReleasedTongsPhysics()
+        {
+            // Let XR Interaction Toolkit finish its release bookkeeping first, then restore
+            // normal physics so an unreturned tool cannot remain suspended in mid-air.
+            yield return null;
+            if (returned || tongsRigidbody == null ||
+                (grabInteractable != null && grabInteractable.isSelected))
+            {
+                yield break;
+            }
+
+            tongsRigidbody.isKinematic = false;
+            tongsRigidbody.useGravity = true;
+            tongsRigidbody.WakeUp();
         }
 
         void OnActivated(ActivateEventArgs args)
@@ -191,7 +223,7 @@ namespace VRProject.LeakResponse.Narration
                 if (candidate == null || !candidate.IsRecoveryEligible)
                     continue;
 
-                float sqrDistance = (candidate.transform.position - tipTransform.position).sqrMagnitude;
+                float sqrDistance = DistanceSqrToItem(candidate, tipTransform.position);
                 if (candidate.Kind == P102AbsorbentKind.Sock && padsRemain)
                 {
                     if (sqrDistance <= nearestSqrDistance)
@@ -207,6 +239,27 @@ namespace VRProject.LeakResponse.Narration
             }
 
             return nearest;
+        }
+
+        static float DistanceSqrToItem(P102RecoveryItemState item, Vector3 worldPoint)
+        {
+            Collider[] colliders = item.GetComponentsInChildren<Collider>(true);
+            float nearestSqrDistance = float.PositiveInfinity;
+            for (int i = 0; i < colliders.Length; ++i)
+            {
+                Collider collider = colliders[i];
+                if (collider == null || !collider.enabled)
+                    continue;
+
+                float candidateDistance =
+                    (collider.ClosestPoint(worldPoint) - worldPoint).sqrMagnitude;
+                if (candidateDistance < nearestSqrDistance)
+                    nearestSqrDistance = candidateDistance;
+            }
+
+            return float.IsPositiveInfinity(nearestSqrDistance)
+                ? (item.transform.position - worldPoint).sqrMagnitude
+                : nearestSqrDistance;
         }
 
         void PickUp(P102RecoveryItemState item)
@@ -345,49 +398,106 @@ namespace VRProject.LeakResponse.Narration
             lastProgressTime = Time.unscaledTime;
         }
 
-        static Transform FindNamedPart(Transform root, string token)
-        {
-            Transform[] children = root.GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < children.Length; ++i)
-            {
-                if (children[i].name.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return children[i];
-            }
-            return null;
-        }
-
         static Transform CreateFallbackTip(GameObject root)
         {
-            var tipObject = new GameObject("P102_TongsTip_Runtime");
-            tipObject.transform.SetParent(root.transform, false);
+            Transform tip = root.transform.Find("P102_TongsJawMouth_Runtime");
+            if (tip == null)
+            {
+                var tipObject = new GameObject("P102_TongsJawMouth_Runtime");
+                tip = tipObject.transform;
+                tip.SetParent(root.transform, false);
+            }
+
             if (P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
             {
-                Vector3 modelAxis = root.transform.right;
-                float halfLength = ProjectedHalfExtent(bounds, modelAxis);
-                tipObject.transform.position = bounds.center - modelAxis * halfLength;
+                tip.position = new Vector3(
+                    bounds.center.x,
+                    bounds.max.y - bounds.size.y * 0.075f,
+                    bounds.center.z);
             }
-            return tipObject.transform;
+            return tip;
         }
 
         static Transform CreateFallbackHandle(GameObject root)
         {
-            var handleObject = new GameObject("P102_TongsBlackHandle_Runtime");
-            handleObject.transform.SetParent(root.transform, false);
+            Transform handle = root.transform.Find("P102_TongsBlackHandle_Runtime");
+            if (handle == null)
+            {
+                var handleObject = new GameObject("P102_TongsBlackHandle_Runtime");
+                handle = handleObject.transform;
+                handle.SetParent(root.transform, false);
+            }
+
             if (P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
             {
-                Vector3 modelAxis = root.transform.right;
-                float halfLength = ProjectedHalfExtent(bounds, modelAxis);
-                handleObject.transform.position = bounds.center + modelAxis * halfLength * 0.88f;
+                handle.position = new Vector3(
+                    bounds.center.x,
+                    bounds.min.y + bounds.size.y * 0.05f,
+                    bounds.center.z);
             }
-            return handleObject.transform;
+            return handle;
         }
 
-        static float ProjectedHalfExtent(Bounds bounds, Vector3 axis)
+        static BoxCollider EnsureHandleGrabCollider(GameObject root, Transform handle)
         {
-            axis.Normalize();
-            return Mathf.Abs(axis.x) * bounds.extents.x +
-                   Mathf.Abs(axis.y) * bounds.extents.y +
-                   Mathf.Abs(axis.z) * bounds.extents.z;
+            if (root == null || handle == null ||
+                !P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+            {
+                return null;
+            }
+
+            BoxCollider collider = handle.GetComponent<BoxCollider>();
+            if (collider == null)
+                collider = handle.gameObject.AddComponent<BoxCollider>();
+
+            bool hasNamedHandleBounds = P102RuntimeUtility.TryGetRendererBounds(handle.gameObject,
+                out Bounds handleBounds);
+            Vector3 worldCenter = hasNamedHandleBounds ? handleBounds.center : handle.position;
+            Vector3 worldSize = hasNamedHandleBounds
+                ? new Vector3(
+                    Mathf.Max(0.12f, handleBounds.size.x * 1.15f),
+                    Mathf.Max(0.08f, handleBounds.size.y * 1.15f),
+                    Mathf.Max(0.08f, handleBounds.size.z * 1.15f))
+                : new Vector3(
+                    Mathf.Clamp(bounds.size.x * 0.52f, 0.20f, 0.42f),
+                    Mathf.Clamp(bounds.size.y * 0.075f, 0.06f, 0.11f),
+                    Mathf.Clamp(bounds.size.z * 0.78f, 0.06f, 0.14f));
+            Vector3 handleScale = handle.lossyScale;
+            collider.center = handle.InverseTransformPoint(worldCenter);
+            collider.size = new Vector3(
+                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(handleScale.x)),
+                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(handleScale.y)),
+                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(handleScale.z)));
+            collider.isTrigger = false;
+            collider.enabled = true;
+            return collider;
+        }
+
+        static BoxCollider EnsureJawPhysicalCollider(GameObject root, Transform tip)
+        {
+            if (root == null || tip == null ||
+                !P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+            {
+                return null;
+            }
+
+            BoxCollider collider = tip.GetComponent<BoxCollider>();
+            if (collider == null)
+                collider = tip.gameObject.AddComponent<BoxCollider>();
+
+            Vector3 worldSize = new Vector3(
+                Mathf.Clamp(bounds.size.x * 0.52f, 0.18f, 0.38f),
+                Mathf.Clamp(bounds.size.y * 0.075f, 0.06f, 0.12f),
+                Mathf.Clamp(bounds.size.z * 0.78f, 0.06f, 0.16f));
+            Vector3 tipScale = tip.lossyScale;
+            collider.center = Vector3.zero;
+            collider.size = new Vector3(
+                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(tipScale.x)),
+                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(tipScale.y)),
+                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(tipScale.z)));
+            collider.isTrigger = false;
+            collider.enabled = true;
+            return collider;
         }
     }
 }
