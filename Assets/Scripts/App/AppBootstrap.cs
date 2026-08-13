@@ -1,4 +1,5 @@
 using System.Collections;
+using HClTraining.SharedXR;
 using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -19,6 +20,8 @@ namespace HClTraining.App
         public PersistentEquipmentInventory Inventory { get; private set; }
         public PPEStateController PPEState { get; private set; }
         public StageXRProfileController XRProfiles { get; private set; }
+        public SharedXRInputContract SharedInput { get; private set; }
+        public SharedPlayerEquipment SharedEquipment { get; private set; }
         public CommonErrorUI ErrorUI { get; private set; }
         public Camera MainCamera { get; private set; }
 
@@ -52,6 +55,8 @@ namespace HClTraining.App
             Session = GetOrAdd<TrainingSessionState>();
             Inventory = GetOrAdd<PersistentEquipmentInventory>();
             PPEState = GetOrAdd<PPEStateController>();
+            SharedInput = GetOrAdd<SharedXRInputContract>();
+            SharedEquipment = GetOrAdd<SharedPlayerEquipment>();
             XRProfiles = GetOrAdd<StageXRProfileController>();
             var inputLock = GetOrAdd<TransitionInputLock>();
             var fade = GetOrAdd<ScreenFadeController>();
@@ -60,12 +65,10 @@ namespace HClTraining.App
             ScenarioFlow = GetOrAdd<ScenarioFlowManager>();
             ErrorUI = GetOrAdd<CommonErrorUI>();
 
-            var equipmentAnchor = new GameObject("EquipmentDeploymentAnchor").transform;
-            equipmentAnchor.SetParent(MainCamera.transform, false);
-            equipmentAnchor.localPosition = new Vector3(0f, -0.25f, 0.85f);
-
-            Inventory.Initialize(Session, equipmentAnchor);
+            SharedEquipment.Initialize(commonXrOrigin.transform);
+            Inventory.Initialize(Session, SharedEquipment.RetrievalAnchor);
             PPEState.Initialize(Session, Inventory, commonXrOrigin.transform);
+            SharedInput.Initialize(commonXrOrigin);
             XRProfiles.Initialize(commonXrOrigin);
             inputLock.Initialize(commonXrOrigin.transform);
             fade.Initialize(MainCamera);
@@ -76,7 +79,6 @@ namespace HClTraining.App
             SceneFlow.Initialize(inputLock, fade, XRProfiles, lifecycle, Session, PPEState, Inventory, ErrorUI);
 
             GetOrAdd<CommonTrainingMenu>().Initialize(this);
-            GetOrAdd<EquipmentMenuPresenter>().Initialize(this);
         }
 
         IEnumerator Start()
@@ -143,6 +145,11 @@ namespace HClTraining.App
                     modules[i].enabled = false;
                 }
             }
+
+            // XRUIInputModule keeps its built-in mouse fallback when no explicit
+            // 2D actions are assigned, while registered XR interactors continue to
+            // drive tracked pointers. Copying actions from a disabled desktop module
+            // prevents that fallback from owning the complete click lifecycle.
         }
 
         T GetOrAdd<T>() where T : Component

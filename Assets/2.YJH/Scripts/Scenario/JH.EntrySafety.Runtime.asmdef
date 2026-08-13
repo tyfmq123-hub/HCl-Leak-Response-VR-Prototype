@@ -1,0 +1,18 @@
+{
+    "name": "JH.EntrySafety.Runtime",
+    "rootNamespace": "JH.EntrySafety",
+  "references": [
+    "HClTraining.SharedXR.Runtime",
+    "Unity.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

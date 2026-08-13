@@ -1,0 +1,10 @@
+{
+  "name": "VRProject.ValveSystem.Runtime",
+  "rootNamespace": "VRProject.Valves",
+  "references": [
+    "HClTraining.SharedXR.Runtime",
+    "Unity.XR.Interaction.Toolkit",
+    "Unity.InputSystem"
+  ],
+  "autoReferenced": true
+}

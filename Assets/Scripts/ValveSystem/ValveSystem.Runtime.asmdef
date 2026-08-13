@@ -1,9 +1,0 @@
-{
-  "name": "VRProject.ValveSystem.Runtime",
-  "rootNamespace": "VRProject.Valves",
-  "references": [
-    "Unity.XR.Interaction.Toolkit",
-    "Unity.InputSystem"
-  ],
-  "autoReferenced": true
-}

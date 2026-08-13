@@ -1,8 +1,0 @@
-{
-  "name": "VRProject.ObjectInstallation.Runtime",
-  "rootNamespace": "VRProject.ObjectInstallation",
-  "references": [
-    "Unity.XR.Interaction.Toolkit"
-  ],
-  "autoReferenced": true
-}

@@ -684,11 +684,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyAnchorFollower
   xrCamera: {fileID: 473914089}
-  localPositionOffset: {x: -0.36, y: -1.08, z: 0.16}
+  localPositionOffset: {x: -0.58, y: -1.08, z: 0.16}
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 1
-  useCameraYawOnly: 1
+  useCameraYawOnly: 0
   snapOnEnable: 1
 --- !u!1 &59787874
 GameObject:
@@ -978,51 +978,51 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_DefaultParameters:
-    m_ApertureSize: 0.7
-    m_FeatheringEffect: 0.2
-    m_EaseInTime: 0.3
-    m_EaseOutTime: 0.3
-    m_EaseInTimeLock: 0
-    m_EaseOutDelayTime: 0
+    m_ApertureSize: 0.82
+    m_FeatheringEffect: 0.25
+    m_EaseInTime: 0.04
+    m_EaseOutTime: 0.1
+    m_EaseInTimeLock: 1
+    m_EaseOutDelayTime: 0.02
     m_VignetteColor: {r: 0, g: 0, b: 0, a: 1}
     m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 1}
     m_ApertureVerticalPosition: 0
   m_CurrentParameters:
-    m_ApertureSize: 0.7
-    m_FeatheringEffect: 0.2
-    m_EaseInTime: 0.3
-    m_EaseOutTime: 0.3
-    m_EaseInTimeLock: 0
-    m_EaseOutDelayTime: 0
+    m_ApertureSize: 0.82
+    m_FeatheringEffect: 0.25
+    m_EaseInTime: 0.04
+    m_EaseOutTime: 0.1
+    m_EaseInTimeLock: 1
+    m_EaseOutDelayTime: 0.02
     m_VignetteColor: {r: 0, g: 0, b: 0, a: 1}
     m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 1}
     m_ApertureVerticalPosition: 0
   m_LocomotionVignetteProviders:
   - m_LocomotionProvider: {fileID: 852795830}
     m_Enabled: 1
-    m_OverrideDefaultParameters: 0
+    m_OverrideDefaultParameters: 1
     m_OverrideParameters:
       m_ApertureSize: 0.55
-      m_FeatheringEffect: 0.25
-      m_EaseInTime: 0.2
-      m_EaseOutTime: 0.25
-      m_EaseInTimeLock: 0
-      m_EaseOutDelayTime: 0
-      m_VignetteColor: {r: 0, g: 0, b: 0, a: 0}
-      m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 0}
+      m_FeatheringEffect: 0.15
+      m_EaseInTime: 0.08
+      m_EaseOutTime: 0.15
+      m_EaseInTimeLock: 1
+      m_EaseOutDelayTime: 0.03
+      m_VignetteColor: {r: 0, g: 0, b: 0, a: 1}
+      m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 1}
       m_ApertureVerticalPosition: 0
   - m_LocomotionProvider: {fileID: 258465631}
     m_Enabled: 1
-    m_OverrideDefaultParameters: 0
+    m_OverrideDefaultParameters: 1
     m_OverrideParameters:
-      m_ApertureSize: 0.55
-      m_FeatheringEffect: 0.25
-      m_EaseInTime: 0.2
-      m_EaseOutTime: 0.25
-      m_EaseInTimeLock: 0
-      m_EaseOutDelayTime: 0
-      m_VignetteColor: {r: 0, g: 0, b: 0, a: 0}
-      m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 0}
+      m_ApertureSize: 0.755
+      m_FeatheringEffect: 0.15
+      m_EaseInTime: 0.08
+      m_EaseOutTime: 0.15
+      m_EaseInTimeLock: 1
+      m_EaseOutDelayTime: 0.03
+      m_VignetteColor: {r: 0, g: 0, b: 0, a: 1}
+      m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 1}
       m_ApertureVerticalPosition: 0
 --- !u!33 &98484248
 MeshFilter:
@@ -2530,13 +2530,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 288539153}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.57357645, y: 0, z: 0, w: 0.81915206}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.05}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 115039695}
-  m_LocalEulerAnglesHint: {x: 70, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &288539155
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2739,10 +2739,10 @@ MonoBehaviour:
   m_StopLineAtFirstRaycastHit: 1
   m_StopLineAtSelection: 1
   m_SnapEndpointIfAvailable: 1
-  m_LineBendRatio: 0.5
+  m_LineBendRatio: 1
   m_BendingEnabledInteractionLayers:
     m_Bits: 4294967295
-  m_OverrideInteractorLineOrigin: 1
+  m_OverrideInteractorLineOrigin: 0
   m_LineOriginTransform: {fileID: 0}
   m_LineOriginOffset: 0
 --- !u!120 &288539158
@@ -2997,7 +2997,7 @@ MonoBehaviour:
   m_HapticHoverCancelDuration: 0
   m_AllowHoverHapticsWhileSelecting: 0
   m_LineType: 0
-  m_BlendVisualLinePoints: 1
+  m_BlendVisualLinePoints: 0
   m_MaxRaycastDistance: 10
   m_RayOriginTransform: {fileID: 0}
   m_ReferenceFrame: {fileID: 0}
@@ -3019,7 +3019,7 @@ MonoBehaviour:
     m_Bits: 2147483681
   m_RaycastTriggerInteraction: 1
   m_RaycastSnapVolumeInteraction: 1
-  m_HitClosestOnly: 0
+  m_HitClosestOnly: 1
   m_HoverToSelect: 0
   m_HoverTimeToSelect: 0.5
   m_AutoDeselect: 0
@@ -3063,8 +3063,8 @@ MonoBehaviour:
       m_Interactions: 
       m_SingletonActionBindings: []
       m_Flags: 0
-    m_InputActionReferencePerformed: {fileID: 0}
-    m_InputActionReferenceValue: {fileID: 0}
+    m_InputActionReferencePerformed: {fileID: 3279264004350380116, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+    m_InputActionReferenceValue: {fileID: -5908353012961274365, guid: c348712bda248c246b8c49b3db54643f, type: 3}
     m_ObjectReferenceObject: {fileID: 0}
     m_ManualPerformed: 0
     m_ManualValue: 0
@@ -3817,8 +3817,8 @@ MonoBehaviour:
   m_CustomizeLinePropertiesForState: 1
   m_LinePropertyAnimationSpeed: 8
   m_NoValidHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.25
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -3857,8 +3857,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_UIHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.004
     m_EndWidth: 0.004
@@ -3897,8 +3897,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_UIPressHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -3937,8 +3937,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_SelectHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -3977,8 +3977,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.75
   m_HoverHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.25
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.004
     m_EndWidth: 0.004
@@ -4642,7 +4642,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 502386505}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
   m_Name: 
@@ -6277,8 +6277,8 @@ MonoBehaviour:
   m_CustomizeLinePropertiesForState: 1
   m_LinePropertyAnimationSpeed: 8
   m_NoValidHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.25
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -6317,8 +6317,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_UIHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.004
     m_EndWidth: 0.004
@@ -6357,8 +6357,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_UIPressHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -6397,8 +6397,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.9
   m_SelectHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.5
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.003
     m_EndWidth: 0.003
@@ -6437,8 +6437,8 @@ MonoBehaviour:
     m_CustomizeExpandLineDrawPercent: 1
     m_ExpandModeLineDrawPercent: 0.75
   m_HoverHitProperties:
-    m_SmoothlyCurveLine: 1
-    m_LineBendRatio: 0.25
+    m_SmoothlyCurveLine: 0
+    m_LineBendRatio: 1
     m_AdjustWidth: 1
     m_StartWidth: 0.004
     m_EndWidth: 0.004
@@ -7838,13 +7838,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 825942292}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.57357645, y: 0, z: 0, w: 0.81915206}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.05}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 880962951}
-  m_LocalEulerAnglesHint: {x: 70, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &825942294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8047,10 +8047,10 @@ MonoBehaviour:
   m_StopLineAtFirstRaycastHit: 1
   m_StopLineAtSelection: 1
   m_SnapEndpointIfAvailable: 1
-  m_LineBendRatio: 0.5
+  m_LineBendRatio: 1
   m_BendingEnabledInteractionLayers:
     m_Bits: 4294967295
-  m_OverrideInteractorLineOrigin: 1
+  m_OverrideInteractorLineOrigin: 0
   m_LineOriginTransform: {fileID: 0}
   m_LineOriginOffset: 0
 --- !u!120 &825942297
@@ -8305,7 +8305,7 @@ MonoBehaviour:
   m_HapticHoverCancelDuration: 0
   m_AllowHoverHapticsWhileSelecting: 0
   m_LineType: 0
-  m_BlendVisualLinePoints: 1
+  m_BlendVisualLinePoints: 0
   m_MaxRaycastDistance: 10
   m_RayOriginTransform: {fileID: 0}
   m_ReferenceFrame: {fileID: 0}
@@ -8327,7 +8327,7 @@ MonoBehaviour:
     m_Bits: 2147483681
   m_RaycastTriggerInteraction: 1
   m_RaycastSnapVolumeInteraction: 1
-  m_HitClosestOnly: 0
+  m_HitClosestOnly: 1
   m_HoverToSelect: 0
   m_HoverTimeToSelect: 0.5
   m_AutoDeselect: 0
@@ -8371,8 +8371,8 @@ MonoBehaviour:
       m_Interactions: 
       m_SingletonActionBindings: []
       m_Flags: 0
-    m_InputActionReferencePerformed: {fileID: 0}
-    m_InputActionReferenceValue: {fileID: 0}
+    m_InputActionReferencePerformed: {fileID: -6395602842196007441, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+    m_InputActionReferenceValue: {fileID: 71106601250685021, guid: c348712bda248c246b8c49b3db54643f, type: 3}
     m_ObjectReferenceObject: {fileID: 0}
     m_ManualPerformed: 0
     m_ManualValue: 0
@@ -8661,7 +8661,7 @@ MonoBehaviour:
   questControllerMeshes:
   - {fileID: 787287636}
   - {fileID: 1934555195}
-  disableRayInteractorsWhileWorn: 1
+  disableRayInteractorsWhileWorn: 0
   rayInteractors:
   - {fileID: 825942298}
   - {fileID: 288539159}
@@ -12936,7 +12936,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1471384430
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16417,7 +16417,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2057197210}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.015098064, y: 0.21591239, z: 0.06810296, w: 0.97391784}
+  m_LocalRotation: {x: 0.049325276, y: 0.7053843, z: 0.049325276, w: 0.7053843}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.85, y: 0.85, z: 0.85}
   m_ConstrainProportionsScale: 0
@@ -16479,7 +16479,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ResponseBagWearableVisual
   wearableRoot: {fileID: 2057197210}
   wearableLocalPosition: {x: 0, y: 0, z: 0}
-  wearableLocalEuler: {x: 0, y: 25, z: 8}
+  wearableLocalEuler: {x: 0, y: 90, z: 8}
   wearableLocalScale: {x: 0.85, y: 0.85, z: 0.85}
   startHidden: 1
   visualController: {fileID: 2057197212}

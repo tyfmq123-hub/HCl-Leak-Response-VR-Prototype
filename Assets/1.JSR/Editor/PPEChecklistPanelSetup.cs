@@ -1,0 +1,403 @@
+using System.Text;
+using TMPro;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+/// <summary>
+/// Creates / repairs a single world-space PPE_ChecklistCanvas near PPE_Storage.
+/// </summary>
+public static class PPEChecklistPanelSetup
+{
+    const string CanvasName = "PPE_ChecklistCanvas";
+    const string HangulFontPath = "Assets/1.JSR/Resources/PPE_HangulFont.asset";
+    const string LiberationSansGuid = "8f586378b4e144a9851e7b34d9b748ee";
+
+    static readonly Color PanelBg = new Color(0.07f, 0.10f, 0.14f, 0.88f);
+    static readonly Color TitleYellow = new Color(0.95f, 0.78f, 0.22f, 1f);
+    static readonly Color SectionYellow = new Color(0.88f, 0.72f, 0.18f, 1f);
+    static readonly Color BodyWhite = new Color(0.94f, 0.95f, 0.97f, 1f);
+    static readonly Color StatusGray = new Color(0.72f, 0.76f, 0.80f, 1f);
+    static readonly Color IncompleteGray = new Color(0.45f, 0.48f, 0.52f, 1f);
+
+    struct RowSpec
+    {
+        public string ObjectName;
+        public string Label;
+        public string ItemId;
+        public PPEChecklistPanel.ChecklistSource Source;
+    }
+
+    // Wear order matches PPESequenceManager / TTS prompts.
+    static readonly RowSpec[] WearOrderRows =
+    {
+        new RowSpec { ObjectName = "InnerGlovesRow", Label = "1. \uC18D\uC7A5\uAC11", ItemId = PPESequenceManager.IdInnerGloves, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalSuitRow", Label = "2. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5", ItemId = PPEEquipmentManager.IdChemicalSuit, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalBootsRow", Label = "3. \uB0B4\uD654\uD559 \uC548\uC804\uC7A5\uD654", ItemId = PPEEquipmentManager.IdChemicalBoots, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "FaceRespiratorRow", Label = "4. \uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceRespirator, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ResponseBagRow", Label = "5. \uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29", ItemId = PPEEquipmentManager.IdResponseBag, Source = PPEChecklistPanel.ChecklistSource.ResponseBagPrepared },
+        new RowSpec { ObjectName = "FaceShieldRow", Label = "6. \uC548\uBA74\uBCF4\uD638\uAD6C", ItemId = PPEEquipmentManager.IdFaceShield, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "ChemicalGlovesRow", Label = "7. \uC678\uBD80 \uBCF4\uD638\uC7A5\uAC11", ItemId = PPEEquipmentManager.IdChemicalGloves, Source = PPEChecklistPanel.ChecklistSource.Equipped },
+        new RowSpec { ObjectName = "WasteContainerRow", Label = "8. \uC720\uD574\uD3D0\uAE30\uBB3C \uC218\uAC70\uC6A9\uAE30", ItemId = PPEEquipmentManager.IdWasteContainer, Source = PPEChecklistPanel.ChecklistSource.Prepared },
+    };
+
+    [MenuItem("Tools/PPE/Setup Checklist Panel", false, 28)]
+    public static void SetupChecklistPanel()
+    {
+        var scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            Debug.LogError("[PPE Checklist] No active loaded scene.");
+            return;
+        }
+
+        var report = new StringBuilder();
+        report.AppendLine("=== PPE Checklist Panel Setup ===");
+
+        var existing = GameObject.Find(CanvasName);
+        if (existing == null)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var t = root.transform.Find(CanvasName);
+                if (t != null)
+                {
+                    existing = t.gameObject;
+                    break;
+                }
+
+                var panels = root.GetComponentsInChildren<PPEChecklistPanel>(true);
+                if (panels != null && panels.Length > 0)
+                {
+                    existing = panels[0].gameObject;
+                    if (existing.name != CanvasName)
+                        existing.name = CanvasName;
+                    break;
+                }
+            }
+        }
+
+        GameObject canvasGo;
+        if (existing != null)
+        {
+            canvasGo = existing;
+            report.AppendLine("Reused existing PPE_ChecklistCanvas (no duplicate).");
+        }
+        else
+        {
+            canvasGo = CreateCanvasHierarchy(report);
+        }
+
+        WirePanel(canvasGo, report);
+        PlaceNearStorage(canvasGo, report);
+
+        EditorUtility.SetDirty(canvasGo);
+        EditorSceneManager.MarkSceneDirty(scene);
+        if (scene.isDirty && !string.IsNullOrEmpty(scene.path))
+            EditorSceneManager.SaveScene(scene);
+
+        Selection.activeObject = canvasGo;
+        Debug.Log(report.ToString());
+    }
+
+    static GameObject CreateCanvasHierarchy(StringBuilder report)
+    {
+        var system = GameObject.Find("PPE_System");
+        var canvasGo = new GameObject(CanvasName);
+        Undo.RegisterCreatedObjectUndo(canvasGo, "Create PPE_ChecklistCanvas");
+        if (system != null)
+            Undo.SetTransformParent(canvasGo.transform, system.transform, "Parent checklist canvas");
+
+        var canvas = Undo.AddComponent<Canvas>(canvasGo);
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 40;
+
+        var scaler = Undo.AddComponent<CanvasScaler>(canvasGo);
+        scaler.dynamicPixelsPerUnit = 10f;
+        scaler.referencePixelsPerUnit = 100f;
+
+        var canvasRect = canvasGo.GetComponent<RectTransform>();
+        canvasRect.sizeDelta = new Vector2(780f, 980f);
+
+        var panel = CreateRect("ChecklistPanel", canvasGo.transform);
+        StretchFull(panel);
+        var panelImage = panel.gameObject.AddComponent<Image>();
+        panelImage.color = PanelBg;
+        panelImage.raycastTarget = false;
+
+        var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(36, 36, 32, 28);
+        layout.spacing = 10f;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+
+        CreateText(panel, "TitleText", "PPE \uCC29\uC6A9 \uC0C1\uD0DC", 48f, TitleYellow, FontStyles.Bold, 70f);
+
+        var ppeSection = CreateRect("PPESection", panel);
+        AddVertical(ppeSection.gameObject, 6, new RectOffset(0, 0, 4, 4));
+        PreferHeight(ppeSection, 720f);
+        CreateText(ppeSection, "PPESectionLabel", "\uCC29\uC6A9 \uC21C\uC11C", 30f, SectionYellow, FontStyles.Bold, 40f);
+        foreach (var spec in WearOrderRows)
+            CreateRow(ppeSection, spec);
+
+        CreateText(panel, "StatusText", "\uCC29\uC6A9 \uC21C\uC11C 0/8", 28f, StatusGray, FontStyles.Normal, 48f);
+
+        Undo.AddComponent<PPEChecklistPanel>(canvasGo);
+        report.AppendLine("Created hierarchy under PPE_System (or scene root).");
+        return canvasGo;
+    }
+
+    static void CreateRow(Transform parent, RowSpec spec)
+    {
+        var row = CreateRect(spec.ObjectName, parent);
+        PreferHeight(row, 72f);
+
+        var h = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        h.spacing = 18f;
+        h.padding = new RectOffset(4, 4, 6, 6);
+        h.childAlignment = TextAnchor.MiddleLeft;
+        h.childControlHeight = true;
+        h.childControlWidth = true;
+        h.childForceExpandHeight = true;
+        h.childForceExpandWidth = false;
+
+        var indicator = CreateRect("Indicator", row);
+        PreferWidth(indicator, 56f);
+        PreferHeight(indicator, 56f);
+        var img = indicator.gameObject.AddComponent<Image>();
+        img.color = IncompleteGray;
+        img.raycastTarget = false;
+
+        var mark = CreateText(indicator, "Mark", "\u25A1", 36f, BodyWhite, FontStyles.Bold, 56f);
+        var markRect = mark.rectTransform;
+        StretchFull(markRect);
+        mark.alignment = TextAlignmentOptions.Center;
+
+        var label = CreateText(row, "Label", spec.Label, 34f, BodyWhite, FontStyles.Normal, 56f);
+        var le = label.gameObject.AddComponent<LayoutElement>();
+        le.flexibleWidth = 1f;
+        le.minHeight = 56f;
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+    }
+
+    static void WirePanel(GameObject canvasGo, StringBuilder report)
+    {
+        var panelComp = canvasGo.GetComponent<PPEChecklistPanel>();
+        if (panelComp == null)
+            panelComp = Undo.AddComponent<PPEChecklistPanel>(canvasGo);
+
+        var manager = Object.FindAnyObjectByType<PPEEquipmentManager>(FindObjectsInactive.Include);
+        var so = new SerializedObject(panelComp);
+        so.FindProperty("equipmentManager").objectReferenceValue = manager;
+
+        var rowList = new System.Collections.Generic.List<(RowSpec Spec, Transform RowRoot)>();
+        CollectRows(canvasGo.transform, WearOrderRows, rowList);
+
+        // Ensure missing rows (e.g. InnerGloves) exist under PPESection in wear order.
+        var section = FindDeep(canvasGo.transform, "PPESection");
+        if (section != null)
+        {
+            for (var i = 0; i < WearOrderRows.Length; i++)
+            {
+                var spec = WearOrderRows[i];
+                if (FindDeep(canvasGo.transform, spec.ObjectName) != null)
+                    continue;
+
+                CreateRow(section, spec);
+            }
+
+            rowList.Clear();
+            CollectRows(canvasGo.transform, WearOrderRows, rowList);
+
+            var sibling = 0;
+            var title = section.Find("PPESectionLabel");
+            if (title != null)
+            {
+                title.SetSiblingIndex(0);
+                sibling = 1;
+            }
+
+            for (var i = 0; i < rowList.Count; i++)
+            {
+                var rowRoot = rowList[i].RowRoot;
+                if (rowRoot.parent != section)
+                    rowRoot.SetParent(section, false);
+                rowRoot.SetSiblingIndex(sibling++);
+            }
+        }
+
+        var equipmentSection = FindDeep(canvasGo.transform, "EquipmentSection");
+        if (equipmentSection != null)
+            equipmentSection.gameObject.SetActive(false);
+
+        var rowsProp = so.FindProperty("rows");
+        rowsProp.arraySize = rowList.Count;
+        for (var i = 0; i < rowList.Count; i++)
+        {
+            var (spec, rowRoot) = rowList[i];
+            var elem = rowsProp.GetArrayElementAtIndex(i);
+            elem.FindPropertyRelative("itemId").stringValue = spec.ItemId;
+            elem.FindPropertyRelative("source").enumValueIndex = (int)spec.Source;
+
+            var label = rowRoot.Find("Label")?.GetComponent<TextMeshProUGUI>();
+            var indicator = rowRoot.Find("Indicator")?.GetComponent<Image>();
+            var mark = rowRoot.Find("Indicator/Mark")?.GetComponent<TextMeshProUGUI>();
+            elem.FindPropertyRelative("labelText").objectReferenceValue = label;
+            elem.FindPropertyRelative("indicator").objectReferenceValue = indicator;
+            elem.FindPropertyRelative("indicatorMark").objectReferenceValue = mark;
+        }
+
+        var status = FindDeep(canvasGo.transform, "StatusText")?.GetComponent<TextMeshProUGUI>();
+        so.FindProperty("statusText").objectReferenceValue = status;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        ApplyFonts(canvasGo);
+        report.AppendLine($"Wired {rowList.Count} rows. Manager={(manager != null ? manager.name : "NULL")}.");
+    }
+
+    static void CollectRows(Transform root, RowSpec[] specs, System.Collections.Generic.List<(RowSpec, Transform)> list)
+    {
+        for (var i = 0; i < specs.Length; i++)
+        {
+            var t = FindDeep(root, specs[i].ObjectName);
+            if (t != null)
+                list.Add((specs[i], t));
+        }
+    }
+
+    static void PlaceNearStorage(GameObject canvasGo, StringBuilder report)
+    {
+        var pos = new Vector3(-1.55f, 1.55f, 1.78f);
+        var rot = Quaternion.Euler(0f, 180f, 0f);
+        var scale = Vector3.one * 0.00135f;
+
+        var storage = GameObject.Find("PPE_Storage");
+        if (storage != null)
+        {
+            var front = storage.transform.position + storage.transform.forward * 0.65f;
+            front.y = 1.55f;
+            front += -storage.transform.right * 0.9f;
+            pos = front;
+            rot = Quaternion.LookRotation(-storage.transform.forward, Vector3.up);
+        }
+
+        Undo.RecordObject(canvasGo.transform, "Place checklist canvas");
+        canvasGo.transform.SetPositionAndRotation(pos, rot);
+        canvasGo.transform.localScale = scale;
+        report.AppendLine($"Placed at {pos} near PPE_Storage (not parented to camera).");
+    }
+
+    static void ApplyFonts(GameObject root)
+    {
+        var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(HangulFontPath);
+        if (font == null || font.material == null)
+        {
+            font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                AssetDatabase.GUIDToAssetPath(LiberationSansGuid));
+        }
+
+        if (font == null)
+            return;
+
+        var tmps = root.GetComponentsInChildren<TextMeshProUGUI>(true);
+        for (var i = 0; i < tmps.Length; i++)
+        {
+            tmps[i].font = font;
+            if (font.material != null)
+                tmps[i].fontSharedMaterial = font.material;
+            EditorUtility.SetDirty(tmps[i]);
+        }
+    }
+
+    static RectTransform CreateRect(string name, Transform parent)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(go, "Create " + name);
+        go.transform.SetParent(parent, false);
+        return go.GetComponent<RectTransform>();
+    }
+
+    static TextMeshProUGUI CreateText(
+        Transform parent,
+        string name,
+        string text,
+        float fontSize,
+        Color color,
+        FontStyles style,
+        float preferredHeight)
+    {
+        var rect = CreateRect(name, parent);
+        PreferHeight(rect, preferredHeight);
+        var tmp = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = fontSize;
+        tmp.color = color;
+        tmp.fontStyle = style;
+        tmp.alignment = TextAlignmentOptions.MidlineLeft;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.overflowMode = TextOverflowModes.Ellipsis;
+        tmp.raycastTarget = false;
+        return tmp;
+    }
+
+    static void StretchFull(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+    }
+
+    static void AddVertical(GameObject go, float spacing, RectOffset padding)
+    {
+        var v = go.AddComponent<VerticalLayoutGroup>();
+        v.spacing = spacing;
+        v.padding = padding;
+        v.childAlignment = TextAnchor.UpperLeft;
+        v.childControlHeight = true;
+        v.childControlWidth = true;
+        v.childForceExpandHeight = false;
+        v.childForceExpandWidth = true;
+    }
+
+    static void PreferHeight(RectTransform rect, float height)
+    {
+        var le = rect.gameObject.GetComponent<LayoutElement>();
+        if (le == null)
+            le = rect.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = height;
+        le.preferredHeight = height;
+    }
+
+    static void PreferWidth(RectTransform rect, float width)
+    {
+        var le = rect.gameObject.GetComponent<LayoutElement>();
+        if (le == null)
+            le = rect.gameObject.AddComponent<LayoutElement>();
+        le.minWidth = width;
+        le.preferredWidth = width;
+    }
+
+    static Transform FindDeep(Transform root, string name)
+    {
+        if (root == null)
+            return null;
+        if (root.name == name)
+            return root;
+
+        for (var i = 0; i < root.childCount; i++)
+        {
+            var found = FindDeep(root.GetChild(i), name);
+            if (found != null)
+                return found;
+        }
+
+        return null;
+    }
+}

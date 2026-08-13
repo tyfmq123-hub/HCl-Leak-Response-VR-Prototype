@@ -5512,11 +5512,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyAnchorFollower
   xrCamera: {fileID: 784798172}
-  localPositionOffset: {x: -0.36, y: -1.08, z: 0.16}
+  localPositionOffset: {x: -0.58, y: -1.08, z: 0.16}
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 1
-  useCameraYawOnly: 1
+  useCameraYawOnly: 0
   snapOnEnable: 1
 --- !u!1 &819151754
 GameObject:
@@ -5640,6 +5640,8 @@ MonoBehaviour:
   playIntroTutorialOnStart: 1
   introStartDelay: 0.35
   autoHookManagers: 1
+  showSubtitles: 1
+  subtitleFeedback: {fileID: 0}
 --- !u!82 &819151757
 AudioSource:
   m_ObjectHideFlags: 0
@@ -9796,7 +9798,7 @@ MonoBehaviour:
   toggleVisibilityAction:
     m_UseReference: 0
     m_Action:
-      m_Name: 
+      m_Name: Toggle Visibility
       m_Type: 0
       m_ExpectedControlType: 
       m_Id: 7c3a9e12-4b8f-4d6a-9e21-a8f04c2b19e6
@@ -11813,7 +11815,7 @@ MonoBehaviour:
   canvasGroup: {fileID: 1327223078}
   preferredHangulFont: {fileID: 11400000, guid: 7daa942f9a03fea43bcf43e77f054e65, type: 2}
   distanceFromCamera: 1.15
-  verticalOffset: -0.38
+  verticalOffset: -0.44
   canvasWorldScale: 0.0012
   displayDuration: 2
   fadeOutDuration: 0.35
@@ -12239,7 +12241,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1427366402}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.015098064, y: 0.21591239, z: 0.06810296, w: 0.97391784}
+  m_LocalRotation: {x: 0.049325276, y: 0.7053843, z: 0.049325276, w: 0.7053843}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.85, y: 0.85, z: 0.85}
   m_ConstrainProportionsScale: 0
@@ -12264,7 +12266,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ResponseBagWearableVisual
   wearableRoot: {fileID: 1427366402}
   wearableLocalPosition: {x: 0, y: 0, z: 0}
-  wearableLocalEuler: {x: 0, y: 25, z: 8}
+  wearableLocalEuler: {x: 0, y: 90, z: 8}
   wearableLocalScale: {x: 0.85, y: 0.85, z: 0.85}
   startHidden: 1
   visualController: {fileID: 1427366405}
@@ -12436,7 +12438,7 @@ MonoBehaviour:
   questControllerMeshes:
   - {fileID: 1978346347}
   - {fileID: 1968365316}
-  disableRayInteractorsWhileWorn: 1
+  disableRayInteractorsWhileWorn: 0
   rayInteractors:
   - {fileID: 1184449908}
   - {fileID: 296347268}
@@ -14266,7 +14268,7 @@ MonoBehaviour:
   labelText: {fileID: 406366721}
   xrCamera: {fileID: 784798175}
   distanceFromCamera: 0.9
-  verticalOffset: -0.22
+  verticalOffset: -0.08
   canvasSize: {x: 520, y: 72}
   worldScale: 0.00115
   hideDelayAfterHoverExit: 0.25
@@ -15398,7 +15400,7 @@ MonoBehaviour:
   moveDuration: 0.4
   rotationDuration: 0.4
   faceCamera: 1
-  disableCollidersDuringPreview: 1
+  disableCollidersDuringPreview: 0
   centerOnRendererBounds: 1
   useUniformPreviewSize: 1
   targetPreviewMaxExtent: 0.45

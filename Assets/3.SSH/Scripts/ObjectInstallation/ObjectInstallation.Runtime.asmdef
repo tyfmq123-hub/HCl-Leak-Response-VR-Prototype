@@ -1,0 +1,9 @@
+{
+  "name": "VRProject.ObjectInstallation.Runtime",
+  "rootNamespace": "VRProject.ObjectInstallation",
+  "references": [
+    "HClTraining.SharedXR.Runtime",
+    "Unity.XR.Interaction.Toolkit"
+  ],
+  "autoReferenced": true
+}

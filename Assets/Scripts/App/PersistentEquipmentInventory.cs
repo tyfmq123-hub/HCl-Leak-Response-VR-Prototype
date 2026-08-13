@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace HClTraining.App
 {
     [DisallowMultipleComponent]
-    public sealed class PersistentEquipmentInventory : MonoBehaviour
+    public sealed class PersistentEquipmentInventory : MonoBehaviour, ISharedEquipmentInventory
     {
-        public const string GasDetector = "GasDetector";
-        public const string AbsorbentSock = "AbsorbentSock";
-        public const string AbsorbentPad = "AbsorbentPad";
-        public const string WasteContainer = "WasteContainer";
-        public const string RecoveryTongs = "RecoveryTongs";
+        public const string GasDetector = SharedEquipmentIds.GasDetector;
+        public const string AbsorbentSock = SharedEquipmentIds.AbsorbentSock;
+        public const string AbsorbentPad = SharedEquipmentIds.AbsorbentPad;
+        public const string WasteContainer = SharedEquipmentIds.WasteContainer;
+        public const string RecoveryTongs = SharedEquipmentIds.RecoveryTongs;
 
         sealed class RuntimeBinding
         {
@@ -48,6 +49,7 @@ namespace HClTraining.App
                 existing = root.transform;
             }
             storageRoot = existing;
+            SharedEquipmentInventory.Register(this);
         }
 
         public void SyncFromLoadout()
@@ -87,8 +89,6 @@ namespace HClTraining.App
             {
                 Bind(scene, AbsorbentSock, "INT_AbsorbentSock_Straight_01");
                 Bind(scene, AbsorbentPad, "INT_AbsorbentPad_01");
-                Bind(scene, WasteContainer, "INT_WasteContainer_01");
-                Bind(scene, RecoveryTongs, "INT_RecoveryTongs_01");
             }
             Changed?.Invoke();
         }
@@ -104,6 +104,48 @@ namespace HClTraining.App
 
         public bool IsDeployed(string equipmentId) =>
             bindings.TryGetValue(equipmentId, out var binding) && binding.deployed && binding.instance != null;
+
+        public bool IsAcquired(string equipmentId) =>
+            session != null && session.IsEquipmentAcquired(equipmentId);
+
+        public bool IsAvailable(string equipmentId) =>
+            session != null && session.IsEquipmentAvailable(equipmentId);
+
+        public bool TryDeployAt(string equipmentId, Transform worldPose)
+        {
+            if (worldPose == null || session == null || !session.IsEquipmentAvailable(equipmentId) ||
+                !session.IsEquipmentAcquired(equipmentId))
+            {
+                return false;
+            }
+
+            if (!bindings.TryGetValue(equipmentId, out var binding) || binding.instance == null ||
+                binding.deployed)
+            {
+                return false;
+            }
+
+            binding.instance.transform.SetParent(binding.originalParent, false);
+            binding.instance.transform.localScale = binding.originalLocalScale;
+            binding.instance.transform.SetPositionAndRotation(worldPose.position, worldPose.rotation);
+            binding.instance.SetActive(true);
+            ResetMotion(binding.instance);
+            binding.deployed = true;
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool TryRecall(string equipmentId)
+        {
+            if (!bindings.TryGetValue(equipmentId, out var binding) || binding.instance == null ||
+                !binding.deployed)
+            {
+                return false;
+            }
+
+            Recall(equipmentId, binding);
+            return true;
+        }
 
         public bool DeployOrRecall(string equipmentId)
         {
@@ -133,15 +175,7 @@ namespace HClTraining.App
                 return true;
             }
 
-            binding.instance.transform.SetParent(binding.originalParent, false);
-            binding.instance.transform.localPosition = binding.originalLocalPosition;
-            binding.instance.transform.localRotation = binding.originalLocalRotation;
-            binding.instance.transform.localScale = binding.originalLocalScale;
-            binding.instance.SetActive(true);
-            ResetMotion(binding.instance);
-            binding.deployed = true;
-            Changed?.Invoke();
-            return true;
+            return TryDeployAt(equipmentId, deploymentAnchor);
         }
 
         public bool Recover(string equipmentId)
@@ -258,6 +292,11 @@ namespace HClTraining.App
                 bodies[i].linearVelocity = Vector3.zero;
                 bodies[i].angularVelocity = Vector3.zero;
             }
+        }
+
+        void OnDestroy()
+        {
+            SharedEquipmentInventory.Unregister(this);
         }
     }
 }

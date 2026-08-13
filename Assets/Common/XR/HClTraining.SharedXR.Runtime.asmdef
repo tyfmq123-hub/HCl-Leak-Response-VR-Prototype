@@ -1,0 +1,9 @@
+{
+  "name": "HClTraining.SharedXR.Runtime",
+  "rootNamespace": "HClTraining.SharedXR",
+  "references": [
+    "Unity.InputSystem",
+    "Unity.XR.Interaction.Toolkit"
+  ],
+  "autoReferenced": true
+}

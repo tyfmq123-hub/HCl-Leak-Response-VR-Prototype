@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
+using System.Reflection;
 using System.Linq;
 using HClTraining.App;
+using HClTraining.SharedXR;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -152,7 +154,7 @@ public sealed class AppFlowStateTests
     public void ScenePaths_KeepOfficialStageAssets()
     {
         Assert.AreEqual("Assets/Scenes/PPE_PreparationRoom.unity", SceneFlowController.PpeScenePath);
-        Assert.AreEqual("Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity", SceneFlowController.PreEntryScenePath);
+        Assert.AreEqual("Assets/Scenes/JH_Test_Scene.unity", SceneFlowController.PreEntryScenePath);
         Assert.AreEqual("Assets/Scenes/SSH_VR_Project.unity", SceneFlowController.LeakResponseScenePath);
         Assert.IsFalse(new[]
         {
@@ -160,6 +162,113 @@ public sealed class AppFlowStateTests
             SceneFlowController.StartScenePath,
             SceneFlowController.CompleteScenePath,
         }.Any(string.IsNullOrWhiteSpace));
+    }
+
+    [Test]
+    public void CommonXrPolicy_KeepsOneVisibleControllerRigAcrossStageOrder()
+    {
+        var xrRoot = CreatePath(root.transform, "Common XR Origin");
+        var leftVisuals = CreatePath(xrRoot, "Camera Offset/Left Controller/Visuals");
+        var leftModel = CreatePath(leftVisuals, "XR Controller Left");
+        var leftLegacyVisual = CreatePath(xrRoot, "Camera Offset/Left Controller/Visual");
+        var leftRay = CreatePath(xrRoot, "Camera Offset/Left Controller/Ray Interactor");
+        var leftNearFar = CreatePath(xrRoot, "Camera Offset/Left Controller/Left_NearFarInteractor");
+        CreatePath(leftNearFar, "LineVisual");
+
+        var rightVisuals = CreatePath(xrRoot, "Camera Offset/Right Controller/Visuals");
+        var rightModel = CreatePath(rightVisuals, "XR Controller Right");
+        var rightLegacyVisual = CreatePath(xrRoot, "Camera Offset/Right Controller/Visual");
+        var rightRay = CreatePath(xrRoot, "Camera Offset/Right Controller/Ray Interactor");
+        var rightNearFar = CreatePath(xrRoot, "Camera Offset/Right Controller/Right_NearFarInteractor");
+        CreatePath(rightNearFar, "LineVisual");
+
+        leftVisuals.gameObject.SetActive(false);
+        leftModel.gameObject.SetActive(false);
+        rightVisuals.gameObject.SetActive(false);
+        rightModel.gameObject.SetActive(false);
+        leftLegacyVisual.gameObject.SetActive(true);
+        rightLegacyVisual.gameObject.SetActive(true);
+        leftRay.localRotation = Quaternion.Euler(70f, 0f, 0f);
+        rightRay.localRotation = Quaternion.Euler(70f, 0f, 0f);
+
+        var policy = typeof(StageXRProfileController).GetMethod(
+            "ApplyCommonControllerPolicy",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(policy);
+
+        var ppeRequirements = CreateRequirements(far: true, near: false, ui: true, grab: true);
+        var preEntryRequirements = CreateRequirements(far: false, near: false, ui: false, grab: false);
+        var leakRequirements = CreateRequirements(far: true, near: true, ui: true, grab: true);
+
+        policy.Invoke(null, new object[] { xrRoot, ppeRequirements });
+        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, true, false);
+        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, true, false);
+
+        policy.Invoke(null, new object[] { xrRoot, preEntryRequirements });
+        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, false, false);
+        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, false, false);
+
+        policy.Invoke(null, new object[] { xrRoot, leakRequirements });
+        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, false, true);
+        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, false, true);
+
+        Object.DestroyImmediate(ppeRequirements);
+        Object.DestroyImmediate(preEntryRequirements);
+        Object.DestroyImmediate(leakRequirements);
+    }
+
+    [TestCase("<XRController>{RightHand}/gripPressed", "Right")]
+    [TestCase("<OculusTouchController>{LeftHand}/gripPressed", "Left")]
+    [TestCase("unassigned-device", "Unknown")]
+    public void ConfirmRouter_ResolvesTheHandThatPressedGrip(string bindingPath, string expectedHand)
+    {
+        var resolver = typeof(XRInteractionConfirmRouter).GetMethod(
+            "ResolveHandText",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(resolver);
+        var resolved = resolver.Invoke(null, new object[] { bindingPath });
+        Assert.AreEqual(expectedHand, resolved.ToString());
+    }
+
+    static Transform CreatePath(Transform parent, string path)
+    {
+        var current = parent;
+        foreach (var segment in path.Split('/'))
+        {
+            var child = current.Find(segment);
+            if (child == null)
+            {
+                child = new GameObject(segment).transform;
+                child.SetParent(current, false);
+            }
+            current = child;
+        }
+        return current;
+    }
+
+    static StageXRRequirements CreateRequirements(bool far, bool near, bool ui, bool grab)
+    {
+        var requirements = ScriptableObject.CreateInstance<StageXRRequirements>();
+        requirements.EditorConfigure(string.Empty, Vector3.zero, Quaternion.identity,
+            far, near, ui, grab, useHaptics: true);
+        return requirements;
+    }
+
+    static void AssertCommonControllerState(
+        Transform visuals,
+        Transform model,
+        Transform legacyVisual,
+        Transform ray,
+        Transform nearFar,
+        bool expectedRay,
+        bool expectedNearFar)
+    {
+        Assert.IsTrue(visuals.gameObject.activeSelf);
+        Assert.IsTrue(model.gameObject.activeSelf);
+        Assert.IsFalse(legacyVisual.gameObject.activeSelf);
+        Assert.AreEqual(expectedRay, ray.gameObject.activeSelf);
+        Assert.Less(Quaternion.Angle(Quaternion.Euler(70f, 0f, 0f), ray.localRotation), 0.01f);
+        Assert.AreEqual(expectedNearFar, nearFar.gameObject.activeSelf);
     }
 }
 #endif

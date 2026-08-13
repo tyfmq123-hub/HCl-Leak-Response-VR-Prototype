@@ -1,0 +1,8 @@
+{
+  "name": "VRProject.P102Logic.Runtime",
+  "rootNamespace": "VRProject.LeakResponse.Logic",
+  "references": [
+    "HClTraining.SharedXR.Runtime"
+  ],
+  "autoReferenced": true
+}

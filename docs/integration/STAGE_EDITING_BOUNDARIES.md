@@ -1,165 +1,186 @@
-# HCl 누출 대응 VR Stage 작업 경계
+# HCl 누출 대응 VR 작업 경계
 
-이 문서는 PPE, 현장 진입 전(PreEntry), 누출 대응(LeakResponse) Stage를 동시에 개발할 때 소유권과 통합 계약을 보호하기 위한 강제 작업 경계다. 아래 경로는 현재 저장소의 Scene, 스크립트, 리소스 및 완료 이벤트 연결을 직접 확인해 기록했다. 경로가 겹치거나 여러 Stage에서 참조되는 에셋은 공용 영역으로 본다.
+이 문서는 App Shared XR 통합 구조를 보호하면서 PPE, PreEntry, LeakResponse 담당자가 자기 Stage 기능을 독립적으로 수정할 수 있게 하는 기준이다.
 
-## A. 역할 구분
+## 1. 작업 역할
 
-작업 역할은 다음 네 가지로 고정한다.
+작업 시작 전에 다음 중 하나를 선언한다.
 
-- Integration 관리자
-- PPE 담당자
-- PreEntry 담당자
-- LeakResponse 담당자
+- Integration
+- PPE (`Assets/1.JSR/`)
+- PreEntry (`Assets/2.YJH/`)
+- LeakResponse (`Assets/3.SSH/`)
 
-모든 작업자는 파일을 수정하기 전에 자신의 역할을 명확히 선언해야 한다. 역할이 불명확하면 수정하지 말고 먼저 확인한다. Integration 관리자만 공용 통합 영역을 수정하고 Stage 브랜치를 `develop`에 합칠 수 있다.
+Integration 관리자는 전체 통합 호환성 작업을 위해 각 Stage의 실제 소유 영역을 수정할 수 있다. 이 경우에도 Stage 전용 로직은 해당 Stage 폴더에 둔다.
 
-## B. 모든 Stage 담당자의 공용 수정 금지 영역
+## 2. Integration 전용 공용 영역
 
-PPE, PreEntry, LeakResponse 담당자는 다음 항목을 수정·이동·삭제·이름 변경·재생성할 수 없다.
+다음 기반은 Integration 관리자가 소유한다.
 
-- `Assets/Scenes/App/` 전체와 `Assets/Scenes/App.meta`
-- `Assets/Scripts/App/` 전체와 `Assets/Scripts/App.meta`
-- `Assets/Resources/App/` 전체와 `Assets/Resources/App.meta`
-- App Scene: `Assets/Scenes/App/App.unity`
-- Start Scene: `Assets/Scenes/App/Start.unity`
-- Complete Scene: `Assets/Scenes/App/Complete.unity`
-- `AppBootstrap`, `SceneFlowController`, `StageXRProfileController`
-- `TransitionInputLock`, `ScreenFadeController` 및 그 밖의 전환 서비스
-- `StageLifecycleAdapter`와 모든 Stage 완료 연결
+- `Assets/Scenes/App/`
+- `Assets/Scripts/App/`
+- `Assets/Resources/App/`
+- `Assets/Common/XR/`
 - `Assets/Editor/AppIntegrationBuilder.cs`
 - `Assets/Editor/AppPlayModeSmokeRunner.cs`
 - `Assets/Editor/IntegrationSceneValidator.cs`
-- App Scene의 `Common XR Origin`과 모든 자식
-- `Main Camera`, `Camera Offset`, `Left Controller`, `Right Controller`
-- `XR Ray Interactor`, `XRInteractorLineVisual`, `LineRenderer`
-- 이동·회전·텔레포트 Provider와 Locomotion 구성
-- `Input Action Manager`, Input Action Asset 및 연결 정보
-- `EventSystem`, `XR UI Input Module`, `Tracked Device Graphic Raycaster`
-- `Assets/Resources/App/StageXRProfiles/`의 PPE, PreEntry, LeakResponse XR Profile과 연결 정보
-- Scene 전환 버튼, Stage ID 및 Additive Scene 전환 구성
-- `ProjectSettings/` 전체(특히 `ProjectSettings/EditorBuildSettings.asset`, `ProjectSettings/TagManager.asset`)
-- `Packages/` 전체
+- App의 `Common XR Origin`, XR Main Camera, Controller Tracking
+- 공용 Input Action 기반과 `SharedXRInputContract`
+- 공용 Ray/Near-Far/Grab/Haptic 기반
+- `SharedPlayerEquipment`, 공용 가방 Body Anchor, Retrieval Zone/Anchor 계약
+- App의 Scene 전환, Stage 완료 Adapter, 공용 EventSystem
+- `ProjectSettings/`, `Packages/`
 
-현재 공용 XR 구성은 `Assets/Scenes/App/App.unity`에 있으며 `Common XR Origin` 아래에 `Camera Offset`, `Main Camera`, 좌·우 Controller와 Locomotion 구성이 있다. 공용 `EventSystem`도 App Scene이 소유한다. `Assets/Editor/AppIntegrationBuilder.cs`는 이 구성을 만들고, `StageXRProfileController`는 Stage별 XR 상태를 적용한다. 이 구조는 Integration 관리자만 변경한다.
+Stage 담당자는 위 기반을 직접 수정하지 않는다. 공용 입력 종류나 공용 장비 API가 부족하면 Integration 관리자에게 계약 추가를 요청한다.
 
-## C. 모든 Stage 담당자의 공통 금지 행동
+## 3. Shared XR 소유 원칙
 
-Stage 담당자는 자신의 Scene에 다음 항목을 새로 추가하거나, 통합 과정에서 제거·비활성화된 항목을 복구하거나 활성화할 수 없다.
+통합 App 실행에서 플레이어 XR은 하나만 활성화한다.
 
-- XR Origin
-- Main Camera
-- EventSystem
-- Input Action Manager
-- 별도 이동·회전·텔레포트 Provider
-- 별도 Scene 전환 관리자
-- 별도 `AppBootstrap`
-- 별도 `SceneFlowController`
+```text
+App / Common XR Origin
+├─ Main Camera
+├─ Left Controller
+├─ Right Controller
+└─ PlayerBodyAnchor
+   └─ ResponseBag_Wearable
+```
 
-Stage 코드에서 다음 API를 직접 호출할 수 없다.
+- PPE, PreEntry, LeakResponse는 통합 실행에서 App의 동일한 XR Main Camera와 Controller Tracking을 사용한다.
+- Stage에 남아 있는 XR Origin, Camera, Controller는 단독 개발 테스트용이다. 통합 실행에서는 비활성화된다.
+- Stage는 Camera FOV, stereo projection, projection matrix를 임의로 변경하지 않는다.
+- Stage별 시작 위치와 방향은 `StageXRRequirements`로 선언할 수 있다.
+- Ray, Near/Far, UI, Grab, Haptic의 필요 여부도 Stage 요구사항으로 선언할 수 있다.
+- Controller Visual 보정은 Visual 계층에만 둔다. Tracking Transform이나 Ray Origin을 시각 보정값으로 회전시키지 않는다.
+- 한 손의 활성 포인터는 선택된 방식 하나만 사용한다. Standard Ray와 Near/Far를 동시에 활성화하지 않는다.
 
-- `SceneManager.LoadScene`
-- `SceneManager.LoadSceneAsync`
-- `SceneManager.UnloadSceneAsync`
-- `SceneManager.SetActiveScene`
+## 4. 공용 입력과 Stage 입력의 경계
 
-Scene 로드와 전환은 Integration 영역의 `SceneFlowController`가 담당한다. 다른 Stage의 Scene·스크립트·에셋에서 문제를 발견해도 직접 수정하지 않고 파일 경로와 증상만 Integration 관리자에게 보고한다. 여러 Stage가 함께 참조하는 에셋과 PPE에서 다음 Stage로 유지되는 장비 데이터·모델은 공용 영역으로 취급하고 담당자가 단독 수정하지 않는다.
+Integration은 물리 입력을 의미 없는 공용 신호로 제공한다.
 
-## D. PPE 담당자 허용 범위
+- Left/Right Trigger
+- Left/Right Grip
+- Left/Right Primary Button
+- Left/Right Secondary Button
+- Thumbstick Axis/Click
+- Select, Activate, UI Press
+- Position, Rotation
+- Haptic 요청
 
-현재 저장소에서 확인한 PPE 전용 경로는 다음과 같다.
+버튼이 실제로 무엇을 하는지는 활성 Stage가 결정한다.
+
+```text
+SharedXRInputContract
+└─ Left Secondary Button(Y)
+   ├─ PreEntry handler → 측정기 꺼내기
+   └─ LeakResponse handler → 현재 단계의 Sock/Pad 꺼내기
+```
+
+- App 공용 코드에 `if PreEntry`, `if LeakResponse` 방식으로 Stage 게임 동작을 넣지 않는다.
+- Stage handler는 `OnEnable/OnDisable` 또는 생명주기에 맞춰 이벤트를 정확히 구독/해제한다.
+- 비활성 Stage handler가 같은 입력에 반응하면 안 된다.
+- 일반적인 버튼 동작 추가는 Stage 담당자가 자기 영역에서 수행할 수 있다.
+
+## 5. 공용 플레이어 가방
+
+가방 Visual과 위치 기반은 App가 한 개만 소유한다.
+
+- 가방은 World 좌표에 고정하지 않는다.
+- Main Camera 자식으로 단순 고정해 머리 pitch/roll을 따라 돌리지 않는다.
+- `PlayerBodyAnchor`가 HMD 위치와 수평 yaw만 따라가며 가방을 왼쪽 허리 위치에 유지한다.
+- `SharedPlayerEquipment`은 Bag Transform, Retrieval Zone, Retrieval Anchor만 제공한다.
+- 공용 가방은 Stage 이름이나 가방 내용물을 알지 않는다.
+- 어떤 아이템을 꺼낼지, 언제 허용할지는 해당 Stage handler가 결정한다.
+- Stage별 가방 Visual을 추가로 복제하지 않는다.
+
+PPE에서 대응가방 착용이 완료되면 그 상태를 App 세션에 반영하고 PreEntry와 LeakResponse까지 같은 Visual을 유지한다. Stage 단독 테스트는 기존 Stage fallback 또는 명시적인 개발 초기화만 사용하며, 실제 통합 진행 상태를 덮어쓰지 않는다.
+
+## 6. PPE 허용 범위
 
 - Scene: `Assets/Scenes/PPE_PreparationRoom.unity`
-- 동작·UI·자막 로직: `Assets/Scripts/PPE/`
-- UI/상호작용 Prefab: `Assets/Prefabs/PPE/`
-- UI 이미지·폰트·PPE 리소스: `Assets/Resources/PPE/`
-- 음성: `Assets/Audio/PPE/`
-- Material/Shader: `Assets/Materials/PPE/`, `Assets/Shaders/PPE/`
-- PPE 장비 모델: `Assets/PPE/PPE_Cabinet/`, `Assets/PPE/PPE_ChemicalFaceShield/`, `Assets/PPE/PPE_ChemicalGlb/`, `Assets/PPE/PPE_ChemicalSafetyBoots/`, `Assets/PPE/PPE_ChemicalSuit/`, `Assets/PPE/PPE_FaceRespirator/`, `Assets/PPE/PPE_glrove/`, `Assets/PPE/PPE_wardrobe/`
+- 로직/UI/자막: `Assets/1.JSR/Scripts/`
+- Prefab/Resource/Audio/Art: `Assets/1.JSR/`의 해당 하위 폴더
 
-PPE 담당자는 위 경로에서 PPE 장비 교육 내용, 전용 UI, 음성·자막, 모델·Material, 상호작용 및 PPE Scene 내부 전용 콘텐츠만 수정할 수 있다. 경로 안에 있더라도 아래 통합 계약과 연동 부분은 수정할 수 없다.
+PPE 담당자가 관리할 수 있는 예:
 
-- 완료 이벤트 소유 파일: `Assets/Scripts/PPE/PPESequenceManager.cs`
-- 완료 계약: `PPESequenceManager.OnPPESequenceCompleted`
-- 이벤트 이름·형식·발생 조건·호출 시점
-- `Assets/Scripts/App/StageLifecycleAdapter.cs`의 PPE 구독 및 완료 처리
-- `Assets/Resources/App/StageXRProfiles/PPE.asset`
-- PPE Scene 이름과 경로
-- PPE 완료 결과를 다음 Stage까지 유지하는 노란색 장갑 상태 연결
-- 장비 보관·배출·회수·복구 및 영속 장비 인벤토리 연결
-- 기존 손·장갑·Grab 연결
-- `Assets/Scripts/PPE/ChemicalGlovesWearableVisual.cs`의 `ApplyPersistentState` 등 통합 연동 부분
-- `Assets/Scripts/PPE/PPELoadoutData.cs`의 영속 상태 및 통합 연동 부분
+- PPE 장비 착용 순서와 상호작용
+- PPE 전용 Trigger/Grip/A/B/X/Y 동작
+- PPE UI, TTS, 자막
+- 대응가방 착용 완료를 기존 PPE 상태에 반영하는 Stage 로직
 
-`Assets/PPE/INT_AbsorbentPad_01/`, `Assets/PPE/INT_AbsorbentSock_Curved_01/`, `Assets/PPE/INT_AbsorbentSock_Straight_01/`, `Assets/PPE/INT_RecoveryTongs/`는 LeakResponse에서도 사용하는 장비이므로 PPE 담당자의 단독 수정 범위가 아니다.
+보호 계약:
 
-## E. PreEntry 담당자 허용 범위
+- `PPESequenceManager.OnPPESequenceCompleted`
+- App의 `StageLifecycleAdapter` 구독 및 Scene 전환
+- 공용 XR/Camera/Input/가방 기반
 
-현재 저장소에서 확인한 PreEntry 전용 경로는 다음과 같다.
+## 7. PreEntry 허용 범위
 
-- Scene: `Assets/3.JH/Scenes/Prototype/JH_Test_Scene.unity`
-- 시나리오·상호작용·UI/자막 로직: `Assets/3.JH/Scripts/Scenario/`
-- UI와 UI Material/Font: `Assets/3.JH/UI/`
-- 음성: `Assets/3.JH/Audio/TTS/`
-- 모델·Material·Shader·Texture·Animation: `Assets/3.JH/Art/`
-- 전용 Prefab/Data: `Assets/3.JH/Prefabs/`, `Assets/3.JH/Data/`
+- Scene: `Assets/Scenes/JH_Test_Scene.unity`
+- 로직/UI/자막: `Assets/2.YJH/Scripts/Scenario/`
+- Prefab/Data/Audio/Art/UI: `Assets/2.YJH/`의 해당 하위 폴더
 
-PreEntry 담당자는 위 경로에서 현장 진입 전 교육 내용, 전용 UI, 음성·자막, 모델·Material, 상호작용 및 PreEntry Scene 내부 전용 콘텐츠만 수정할 수 있다. 경로 안에 있더라도 아래 통합 계약은 수정할 수 없다.
+PreEntry 담당자가 관리할 수 있는 예:
 
-- 완료 이벤트 소유 파일: `Assets/3.JH/Scripts/Scenario/EntrySafetyStateMachine.cs`
-- 완료 계약: `EntrySafetyStateMachine.SectionCompleted`
-- 이벤트 이름·형식·발생 조건·호출 시점
-- `EntrySafetyScenarioController.StateMachine`을 통한 상태 머신 노출
-- `Assets/Scripts/App/StageLifecycleAdapter.cs`의 PreEntry 구독 및 완료 처리
-- `Assets/Resources/App/StageXRProfiles/PreEntry.asset`
-- PreEntry 통합 초기화와 공용 장비 전달 연결
-- PreEntry Scene 이름과 경로
+- 왼손 가방 접근 판정
+- Left Y로 기존 HCl 측정기 꺼내기
+- 측정기 Grab/Attach/측정/보관
+- PreEntry 전용 입력, UI, TTS, 진행 상태
 
-## F. LeakResponse 담당자 허용 범위
+통합 실행에서는 `SharedPlayerEquipment.IsLeftHandInRetrievalZone()`을 우선 사용하고, 단독 Scene 테스트에서는 기존 Stage zone을 fallback으로 사용할 수 있다.
 
-현재 저장소에서 확인한 LeakResponse 전용 경로는 다음과 같다.
+보호 계약:
+
+- `EntrySafetyStateMachine.SectionCompleted`
+- App의 완료 Adapter와 Scene 전환
+- 공용 XR/Camera/Input/가방 기반
+
+## 8. LeakResponse 허용 범위
 
 - Scene: `Assets/Scenes/SSH_VR_Project.unity`
-- 누출 대응 및 내레이션 로직: `Assets/Scripts/LeakResponse/`, `Assets/Scripts/LeakResponseLogic/`
-- 밸브·흡착재 설치 로직: `Assets/Scripts/ValveSystem/`, `Assets/Scripts/ObjectInstallation/`
-- 음성 및 TTS 매핑: `Assets/Resources/LeakTTS/`, `Assets/Resources/P102/Unity_TTS_Map.csv`
-- 누출 Particle/시각효과: `Assets/WaterLeakSystem/`, `Assets/Material/WaterLeakSystem/`, `Assets/Material/Drop/`
-- 전용 UI 구현: `Assets/Scripts/LeakResponse/Narration/ValveProgressUI_Runtime.cs`와 같은 Scene 내부 런타임 UI
-- 누출·회수 모델: `Assets/PPE/INT_AbsorbentPad_01/`, `Assets/PPE/INT_AbsorbentSock_Curved_01/`, `Assets/PPE/INT_AbsorbentSock_Straight_01/`, `Assets/PPE/INT_RecoveryTongs/`
-- 폐기물 용기 Material: `Assets/GeneratedMaterials/BlenderFBX/Sidecar/CelShader/hazardous_waste/`, `Assets/GeneratedMaterials/BlenderFBX/Sidecar/CelShader/INT_WasteContainer_01/`
+- 누출 대응 로직: `Assets/3.SSH/Scripts/LeakResponse/`, `Assets/3.SSH/Scripts/LeakResponseLogic/`
+- 밸브/설치 로직: `Assets/3.SSH/Scripts/ValveSystem/`, `Assets/3.SSH/Scripts/ObjectInstallation/`
+- TTS/Resource/Material/Effect: `Assets/3.SSH/`의 해당 하위 폴더
 
-LeakResponse 담당자는 위 경로에서 누출 대응 교육 내용, 누출 현장 전용 오브젝트의 위치·크기·Material, 누출·흡착·밸브·회수 작업, 전용 UI·음성·자막·Particle·시각효과·상호작용 및 LeakResponse Scene 내부 전용 콘텐츠만 수정할 수 있다. 단, PPE와 함께 참조하는 흡착재·회수 장비 모델은 공용 에셋이므로 Integration 관리자 승인 없이 단독 수정할 수 없다. 또한 아래 통합 계약은 수정할 수 없다.
+LeakResponse 담당자가 관리할 수 있는 예:
 
-- 완료 큐 소유 파일: `Assets/Scripts/LeakResponse/Narration/P102LeakNarrationController.cs`
-- 완료 큐 발생 파일: `Assets/Scripts/LeakResponse/Narration/P102WasteContainerRuntime.cs`
-- 완료 계약: `P102LeakNarrationCue.ContainerClosedTaskCompleted`
-- 실제 Adapter 연결: `P102LeakNarrationController.CueCompleted`를 구독하고 완료 큐를 판별하는 `Assets/Scripts/App/StageLifecycleAdapter.cs`
-- 완료 큐 이름·형식·발생 조건·호출 시점
-- `Assets/Resources/App/StageXRProfiles/LeakResponse.asset`
-- `P102LeakRuntimeBootstrap`을 통한 통합 초기화 연결
-- LeakResponse Scene 이름과 경로
+- 왼손 가방 접근 판정
+- Left Y로 현재 진행 단계에 맞는 기존 Sock 또는 Pad 꺼내기
+- Sock/Pad Grab, 설치, 흡수, 회수 진행
+- LeakResponse 전용 Grip/Trigger/버튼 동작
+- LeakResponse UI, TTS, 자막
 
-## G. 담당자 Git 규칙
+Sock/Pad 회수는 기존 `INT_AbsorbentSock_Straight_01`, `INT_AbsorbentPad_01` 인스턴스를 사용한다. 동일 장비를 새로 복제하거나 공용 가방 코드에 진행 단계를 넣지 않는다.
 
-- 모든 Stage 브랜치는 최신 `origin/develop`에서 생성한다.
-- PPE 브랜치 이름은 `stage/ppe-작업명`을 사용한다.
-- PreEntry 브랜치 이름은 `stage/preentry-작업명`을 사용한다.
-- LeakResponse 브랜치 이름은 `stage/leakresponse-작업명`을 사용한다.
-- Stage 담당자는 `main`과 `develop`에 직접 commit하거나 push할 수 없다.
-- 자기 Stage 허용 파일만 정확한 경로로 명시해 stage한다.
-- `git add .`과 `git add -A`를 사용하지 않는다.
-- 새 Unity 에셋은 대응하는 `.meta` 파일을 반드시 함께 포함한다.
-- 다른 Scene의 자동 저장 변경은 commit하지 않는다.
-- `ProjectSettings`와 `Packages`의 자동 변경은 commit하지 않는다.
-- 공용 보호 파일의 변경은 commit하지 않는다.
-- 프로젝트 폴더 전체를 덮어쓰는 방식으로 결과를 전달하지 않는다.
-- Stage 브랜치를 `develop`에 병합하는 작업은 Integration 관리자만 수행한다.
-- 담당자는 자기 Stage 브랜치에만 push한다.
-- 보호 영역 변경이 필요하면 직접 수정하지 않고 Integration 관리자에게 요청한다.
+보호 계약:
 
-## 작업 전 최종 확인
+- `P102LeakNarrationCue.ContainerClosedTaskCompleted`
+- App의 완료 Adapter와 Scene 전환
+- 공용 XR/Camera/Input/가방 기반
 
-1. 자신의 역할과 Stage를 선언한다.
-2. 변경 예정 파일이 허용 경로이며 공용 계약이 아닌지 확인한다.
-3. 다른 Stage나 공용 에셋 문제가 보이면 경로와 증상만 기록한다.
-4. commit 전 `git status --short`와 staged 파일 목록을 검토한다.
-5. 새 Unity 에셋과 `.meta`가 짝을 이루는지 확인한다.
+## 9. 공통 금지 사항
+
+- Stage에 새 XR Origin, XR Main Camera, EventSystem, InputActionManager 추가
+- Stage에서 `SceneManager.LoadScene`, `LoadSceneAsync`, `UnloadSceneAsync`, `SetActiveScene` 호출
+- Stage 완료 이벤트의 이름, 형식, 발생 조건 변경
+- Controller Tracking Transform 또는 Ray Origin을 Visual 보정 목적으로 회전
+- 공용 가방에 Stage 이름/아이템 선택 로직 하드코딩
+- 다른 Stage 소유 파일을 일반 Stage 작업으로 수정
+- `git add .`, `git add -A`
+
+## 10. 검증 체크리스트
+
+Integration 검증:
+
+1. 활성 XR Origin 1개
+2. 활성 XR Main Camera 1개 및 Stage 전환 전후 동일 인스턴스
+3. 활성 EventSystem, XR Interaction Manager, Input Action Manager 각 1개
+4. Stage별 projection/FOV override 없음
+5. 양손 포인터 중복 없음
+6. `SharedPlayerEquipment` 1개, Bag Visual 1개, Retrieval Zone/Anchor 1개
+7. PPE → PreEntry → LeakResponse에서 가방 착용 상태 유지
+8. PreEntry Y는 측정기만, LeakResponse Y는 해당 단계의 Sock/Pad만 처리
+9. 비활성 Stage handler의 중복 반응 없음
+10. 기존 TTS, 행동 순서, 완료 이벤트, Scene 전환 흐름 유지
+
+커밋 전에는 담당 범위의 파일만 경로를 명시하여 stage하고, 보호 파일이나 다른 Stage의 예상치 못한 변경이 있으면 commit하지 말고 Integration 관리자에게 보고한다.

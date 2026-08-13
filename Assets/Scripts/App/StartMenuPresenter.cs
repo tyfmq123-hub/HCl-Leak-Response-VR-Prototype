@@ -6,6 +6,8 @@ namespace HClTraining.App
     [DisallowMultipleComponent]
     public sealed class StartMenuPresenter : MonoBehaviour
     {
+        const float StartMenuDistance = 3.2f;
+
         void Start()
         {
             var app = AppBootstrap.Instance;
@@ -16,7 +18,7 @@ namespace HClTraining.App
             }
 
             var canvas = TrainingUIFactory.CreateWorldCanvas(transform, "StartTrainingCanvas", new Vector2(1500f, 1200f), false);
-            TrainingUIFactory.PlaceFixedInView(canvas.transform, app.MainCamera);
+            TrainingUIFactory.PlaceFixedInView(canvas.transform, app.MainCamera, StartMenuDistance);
             var panel = TrainingUIFactory.CreatePanel(canvas.transform, "SafetyTrainingPanel", new Vector2(1500f, 1200f), Vector2.zero);
             TrainingUIFactory.CreateText(panel.transform, "염산 누출 대응 VR 안전교육", new Vector2(1350f, 105f), new Vector2(0f, 500f), 66f);
             TrainingUIFactory.CreateText(panel.transform, "훈련할 과정을 선택하세요", new Vector2(1200f, 60f), new Vector2(0f, 420f), 34f,
