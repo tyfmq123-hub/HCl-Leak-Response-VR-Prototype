@@ -35,6 +35,8 @@ public static class IntegrationSceneValidator
         var failures = new List<string>();
         var report = new List<string>();
 
+        ValidateBuildSettings(failures, report);
+
         if (EditorBuildSettings.scenes.Length == 0 ||
             EditorBuildSettings.scenes[0].path != SceneFlowController.AppScenePath ||
             !EditorBuildSettings.scenes[0].enabled)
@@ -64,6 +66,38 @@ public static class IntegrationSceneValidator
             throw new InvalidOperationException("Integration scene validation failed:\n" + string.Join("\n", failures));
 
         Debug.Log("[Integration Scene Validation] All six Scenes, XR profiles, serialization, and Build Settings passed.");
+    }
+
+    static void ValidateBuildSettings(List<string> failures, List<string> report)
+    {
+        var buildScenes = EditorBuildSettings.scenes;
+        if (buildScenes.Length != TargetScenes.Length)
+            failures.Add($"Build Settings scene count must be {TargetScenes.Length}, but was {buildScenes.Length}.");
+
+        for (var i = 0; i < TargetScenes.Length; i++)
+        {
+            var expectedPath = NormalizePath(TargetScenes[i].path);
+            if (i >= buildScenes.Length)
+            {
+                failures.Add($"Build Settings is missing scene #{i}: {expectedPath}");
+                continue;
+            }
+
+            var buildScene = buildScenes[i];
+            var actualPath = NormalizePath(buildScene.path);
+
+            if (!string.Equals(actualPath, expectedPath, StringComparison.OrdinalIgnoreCase))
+                failures.Add($"Build Settings scene #{i} path mismatch: expected {expectedPath}, got {actualPath}.");
+            if (!buildScene.enabled)
+                failures.Add($"Build Settings scene is disabled: {expectedPath}");
+            if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(expectedPath)))
+                failures.Add($"Build Settings scene asset is missing: {expectedPath}");
+            else if (!Application.CanStreamedLevelBeLoaded(expectedPath))
+                failures.Add($"Build Settings scene cannot be loaded at runtime: {expectedPath}");
+
+            report.Add($"BuildSettings[{i}] Path={actualPath}, Enabled={buildScene.enabled}, " +
+                       $"Loadable={Application.CanStreamedLevelBeLoaded(expectedPath)}");
+        }
     }
 
     static void ValidateStageRequirements(List<string> failures, List<string> report)
@@ -265,7 +299,7 @@ public static class IntegrationSceneValidator
             var followerObject = new SerializedObject(follower);
             var offset = followerObject.FindProperty("localPositionOffset");
             var followsHeadYaw = followerObject.FindProperty("useCameraYawOnly");
-            var expectedOffset = new Vector3(-0.58f, -1.08f, 0.16f);
+            var expectedOffset = new Vector3(-0.4785f, -1.01f, 0.132f);
             if (offset == null || Vector3.Distance(offset.vector3Value, expectedOffset) > 0.001f)
                 failures.Add($"Shared response bag body offset must be {expectedOffset}.");
             if (followsHeadYaw == null || followsHeadYaw.boolValue)

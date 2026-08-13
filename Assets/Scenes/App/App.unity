@@ -684,7 +684,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyAnchorFollower
   xrCamera: {fileID: 473914089}
-  localPositionOffset: {x: -0.58, y: -1.08, z: 0.16}
+  localPositionOffset: {x: -0.4785, y: -1.01, z: 0.132}
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 1

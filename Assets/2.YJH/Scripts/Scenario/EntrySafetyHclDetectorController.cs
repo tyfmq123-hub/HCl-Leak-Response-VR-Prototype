@@ -154,6 +154,14 @@ namespace JH.EntrySafety
 
         private void EnsureDetectorOnLiveXr()
         {
+            // The integrated XR hierarchy contains a transform-only path matching the
+            // authored detector. Reference rebinding can therefore point the GameObject
+            // field at that empty path object while the serialized view still belongs to
+            // the real detector prefab. The view and detector are authored on the same
+            // root, so restore that canonical reference before moving it to the live hand.
+            if (_view != null && _detectorInstance != _view.gameObject)
+                _detectorInstance = _view.gameObject;
+
             if (_detectorInstance == null)
                 return;
 

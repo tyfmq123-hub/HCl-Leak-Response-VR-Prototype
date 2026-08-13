@@ -17,6 +17,7 @@ public static class AppIntegrationBuilder
     const string AppFolder = "Assets/Scenes/App";
     const string ProfileFolder = "Assets/Resources/App/StageXRProfiles";
     const string ReportPath = "Logs/AppIntegrationBuild.log";
+    static readonly Vector3 CommonBagBodyOffset = new Vector3(-0.4785f, -1.01f, 0.132f);
 
     sealed class LoadedScene
     {
@@ -95,6 +96,7 @@ public static class AppIntegrationBuilder
             commonOrigin.name = "Common XR Origin";
             SceneManager.MoveGameObjectToScene(commonOrigin, scene);
             commonOrigin.SetActive(true);
+            ApplyCommonBagBodyOffset(commonOrigin.transform);
 
             var objectMap = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
             MapParallelHierarchy(ppeOrigin.transform, commonOrigin.transform, objectMap);
@@ -149,6 +151,18 @@ public static class AppIntegrationBuilder
             SceneManager.MoveGameObjectToScene(clone, appScene);
             MapParallelHierarchy(sourceRoot.transform, clone.transform, objectMap);
         }
+    }
+
+    static void ApplyCommonBagBodyOffset(Transform commonOrigin)
+    {
+        var bodyAnchor = commonOrigin != null ? commonOrigin.Find("PlayerBodyAnchor") : null;
+        var follower = bodyAnchor != null ? bodyAnchor.GetComponent<PlayerBodyAnchorFollower>() : null;
+        if (follower == null)
+            throw new InvalidOperationException("Common PlayerBodyAnchorFollower is missing.");
+
+        var serialized = new SerializedObject(follower);
+        serialized.FindProperty("localPositionOffset").vector3Value = CommonBagBodyOffset;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 
     static void MergeMissingOriginContent(
