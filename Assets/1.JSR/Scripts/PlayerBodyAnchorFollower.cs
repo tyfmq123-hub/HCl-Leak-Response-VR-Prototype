@@ -14,7 +14,7 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
     [Header("Offset (relative to horizontal facing)")]
     // Left hip / low waist relative to HMD (meters). The wider X offset keeps
     // the bag body beside the torso after its long axis is rotated front-to-back.
-    [SerializeField] Vector3 localPositionOffset = new Vector3(-0.58f, -1.08f, 0.16f);
+    [SerializeField] Vector3 localPositionOffset = new Vector3(-0.52f, -0.90f, 0.14f);
 
     [Header("Smoothing")]
     [SerializeField] [Min(0f)] float positionSmoothTime = 0.08f;
@@ -22,11 +22,13 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
 
     [Header("Options")]
     [SerializeField] bool followCameraHeight = true;
+    [Tooltip("Integration mode: keep an exact local pose under the Shared XR Origin and ignore all HMD translation/rotation.")]
+    [SerializeField] bool useStableOriginBodyFrame;
     [Tooltip("Legacy option. Keep disabled so looking left/right does not rotate the bag around the body.")]
     [SerializeField] bool useCameraYawOnly = false;
     [SerializeField] bool snapOnEnable = true;
 
-    Vector3 positionVelocity;
+    float localHeightVelocity;
     float lockedHeight;
     bool hasLockedHeight;
 
@@ -45,25 +47,36 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
         if (xrCamera == null)
             return;
 
-        var targetPos = ComputeTargetPosition();
-        var targetRot = ComputeTargetRotation();
+        var origin = GetComponentInParent<Unity.XR.CoreUtils.XROrigin>(true);
+        if (origin != null && transform.parent != null)
+        {
+            if (useStableOriginBodyFrame)
+            {
+                transform.localPosition = localPositionOffset;
+                transform.localRotation = Quaternion.identity;
+                return;
+            }
 
-        if (positionSmoothTime <= 0.0001f)
-            transform.position = targetPos;
-        else
-            transform.position = Vector3.SmoothDamp(
-                transform.position,
-                targetPos,
-                ref positionVelocity,
-                positionSmoothTime);
+            // This object is already parented under the XR Origin. Keep its body-space
+            // X/Z and yaw fixed locally so locomotion and snap-turn move it exactly once.
+            // Smoothing world position here causes the parent motion and follower motion
+            // to fight, which appears as the bag drifting farther away after movement.
+            var targetLocalPosition = ComputeTargetLocalPosition(origin, transform.parent);
+            if (positionSmoothTime > 0.0001f)
+            {
+                targetLocalPosition.y = Mathf.SmoothDamp(
+                    transform.localPosition.y,
+                    targetLocalPosition.y,
+                    ref localHeightVelocity,
+                    positionSmoothTime);
+            }
 
-        if (rotationSmoothSpeed <= 0.0001f)
-            transform.rotation = targetRot;
-        else
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                targetRot,
-                1f - Mathf.Exp(-rotationSmoothSpeed * Time.deltaTime));
+            transform.localPosition = targetLocalPosition;
+            transform.localRotation = ComputeTargetLocalRotation(transform.parent);
+            return;
+        }
+
+        transform.SetPositionAndRotation(ComputeTargetPosition(), ComputeTargetRotation());
     }
 
     public void EditorWire(Transform camera)
@@ -77,9 +90,23 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
         if (xrCamera == null)
             return;
 
-        positionVelocity = Vector3.zero;
-        transform.position = ComputeTargetPosition();
-        transform.rotation = ComputeTargetRotation();
+        localHeightVelocity = 0f;
+        var origin = GetComponentInParent<Unity.XR.CoreUtils.XROrigin>(true);
+        if (origin != null && transform.parent != null)
+        {
+            if (useStableOriginBodyFrame)
+            {
+                transform.localPosition = localPositionOffset;
+                transform.localRotation = Quaternion.identity;
+                return;
+            }
+
+            transform.localPosition = ComputeTargetLocalPosition(origin, transform.parent);
+            transform.localRotation = ComputeTargetLocalRotation(transform.parent);
+            return;
+        }
+
+        transform.SetPositionAndRotation(ComputeTargetPosition(), ComputeTargetRotation());
     }
 
     void ResolveCamera()
@@ -120,6 +147,21 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
         var bodyRotation = HorizontalYawRotation(origin.transform);
         var bodyHeadPoint = origin.transform.position + origin.transform.up * trackedHeight;
         return bodyHeadPoint + bodyRotation * localPositionOffset;
+    }
+
+    Vector3 ComputeTargetLocalPosition(Unity.XR.CoreUtils.XROrigin origin, Transform parent)
+    {
+        var trackedHeight = followCameraHeight
+            ? Mathf.Max(0f, origin.CameraInOriginSpaceHeight)
+            : ResolveLockedHeightInOriginSpace(origin);
+        var worldHeadPoint = origin.transform.TransformPoint(Vector3.up * trackedHeight);
+        var worldTarget = worldHeadPoint + ResolveBodyYawRotation() * localPositionOffset;
+        return parent.InverseTransformPoint(worldTarget);
+    }
+
+    Quaternion ComputeTargetLocalRotation(Transform parent)
+    {
+        return Quaternion.Inverse(parent.rotation) * ResolveBodyYawRotation();
     }
 
     float ResolveLockedHeight()

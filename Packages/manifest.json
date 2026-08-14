@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.senghwan.vr-hand-pose-tool": "file:com.senghwan.vr-hand-pose-tool-0.2.0.tgz",
+    "com.senghwan.vr-hand-pose-tool": "file:E:/WorkSpace/vr-hand-pose-tool",
     "com.unity.ai.navigation": "2.0.12",
     "com.unity.cloud.gltfast": "6.19.0",
     "com.unity.collab-proxy": "2.12.4",

@@ -15,6 +15,8 @@ namespace VRProject.Valves.Editor
         const string MenuPath = "Tools/Valve System/Configure Selected Valve Wheel";
         const string AnchorName = "ValveWheel_KinematicAnchor";
         const string RimRootName = "RimColliders";
+        const string CenterShaftColliderName = "CenterShaftGrabCollider";
+        const string CenterShaftAttachName = "CenterShaftAttach";
         const int RimColliderCount = 10;
         const float AxisSeparationRatio = 0.45f;
         const float MinimumInPlaneAspect = 0.65f;
@@ -460,12 +462,13 @@ namespace VRProject.Valves.Editor
             HingeJoint hinge = EnsureSingleComponent<HingeJoint>(wheel);
             ConfigureHinge(hinge, anchorBody, plan.Geometry.Axis);
 
-            List<Collider> rimColliders = ConfigureRimColliders(plan).Cast<Collider>().ToList();
+            CapsuleCollider centerShaftCollider = ConfigureCenterShaftCollider(plan);
+            List<CapsuleCollider> rimColliders = ConfigureRimColliders(plan);
             ValveWheelGrabTransformer transformer = EnsureSingleComponent<ValveWheelGrabTransformer>(wheel);
             ConfigureTransformer(transformer, hinge);
 
             XRGrabInteractable grab = EnsureSingleComponent<XRGrabInteractable>(wheel);
-            ConfigureGrab(grab, transformer, rimColliders);
+            ConfigureGrab(grab, transformer, centerShaftCollider, rimColliders);
 
             ValveLeakOutput leakOutput = EnsureSingleComponent<ValveLeakOutput>(wheel);
             ValveWheelClosureController controller = EnsureSingleComponent<ValveWheelClosureController>(wheel);
@@ -481,8 +484,56 @@ namespace VRProject.Valves.Editor
             Debug.Log(
                 $"[Valve Setup] Configured selected Scene instance '{GetHierarchyPath(wheel)}'. " +
                 $"Local axis={plan.Geometry.Axis}, center={plan.Geometry.Bounds.center}, " +
-                $"outer radius={plan.Geometry.OuterRadius:0.####}, RimColliders={rimColliders.Count}. " +
+                $"outer radius={plan.Geometry.OuterRadius:0.####}, Grab=wheel rim. " +
                 "The positive inferred local axis is the valve front convention.", wheel);
+        }
+
+        static CapsuleCollider ConfigureCenterShaftCollider(ConfigurationPlan plan)
+        {
+            List<Transform> matches = DirectChildrenNamed(plan.Wheel.transform, CenterShaftColliderName);
+            if (matches.Count > 1)
+                throw new InvalidOperationException($"Multiple '{CenterShaftColliderName}' children exist.");
+
+            Transform shaft;
+            if (matches.Count == 0)
+            {
+                GameObject shaftObject = new GameObject(CenterShaftColliderName);
+                Undo.RegisterCreatedObjectUndo(shaftObject, "Create valve center shaft collider");
+                shaft = shaftObject.transform;
+                Undo.SetTransformParent(shaft, plan.Wheel.transform, "Parent valve center shaft collider");
+            }
+            else
+            {
+                shaft = matches[0];
+            }
+
+            Undo.RecordObject(shaft, "Configure valve center shaft pose");
+            shaft.localPosition = Vector3.zero;
+            shaft.localRotation = Quaternion.identity;
+            shaft.localScale = Vector3.one;
+
+            CapsuleCollider capsule = shaft.GetComponent<CapsuleCollider>();
+            if (capsule == null)
+                capsule = Undo.AddComponent<CapsuleCollider>(shaft.gameObject);
+
+            float radius = Mathf.Clamp(plan.Geometry.OuterRadius * 0.30f, 0.035f, 0.06f);
+            float height = Mathf.Max(radius * 2f, plan.Geometry.OuterRadius * 1.35f);
+            Undo.RecordObject(capsule, "Configure valve center shaft collider");
+            capsule.enabled = true;
+            capsule.isTrigger = true;
+            capsule.direction = DominantAxis(plan.Geometry.Axis);
+            capsule.radius = radius;
+            capsule.height = height;
+            capsule.center = plan.Geometry.Axis.normalized * (height * 0.32f);
+            EditorUtility.SetDirty(capsule);
+            return capsule;
+        }
+
+        static int DominantAxis(Vector3 axis)
+        {
+            axis = new Vector3(Mathf.Abs(axis.x), Mathf.Abs(axis.y), Mathf.Abs(axis.z));
+            if (axis.x >= axis.y && axis.x >= axis.z) return 0;
+            return axis.y >= axis.z ? 1 : 2;
         }
 
         static T EnsureSingleComponent<T>(GameObject gameObject) where T : Component
@@ -630,13 +681,13 @@ namespace VRProject.Valves.Editor
             serialized.FindProperty("maxOpenRotationDegrees").floatValue = 108f;
             serialized.FindProperty("maxCloseRotationDegrees").floatValue = 252f;
             serialized.FindProperty("maximumHands").intValue = 2;
-            serialized.FindProperty("maxGrabSurfaceDistance").floatValue = 0.035f;
+            serialized.FindProperty("maxGrabSurfaceDistance").floatValue = 0.08f;
             serialized.ApplyModifiedProperties();
             transformer.ApplyConfiguredJointLimits();
         }
 
         static void ConfigureGrab(XRGrabInteractable grab, ValveWheelGrabTransformer transformer,
-            IReadOnlyCollection<Collider> rimColliders)
+            CapsuleCollider centerShaftCollider, IReadOnlyList<CapsuleCollider> rimColliders)
         {
             Undo.RecordObject(grab, "Configure valve XR Grab Interactable");
             grab.enabled = true;
@@ -651,10 +702,11 @@ namespace VRProject.Valves.Editor
             grab.throwOnDetach = false;
             grab.retainTransformParent = true;
             grab.addDefaultGrabTransformers = false;
+            grab.attachTransform = EnsureCenterShaftAttach(grab.transform, centerShaftCollider);
 
             grab.colliders.Clear();
-            foreach (Collider collider in rimColliders)
-                grab.colliders.Add(collider);
+            for (int index = 0; index < rimColliders.Count; ++index)
+                grab.colliders.Add(rimColliders[index]);
 
             grab.startingSingleGrabTransformers.Clear();
             grab.startingMultipleGrabTransformers.Clear();
@@ -664,6 +716,32 @@ namespace VRProject.Valves.Editor
                 if (grab.startingSelectFilters[index] == transformer)
                     grab.startingSelectFilters.RemoveAt(index);
             grab.startingSelectFilters.Add(transformer);
+        }
+
+        static Transform EnsureCenterShaftAttach(Transform wheel, CapsuleCollider shaftCollider)
+        {
+            List<Transform> matches = DirectChildrenNamed(wheel, CenterShaftAttachName);
+            if (matches.Count > 1)
+                throw new InvalidOperationException($"Multiple '{CenterShaftAttachName}' children exist.");
+
+            Transform attach;
+            if (matches.Count == 0)
+            {
+                GameObject attachObject = new GameObject(CenterShaftAttachName);
+                Undo.RegisterCreatedObjectUndo(attachObject, "Create valve center shaft attach");
+                attach = attachObject.transform;
+                Undo.SetTransformParent(attach, wheel, "Parent valve center shaft attach");
+            }
+            else
+            {
+                attach = matches[0];
+            }
+
+            Undo.RecordObject(attach, "Configure valve center shaft attach");
+            attach.localPosition = shaftCollider.center;
+            attach.localRotation = Quaternion.identity;
+            attach.localScale = Vector3.one;
+            return attach;
         }
 
         static void ConfigureController(ValveWheelClosureController controller, Rigidbody body,

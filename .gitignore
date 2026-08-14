@@ -116,3 +116,11 @@ InitTestScene*.unity*
 Recordings/
 .vscode/
 .idea/
+
+# Local Codex QA and timing diagnostics
+/.codex/qa/
+/Assets/Editor/CodexLiveTrainingTimingRecorder.cs
+/Assets/Editor/CodexLiveTrainingTimingRecorder.cs.meta
+
+# Unity/IDE-generated solution format
+*.slnx

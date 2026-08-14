@@ -1,9 +1,9 @@
 {
   "dependencies": {
     "com.senghwan.vr-hand-pose-tool": {
-      "version": "file:com.senghwan.vr-hand-pose-tool-0.2.0.tgz",
+      "version": "file:E:/WorkSpace/vr-hand-pose-tool",
       "depth": 0,
-      "source": "local-tarball",
+      "source": "local",
       "dependencies": {
         "com.unity.inputsystem": "1.19.0",
         "com.unity.xr.core-utils": "2.4.0",

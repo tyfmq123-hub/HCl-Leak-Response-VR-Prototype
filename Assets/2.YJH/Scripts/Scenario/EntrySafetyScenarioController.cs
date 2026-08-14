@@ -1,19 +1,22 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.SceneManagement;
 
 namespace JH.EntrySafety
 {
     /// <summary>Connects the Unit 1 and Unit 2 core to the initial-wind and initial-HCl Scene flow.</summary>
     public sealed class EntrySafetyScenarioController : MonoBehaviour
     {
-        private const string Goal2StopAndPressureConfirmedText =
-            "P-102의 정지와 압력 감소를 확인했습니다.";
+        private const float DefaultGazeHoldSeconds = 3f;
+        private const float PtPanelGazeHoldSeconds = 2f;
         private const string Goal2SafetyCheckCompleteText =
-            "현장 접근을 위한 안전 확인이 완료되었습니다.";
+            "염화수소 농도와 풍향, P-102 정지와 압력 감소까지 확인했습니다.";
         private const string Goal2CheckAccessRestrictionText =
-            "현장 접근을 막고 있던 빨간색 접근 금지 표시가 해제되었는지 확인하십시오.";
+            "빨간 접근 금지 표시가 해제되면 오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
 
         [SerializeField] private EntrySafetyCameraGazeAdapter _gazeAdapter;
         [SerializeField] private EntrySafetyInputAdapter _inputAdapter;
@@ -97,9 +100,26 @@ namespace JH.EntrySafety
         {
             StopNarration();
             UnsubscribeInputHandlers();
+            // LeakResponse keeps the PreEntry environment loaded, so restore the
+            // authored visible collider as the physical return boundary.
+            _noAccessOverlay?.RestoreImmediate();
             if (_inputAdapter != null)
                 _inputAdapter.enabled = false;
             enabled = false;
+        }
+
+        public void SetStageActivated(bool active)
+        {
+            if (!active)
+            {
+                DeactivateForLeakResponseHandoff();
+                return;
+            }
+
+            enabled = true;
+            if (_inputAdapter != null)
+                _inputAdapter.enabled = true;
+            SubscribeInputHandlers();
         }
 
         private void SubscribeInputHandlers()
@@ -109,7 +129,6 @@ namespace JH.EntrySafety
 
             _inputAdapter.EquipDetectorPressed += TryEquipDetector;
             _inputAdapter.StoreDetectorPressed += TryStoreDetector;
-            _inputAdapter.GuidanceRepeatPressed += RepeatCurrentGuidance;
             _inputAdapter.SimulationGazeConfirmPressed += TryCompleteGazeForSimulation;
             _inputAdapter.MoveToPtPressed += TryMoveToPtPanel;
             _inputAdapter.RightTriggerPressed += TryStopPump;
@@ -123,7 +142,6 @@ namespace JH.EntrySafety
 
             _inputAdapter.EquipDetectorPressed -= TryEquipDetector;
             _inputAdapter.StoreDetectorPressed -= TryStoreDetector;
-            _inputAdapter.GuidanceRepeatPressed -= RepeatCurrentGuidance;
             _inputAdapter.SimulationGazeConfirmPressed -= TryCompleteGazeForSimulation;
             _inputAdapter.MoveToPtPressed -= TryMoveToPtPanel;
             _inputAdapter.RightTriggerPressed -= TryStopPump;
@@ -142,7 +160,7 @@ namespace JH.EntrySafety
             yield return null;
             yield return new WaitForEndOfFrame();
             if (_introStartDelaySeconds > 0f)
-                yield return new WaitForSecondsRealtime(_introStartDelaySeconds);
+                yield return new WaitForSeconds(_introStartDelaySeconds);
 
             RefreshGuidance();
             var introSeconds = _goal01TtsPlayer != null
@@ -332,19 +350,6 @@ namespace JH.EntrySafety
                 Advance(EntrySafetyStep.StopPump);
         }
 
-        private void RepeatCurrentGuidance()
-        {
-            if (_guidanceCoordinator == null || !_guidanceCoordinator.CanRepeatTts)
-                return;
-            if (_goal2OutroPlaying)
-                return;
-
-            var instruction = _guidanceCoordinator.RequestCurrentInstructionRepeat();
-            _ttsRequestHook?.Request(instruction);
-            if (_stateMachine != null && instruction != null && instruction.HasTts)
-                PlayStepTts(_stateMachine.CurrentStep);
-        }
-
         private void TryCompleteGazeForSimulation()
         {
 #if UNITY_EDITOR
@@ -392,6 +397,16 @@ namespace JH.EntrySafety
             if (_stateMachine == null || _guidanceCoordinator == null)
                 return;
 
+            // TryCompleteStep raises SectionCompleted synchronously. The App handoff listener
+            // disables this controller during that callback, then control returns to Advance.
+            // Never rebuild/play the terminal MoveToNextArea instruction after completion.
+            if (_stateMachine.IsSectionCompleted)
+            {
+                StopAllTts();
+                _guidanceView.SetVisible(false);
+                return;
+            }
+
             var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.MoveToNextArea && !_goal2OutroStarted && _goal02TtsPlayer != null)
             {
@@ -400,9 +415,7 @@ namespace JH.EntrySafety
                 return;
             }
 
-            var instruction = _stateMachine.IsSectionCompleted
-                ? new EntrySafetyInstruction("다음 지역 이동 준비 완료", "다음 지역 이동 준비 완료")
-                : _guidanceCoordinator.CurrentInstruction;
+            var instruction = _guidanceCoordinator.CurrentInstruction;
 
             if (step == EntrySafetyStep.WaitPressureDecrease && _goal2PtPanel != null)
             {
@@ -427,9 +440,6 @@ namespace JH.EntrySafety
             _stepVisuals?.SetStep(EntrySafetyStep.MoveToNextArea);
 
             yield return PlayTemporaryGoal2Line(
-                Goal2StopAndPressureConfirmedText,
-                () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlayStopAndPressureConfirmed() : 0f);
-            yield return PlayTemporaryGoal2Line(
                 Goal2SafetyCheckCompleteText,
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlaySafetyCheckComplete() : 0f);
 
@@ -446,15 +456,6 @@ namespace JH.EntrySafety
             yield return PlayTemporaryGoal2Line(
                 Goal2CheckAccessRestrictionText,
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlayCheckAccessRestriction() : 0f);
-
-            var moveNext = EntrySafetyInstructionCatalog.GetInstruction(EntrySafetyStep.MoveToNextArea);
-            ApplyInstruction(moveNext);
-            _ttsRequestHook?.Request(moveNext);
-            var moveNextSeconds = _goal02TtsPlayer != null
-                ? _goal02TtsPlayer.Play(EntrySafetyStep.MoveToNextArea)
-                : 0f;
-            if (moveNextSeconds > 0f)
-                yield return new WaitForSeconds(moveNextSeconds);
 
             _goal2OutroPlaying = false;
         }
@@ -556,7 +557,18 @@ namespace JH.EntrySafety
             if (isGazeStep)
             {
                 var hasTarget = _gazeAdapter.TryGetTarget(out var targetId);
-                _gazeCoordinator.Update(targetId, hasTarget, Time.deltaTime);
+                // Only the five P/T panel frames use the shorter two-second hold.
+                // Windsock gaze remains at the coordinator's three-second duration.
+                var panelGazeDelta = Time.deltaTime *
+                                     (DefaultGazeHoldSeconds / PtPanelGazeHoldSeconds);
+                _gazeCoordinator.Update(targetId, hasTarget, panelGazeDelta);
+                if (_stateMachine.CurrentStep != step)
+                {
+                    // A completed gaze can change the state immediately. Clear the
+                    // old frame before the next step's TTS blocks panel updates.
+                    _goal2PtPanel.ClearGazeFocus();
+                    return;
+                }
             }
 
             _goal2PtPanel.UpdateForStep(step, Time.deltaTime, _gazeCoordinator.Progress01, _gazeCoordinator.IsTracking);
@@ -632,5 +644,61 @@ namespace JH.EntrySafety
             _reportedConfigurationError = true;
             Debug.LogError("EntrySafetyScenarioController requires gaze, input, guidance, zone, and detector references.", this);
         }
+    }
+
+    /// <summary>
+    /// PreEntry-owned additive activation contract. A dormant dependency keeps its
+    /// authored environment loaded without starting pose anchoring, input, scenario,
+    /// completion waits, subtitles, or TTS.
+    /// </summary>
+    public static class EntrySafetyStageActivation
+    {
+        private static readonly Dictionary<string, bool> SceneActivation =
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void ResetActivationState()
+        {
+            SceneActivation.Clear();
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.IsValid() &&
+                SceneActivation.TryGetValue(Normalize(scene.path), out var activate) &&
+                !activate)
+            {
+                Apply(scene, false);
+            }
+        }
+
+        public static void PrepareSceneLoad(string scenePath, bool activate)
+        {
+            if (!string.IsNullOrWhiteSpace(scenePath))
+                SceneActivation[Normalize(scenePath)] = activate;
+        }
+
+        public static void Apply(Scene scene, bool activate)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+                return;
+
+            SceneActivation[Normalize(scene.path)] = activate;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var poseAnchors = root.GetComponentsInChildren<EntrySafetyInitialPoseAnchor>(true);
+                for (var i = 0; i < poseAnchors.Length; i++)
+                    poseAnchors[i].enabled = activate;
+
+                var controllers = root.GetComponentsInChildren<EntrySafetyScenarioController>(true);
+                for (var i = 0; i < controllers.Length; i++)
+                    controllers[i].SetStageActivated(activate);
+            }
+        }
+
+        private static string Normalize(string path) =>
+            string.IsNullOrEmpty(path) ? string.Empty : path.Replace('\\', '/').Trim();
     }
 }

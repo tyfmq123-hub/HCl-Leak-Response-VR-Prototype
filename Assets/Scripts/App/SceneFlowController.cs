@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using JH.EntrySafety;
 using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -69,7 +70,8 @@ namespace HClTraining.App
         IEnumerator TransitionRoutine(string scenePath, TrainingStage stage)
         {
             errorUI?.Hide();
-            yield return fade.FadeOut();
+            var isCompletionTransition = stage == TrainingStage.Complete;
+            yield return fade.FadeOut(isCompletionTransition ? 0.8f : 0.25f);
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
@@ -88,8 +90,11 @@ namespace HClTraining.App
                 }
 
                 var isLeakScene = PathsMatch(path, LeakResponseScenePath);
+                var isPreEntryScene = PathsMatch(path, PreEntryScenePath);
                 if (isLeakScene)
                     P102LeakStageActivation.PrepareSceneLoad(path, stage == TrainingStage.LeakResponse);
+                if (isPreEntryScene)
+                    EntrySafetyStageActivation.PrepareSceneLoad(path, stage == TrainingStage.PreEntry);
 
                 AsyncOperation load = null;
                 string loadExceptionMessage = null;
@@ -127,6 +132,8 @@ namespace HClTraining.App
                 contentScenes.Add(loadedScene);
                 if (isLeakScene)
                     P102LeakStageActivation.Apply(loadedScene, stage == TrainingStage.LeakResponse);
+                if (isPreEntryScene)
+                    EntrySafetyStageActivation.Apply(loadedScene, stage == TrainingStage.PreEntry);
 
                 if (!PathsMatch(path, plan.PrimaryScenePath) &&
                     !xrProfiles.PrepareDependencyScene(loadedScene, out var dependencyError))
@@ -161,6 +168,20 @@ namespace HClTraining.App
                 if (!xrProfiles.ApplyStageProfile(contentScene, stage, out var xrError))
                     errorUI?.Show(xrError);
                 if (stage == TrainingStage.LeakResponse)
+                {
+                    var entrySpawn = FindSceneTransform(contentScene, "LeakResponseEntrySpawn");
+                    if (entrySpawn == null)
+                    {
+                        yield return RecoverToStart("LeakResponseEntrySpawn reference is missing.");
+                        yield break;
+                    }
+                    if (!MoveSharedPlayerToEntrySpawn(entrySpawn, out var moveError))
+                    {
+                        yield return RecoverToStart(moveError);
+                        yield break;
+                    }
+                }
+                if (stage == TrainingStage.LeakResponse)
                     P102LeakStageActivation.Apply(contentScene, true);
                 yield return lifecycle.BindStage(contentScene, stage);
                 ppeState.ApplyPersistentState();
@@ -171,7 +192,7 @@ namespace HClTraining.App
             // so restore the App-owned semantic actions at the transition boundary.
             AppBootstrap.Instance?.SharedInput?.EnsureActionsEnabled();
 
-            yield return fade.FadeIn();
+            yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);
             transitionRoutine = null;
         }
@@ -211,6 +232,9 @@ namespace HClTraining.App
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
+            var preEntryScene = SceneManager.GetSceneByPath(PreEntryScenePath);
+            if (preEntryScene.IsValid() && preEntryScene.isLoaded)
+                EntrySafetyStageActivation.Apply(preEntryScene, false);
             if (!session.MarkCurrentStageComplete())
             {
                 yield return RecoverToStart("PreEntry 완료 상태를 기록하지 못했습니다.");
@@ -330,9 +354,11 @@ namespace HClTraining.App
 
         static StageLoadPlan BuildLoadPlan(string primaryScenePath, TrainingStage stage)
         {
-            return stage == TrainingStage.PreEntry
-                ? new StageLoadPlan(primaryScenePath, new[] { LeakResponseScenePath })
-                : new StageLoadPlan(primaryScenePath, Array.Empty<string>());
+            if (stage == TrainingStage.PreEntry)
+                return new StageLoadPlan(primaryScenePath, new[] { LeakResponseScenePath });
+            if (stage == TrainingStage.LeakResponse)
+                return new StageLoadPlan(primaryScenePath, new[] { PreEntryScenePath });
+            return new StageLoadPlan(primaryScenePath, Array.Empty<string>());
         }
 
         static Transform FindSceneTransform(Scene scene, string exactName)

@@ -6,6 +6,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
+using UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals;
 using VRProject.LeakResponse.Logic;
 using VRProject.ObjectInstallation;
 using VRProject.Valves;
@@ -133,6 +135,15 @@ namespace VRProject.LeakResponse.Narration
 
             activeInstance = this;
             stageActivated = P102LeakStageActivation.ShouldActivate(gameObject.scene);
+            HideAuthoredGrabPoseGhosts();
+        }
+
+        void HideAuthoredGrabPoseGhosts()
+        {
+            P102RuntimeUtility.HideHandPoseGhostRenderers(
+                FindSceneObject(gameObject.scene, "INT_RecoveryTongs_01"));
+            P102RuntimeUtility.HideHandPoseGhostRenderers(
+                FindSceneObject(gameObject.scene, "HazWasteContainer_Lid"));
         }
 
         void OnDestroy()
@@ -383,7 +394,10 @@ namespace VRProject.LeakResponse.Narration
         XRGrabInteractable ResolveSourceGrab(string typeId, string exactObjectName,
             PreplacedGhostInstallGroup group)
         {
-            GameObject sourceObject = P102RuntimeUtility.FindSceneObject(exactObjectName);
+            // Full Sequence keeps App/PPE/PreEntry objects loaded additively. Resolve
+            // the authored supply only inside this LeakResponse Scene so an inactive
+            // shared inventory record with the same name cannot win the global search.
+            GameObject sourceObject = FindSceneObject(gameObject.scene, exactObjectName);
             if (sourceObject == null)
             {
                 Debug.LogError(
@@ -562,6 +576,58 @@ namespace VRProject.LeakResponse.Narration
                 Debug.Log(
                     $"[P102 Flow] LeakResponse hand visual disabled: " +
                     P102RuntimeUtility.GetHierarchyPath(handVisual.transform), handVisual);
+            }
+
+            // The standalone Leak Scene owns an embedded XR rig. Keep its Near/Far
+            // interactors active for close-range grabbing, but suppress their resting
+            // pointer curves so a ray is not drawn from either hand. In the integrated
+            // App the whole embedded rig is already disabled by the shared XR profile.
+            foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+            {
+                XRRayInteractor[] rays = root.GetComponentsInChildren<XRRayInteractor>(true);
+                for (int rayIndex = 0; rayIndex < rays.Length; ++rayIndex)
+                    DisablePointerVisuals(rays[rayIndex].transform);
+
+                NearFarInteractor[] nearFarInteractors =
+                    root.GetComponentsInChildren<NearFarInteractor>(true);
+                for (int interactorIndex = 0;
+                     interactorIndex < nearFarInteractors.Length;
+                     ++interactorIndex)
+                {
+                    DisablePointerVisuals(nearFarInteractors[interactorIndex].transform);
+                }
+            }
+        }
+
+        static void DisablePointerVisuals(Transform interactorRoot)
+        {
+            if (interactorRoot == null)
+                return;
+
+            CurveVisualController[] curveVisuals =
+                interactorRoot.GetComponentsInChildren<CurveVisualController>(true);
+            for (int i = 0; i < curveVisuals.Length; ++i)
+                curveVisuals[i].enabled = false;
+
+            XRInteractorLineVisual[] rayVisuals =
+                interactorRoot.GetComponentsInChildren<XRInteractorLineVisual>(true);
+            for (int i = 0; i < rayVisuals.Length; ++i)
+                rayVisuals[i].enabled = false;
+
+            LineRenderer[] lineRenderers =
+                interactorRoot.GetComponentsInChildren<LineRenderer>(true);
+            for (int i = 0; i < lineRenderers.Length; ++i)
+                lineRenderers[i].enabled = false;
+
+            Transform[] descendants = interactorRoot.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < descendants.Length; ++i)
+            {
+                Transform descendant = descendants[i];
+                if (descendant != interactorRoot &&
+                    string.Equals(descendant.name, "LineVisual", StringComparison.Ordinal))
+                {
+                    descendant.gameObject.SetActive(false);
+                }
             }
         }
 

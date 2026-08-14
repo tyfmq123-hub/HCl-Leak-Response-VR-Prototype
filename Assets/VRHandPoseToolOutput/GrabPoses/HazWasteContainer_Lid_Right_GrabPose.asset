@@ -1,0 +1,168 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 678409e2a57150a4392f39ae6b4f0cf9, type: 3}
+  m_Name: HazWasteContainer_Lid_Right_GrabPose
+  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPoseRecord
+  m_RecordId: 10a68b89d8e345dca65e0d7fdf13ec31
+  m_PoseName: HazWasteContainer_Lid_Right_HandTrackingPose
+  m_HandSide: 1
+  m_CaptureSource: TrackingHand
+  m_CapturedAtUtc: 2026-08-14T08:31:08.6629944Z
+  m_SourceHandRootName: RightHand(Clone)
+  m_TargetObjectName: HazWasteContainer_Lid
+  m_TargetScenePath: Assets/Scenes/SSH_VR_Project.unity
+  m_TargetGlobalObjectId: GlobalObjectId_V1-2-99c9720ab356a0642a771bea13969a05-3131875997660362850-0
+  m_TargetSiblingIndexPath: 040000000900000001000000
+  m_TargetTransformNamePath:
+  - INT
+  - INT_WasteContainer_01
+  - HazWasteContainer_Lid
+  m_HandRootLocalPosition: {x: 0.07688058, y: -0.57896656, z: -0.90300107}
+  m_HandRootLocalRotation: {x: -0.00000022127097, y: -0.7071068, z: -0.7071068, w: -0.00000022127097}
+  m_AttachLocalPosition: {x: 0.07688058, y: -0.57896656, z: -0.90300107}
+  m_AttachLocalRotation: {x: -0.00000022127097, y: -0.7071068, z: -0.7071068, w: -0.00000022127097}
+  m_InteractorAttachLocalPosition: {x: 0.07688058, y: -0.57896656, z: -0.90300107}
+  m_InteractorAttachLocalRotation: {x: -0.00000022127097, y: -0.7071068, z: -0.7071068, w: -0.00000022127097}
+  m_InteractorToHandRootLocalPosition: {x: 0, y: 0, z: 0}
+  m_InteractorToHandRootLocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_CapturedWhileGrabbed: 0
+  m_Bones:
+  - boneName: R_Wrist
+    parentBoneName: RightHand(Clone)
+    localPosition: {x: 0.094676755, y: 1.0979164, z: 0.50535184}
+    localRotation: {x: -0.1387972, y: 0.16073234, z: -0.06337727, w: -0.9751327}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_Palm
+    parentBoneName: R_Wrist
+    localPosition: {x: -0.002053935, y: -0.0053062066, z: 0.06326801}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_ThumbMetacarpal
+    parentBoneName: R_Wrist
+    localPosition: {x: -0.027145278, y: -0.01855063, z: 0.03482195}
+    localRotation: {x: 0.03189061, y: -0.41904664, z: 0.6299421, w: 0.6531124}
+    localScale: {x: 1.0000156, y: 0.9999665, z: 0.99998885}
+  - boneName: R_ThumbProximal
+    parentBoneName: R_ThumbMetacarpal
+    localPosition: {x: -0.0000000060535967, y: 0.000000024214387, z: 0.031486206}
+    localRotation: {x: 0.19394651, y: 0.052714724, z: -0.082044855, w: 0.97615296}
+    localScale: {x: 0.99998945, y: 0.99999183, z: 1.0000514}
+  - boneName: R_ThumbDistal
+    parentBoneName: R_ThumbProximal
+    localPosition: {x: 0.000000058673322, y: -0.000000019557774, z: 0.03272599}
+    localRotation: {x: 0.09063475, y: -0.052610572, z: 0.07988201, w: 0.99128014}
+    localScale: {x: 1.0000048, y: 0.99998945, z: 0.9999974}
+  - boneName: R_ThumbTip
+    parentBoneName: R_ThumbDistal
+    localPosition: {x: 0.00064916164, y: 0.0009945519, z: 0.023814248}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_IndexMetacarpal
+    parentBoneName: R_Wrist
+    localPosition: {x: -0.018134035, y: -0.010692375, z: 0.03600394}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_IndexProximal
+    parentBoneName: R_IndexMetacarpal
+    localPosition: {x: -0.0046729557, y: 0.0036069835, z: 0.05696097}
+    localRotation: {x: 0.40656796, y: 0.034827407, z: 0.03057869, w: 0.91244423}
+    localScale: {x: 1.0000446, y: 1.0000408, z: 0.999991}
+  - boneName: R_IndexIntermediate
+    parentBoneName: R_IndexProximal
+    localPosition: {x: 0.0000000060535967, y: -0.000000009313226, z: 0.03672964}
+    localRotation: {x: 0.4785546, y: -0.0060455734, z: -0.025164178, w: 0.87767637}
+    localScale: {x: 0.99995506, y: 0.9999494, z: 0.9999497}
+  - boneName: R_IndexDistal
+    parentBoneName: R_IndexIntermediate
+    localPosition: {x: -0.00000001071021, y: 0.000000040978193, z: 0.023536233}
+    localRotation: {x: 0.17915967, y: 0.022662852, z: -0.017063282, w: 0.98341095}
+    localScale: {x: 1.0000451, y: 1.0000081, z: 1.0000004}
+  - boneName: R_IndexTip
+    parentBoneName: R_IndexDistal
+    localPosition: {x: 0.00028627552, y: 0.0009926492, z: 0.021657195}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_MiddleMetacarpal
+    parentBoneName: R_Wrist
+    localPosition: {x: -0.0024364619, y: -0.008149715, z: 0.033909805}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_MiddleProximal
+    parentBoneName: R_MiddleMetacarpal
+    localPosition: {x: 0.0007650759, y: 0.0056869155, z: 0.058716513}
+    localRotation: {x: 0.48546788, y: 0.060387984, z: -0.037571598, w: 0.8713568}
+    localScale: {x: 0.9999646, y: 1.0000069, z: 1.000008}
+  - boneName: R_MiddleIntermediate
+    parentBoneName: R_MiddleProximal
+    localPosition: {x: -0.000000023748726, y: -0.00000006146729, z: 0.041571558}
+    localRotation: {x: 0.43872803, y: -0.0010172318, z: -0.012925909, w: 0.8985264}
+    localScale: {x: 1.0000315, y: 0.99999595, z: 1.000038}
+  - boneName: R_MiddleDistal
+    parentBoneName: R_MiddleIntermediate
+    localPosition: {x: 0.0000000146683306, y: 0.0000000037252903, z: 0.026679564}
+    localRotation: {x: 0.23758686, y: -0.009838579, z: -0.06564445, w: 0.9690957}
+    localScale: {x: 0.9999718, y: 1.0000138, z: 0.99996346}
+  - boneName: R_MiddleTip
+    parentBoneName: R_MiddleDistal
+    localPosition: {x: 0.0002989096, y: 0.0011013411, z: 0.024176566}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_RingMetacarpal
+    parentBoneName: R_Wrist
+    localPosition: {x: 0.014518909, y: -0.005825824, z: 0.03367741}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_RingProximal
+    parentBoneName: R_RingMetacarpal
+    localPosition: {x: 0.002394827, y: -0.0004973095, z: 0.05221565}
+    localRotation: {x: 0.5071271, y: 0.08421234, z: -0.10075062, w: 0.8518097}
+    localScale: {x: 0.99998975, y: 1.0000367, z: 1.0000347}
+  - boneName: R_RingIntermediate
+    parentBoneName: R_RingProximal
+    localPosition: {x: 0.000000004773028, y: -0.000000013969839, z: 0.037764728}
+    localRotation: {x: 0.41572028, y: -0.011221218, z: -0.04095852, w: 0.9085005}
+    localScale: {x: 1.0000359, y: 0.9999273, z: 0.99994177}
+  - boneName: R_RingDistal
+    parentBoneName: R_RingIntermediate
+    localPosition: {x: 0.0000000047293724, y: -0.000000027939677, z: 0.02573417}
+    localRotation: {x: 0.30639687, y: -0.029315406, z: -0.018802386, w: 0.9512666}
+    localScale: {x: 0.9999347, y: 1.0000271, z: 1.0000098}
+  - boneName: R_RingTip
+    parentBoneName: R_RingDistal
+    localPosition: {x: 0.0002497586, y: 0.0015574126, z: 0.023557972}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}
+  - boneName: R_LittleMetacarpal
+    parentBoneName: R_Wrist
+    localPosition: {x: 0.022272337, y: -0.009122395, z: 0.032997593}
+    localRotation: {x: 0.018311778, y: 0.14034288, z: -0.207036, w: 0.96804166}
+    localScale: {x: 1.0000185, y: 1.0000081, z: 0.9999589}
+  - boneName: R_LittleProximal
+    parentBoneName: R_LittleMetacarpal
+    localPosition: {x: -0.00000213366, y: -0.00000094622374, z: 0.044209}
+    localRotation: {x: 0.46209458, y: 0.08368412, z: 0.038433123, w: 0.88203657}
+    localScale: {x: 0.9999562, y: 1.0000366, z: 1.0000681}
+  - boneName: R_LittleIntermediate
+    parentBoneName: R_LittleProximal
+    localPosition: {x: 0.0000000016880222, y: 0.000000012572855, z: 0.029750371}
+    localRotation: {x: 0.35980487, y: 0.025550608, z: -0.06773903, w: 0.9302145}
+    localScale: {x: 1.0000147, y: 1.0000129, z: 0.99994457}
+  - boneName: R_LittleDistal
+    parentBoneName: R_LittleIntermediate
+    localPosition: {x: 0.000000010011718, y: -0.000000009313226, z: 0.019670013}
+    localRotation: {x: 0.24126725, y: -0.047539484, z: 0.0015384036, w: 0.96929246}
+    localScale: {x: 1.0000222, y: 0.99996865, z: 0.9999735}
+  - boneName: R_LittleTip
+    parentBoneName: R_LittleDistal
+    localPosition: {x: -0.00023871101, y: 0.0011776434, z: 0.02123008}
+    localRotation: {x: 0, y: 0, z: 0, w: 1}
+    localScale: {x: 1, y: 1, z: 1}

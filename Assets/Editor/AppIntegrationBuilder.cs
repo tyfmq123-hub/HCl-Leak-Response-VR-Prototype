@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HClTraining.App;
+using HClTraining.SharedXR;
 using Unity.XR.CoreUtils;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -11,13 +12,17 @@ using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 
 public static class AppIntegrationBuilder
 {
     const string AppFolder = "Assets/Scenes/App";
     const string ProfileFolder = "Assets/Resources/App/StageXRProfiles";
     const string ReportPath = "Logs/AppIntegrationBuild.log";
-    static readonly Vector3 CommonBagBodyOffset = new Vector3(-0.4785f, -1.01f, 0.132f);
+    static readonly Vector3 CommonBagBodyOffset = new Vector3(-0.52f, 0.65f, 0.14f);
 
     sealed class LoadedScene
     {
@@ -89,6 +94,7 @@ public static class AppIntegrationBuilder
 
     static void BuildAppScene(Scene ppeScene, XROrigin ppeOrigin, XROrigin preEntryOrigin, XROrigin leakOrigin)
     {
+        CloseCleanGeneratedSceneBeforeOverwrite(SceneFlowController.AppScenePath);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
         try
         {
@@ -105,6 +111,7 @@ public static class AppIntegrationBuilder
             MergeMissingOriginContent(preEntryOrigin.transform, commonOrigin.transform, objectMap);
             MergeMissingOriginContent(leakOrigin.transform, commonOrigin.transform, objectMap);
             RemapSerializedReferences(scene, objectMap, commonOrigin.transform);
+            ConfigureCommonXrContracts(commonOrigin.transform);
 
             var appRoot = new GameObject("App");
             SceneManager.MoveGameObjectToScene(appRoot, scene);
@@ -162,7 +169,81 @@ public static class AppIntegrationBuilder
 
         var serialized = new SerializedObject(follower);
         serialized.FindProperty("localPositionOffset").vector3Value = CommonBagBodyOffset;
+        serialized.FindProperty("followCameraHeight").boolValue = false;
+        serialized.FindProperty("useStableOriginBodyFrame").boolValue = true;
         serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    static void ConfigureCommonXrContracts(Transform commonOrigin)
+    {
+        var move = commonOrigin != null ? commonOrigin.GetComponent<ContinuousMoveProvider>() : null;
+        var turn = commonOrigin != null ? commonOrigin.GetComponent<SnapTurnProvider>() : null;
+        var vignette = commonOrigin != null
+            ? commonOrigin.GetComponentInChildren<TunnelingVignetteController>(true)
+            : null;
+        if (move == null || turn == null || vignette == null)
+            throw new InvalidOperationException("Common XR locomotion/vignette components are incomplete.");
+
+        var rightMove = move.rightHandMoveInput ??
+            new XRInputValueReader<Vector2>("Right Hand Move", XRInputValueReader.InputSourceMode.Unused);
+        rightMove.inputSourceMode = XRInputValueReader.InputSourceMode.Unused;
+        rightMove.inputActionReference = null;
+        move.rightHandMoveInput = rightMove;
+
+        var leftTurn = turn.leftHandTurnInput ??
+            new XRInputValueReader<Vector2>("Left Hand Snap Turn", XRInputValueReader.InputSourceMode.Unused);
+        leftTurn.inputSourceMode = XRInputValueReader.InputSourceMode.Unused;
+        leftTurn.inputActionReference = null;
+        turn.leftHandTurnInput = leftTurn;
+
+        vignette.enabled = true;
+        vignette.defaultParameters = CreateVignetteParameters(0.82f, 0.25f, 0.04f, 0.10f, 0.02f);
+        vignette.locomotionVignetteProviders = new List<LocomotionVignetteProvider>
+        {
+            new LocomotionVignetteProvider
+            {
+                locomotionProvider = move,
+                enabled = true,
+                overrideDefaultParameters = true,
+                overrideParameters = CreateVignetteParameters(0.68f, 0.15f, 0.08f, 0.15f, 0.03f),
+            },
+            new LocomotionVignetteProvider
+            {
+                locomotionProvider = turn,
+                enabled = true,
+                overrideDefaultParameters = true,
+                overrideParameters = CreateVignetteParameters(0.78f, 0.15f, 0.08f, 0.15f, 0.03f),
+            },
+        };
+
+        foreach (var side in new[] { "Left", "Right" })
+        {
+            var controller = commonOrigin.Find($"Camera Offset/{side} Controller");
+            var ray = controller != null ? controller.Find("Ray Interactor") : null;
+            if (ray == null)
+                throw new InvalidOperationException($"Common XR {side} Ray Interactor is missing.");
+            ray.localRotation = Quaternion.identity;
+        }
+    }
+
+    static VignetteParameters CreateVignetteParameters(
+        float aperture,
+        float feather,
+        float easeIn,
+        float easeOut,
+        float delay)
+    {
+        return new VignetteParameters
+        {
+            apertureSize = aperture,
+            featheringEffect = feather,
+            easeInTime = easeIn,
+            easeOutTime = easeOut,
+            easeInTimeLock = true,
+            easeOutDelayTime = delay,
+            vignetteColor = Color.black,
+            vignetteColorBlend = Color.black,
+        };
     }
 
     static void MergeMissingOriginContent(
@@ -370,6 +451,7 @@ public static class AppIntegrationBuilder
 
     static void BuildMenuScene<T>(string path, string rootName) where T : Component
     {
+        CloseCleanGeneratedSceneBeforeOverwrite(path);
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
         try
         {
@@ -411,6 +493,17 @@ public static class AppIntegrationBuilder
             scene = EditorSceneManager.OpenScene(path, openSingle ? OpenSceneMode.Single : OpenSceneMode.Additive),
             openedByBuilder = true,
         };
+    }
+
+    static void CloseCleanGeneratedSceneBeforeOverwrite(string path)
+    {
+        var existing = SceneManager.GetSceneByPath(path);
+        if (!existing.IsValid() || !existing.isLoaded)
+            return;
+        if (existing.isDirty)
+            throw new InvalidOperationException(
+                $"Generated Scene '{path}' has unsaved Editor changes and cannot be overwritten safely.");
+        EditorSceneManager.CloseScene(existing, true);
     }
 
     static XROrigin FindOrigin(Scene scene)

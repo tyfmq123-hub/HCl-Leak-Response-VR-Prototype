@@ -4,20 +4,19 @@ namespace JH.EntrySafety
 {
     /// <summary>
     /// Thin rectangular world-space frame used to show the active P/T gaze readout.
-    /// Does not modify panel materials; follows an anchor each frame with a slow cyan pulse.
+    /// Does not modify panel materials; follows an anchor and visualizes the
+    /// two-second panel gaze hold by blending its frame from yellow to green.
     /// </summary>
     [ExecuteAlways]
     public sealed class EntrySafetyGazeHighlightVisual : MonoBehaviour
     {
-        private static readonly Color IdleColor = new Color(0.15f, 0.95f, 0.95f, 0.85f);
-        private static readonly Color GazeColor = new Color(0.25f, 1f, 0.75f, 0.95f);
+        private static readonly Color StartColor = new Color(1f, 0.86f, 0.08f, 0.95f);
+        private static readonly Color CompleteColor = new Color(0.15f, 1f, 0.35f, 0.95f);
 
         [SerializeField, Min(0.01f)] private float _defaultWidth = 0.24f;
         [SerializeField, Min(0.01f)] private float _defaultHeight = 0.10f;
         [SerializeField, Min(0f)] private float _outwardOffsetMeters = 0.02f;
         [SerializeField, Min(0.001f)] private float _lineWidth = 0.008f;
-        [SerializeField, Min(0f)] private float _pulseSpeed = 2.2f;
-        [SerializeField, Range(0f, 0.5f)] private float _pulseAmplitude = 0.18f;
         [SerializeField] private bool _showPreviewInEditMode = true;
         [SerializeField] private Transform _visualRoot;
         [SerializeField] private LineRenderer _frameLine;
@@ -26,7 +25,7 @@ namespace JH.EntrySafety
         private Transform _anchor;
         private Vector3 _faceOutward = Vector3.back;
         private Vector2 _size = new Vector2(0.24f, 0.10f);
-        private bool _isGazing;
+        private float _progress01;
         private bool _isVisible;
 
         public Vector2 CurrentSize => _size;
@@ -71,7 +70,7 @@ namespace JH.EntrySafety
 
             var center = ResolveCenter();
             RebuildFrame(center);
-            ApplyPulseColor();
+            ApplyProgressColor();
         }
 
         public void SetVisible(bool visible)
@@ -81,7 +80,7 @@ namespace JH.EntrySafety
             if (!visible)
             {
                 _anchor = null;
-                _isGazing = false;
+                _progress01 = 0f;
             }
 
             if (_visualRoot != null)
@@ -93,7 +92,7 @@ namespace JH.EntrySafety
             if (visible)
             {
                 RebuildFrame(ResolveCenter());
-                ApplyPulseColor();
+                ApplyProgressColor();
             }
         }
 
@@ -113,11 +112,11 @@ namespace JH.EntrySafety
             SetVisible(false);
         }
 
-        public void SetGazing(bool isGazing)
+        public void SetProgress(float progress01)
         {
-            _isGazing = isGazing;
+            _progress01 = Mathf.Clamp01(progress01);
             if (_isVisible)
-                ApplyPulseColor();
+                ApplyProgressColor();
         }
 
         public Vector3 GetFrameCornerLocal(int index)
@@ -158,17 +157,12 @@ namespace JH.EntrySafety
             _frameLine.endWidth = _lineWidth;
         }
 
-        private void ApplyPulseColor()
+        private void ApplyProgressColor()
         {
             if (_frameLine == null)
                 return;
 
-            var baseColor = _isGazing ? GazeColor : IdleColor;
-            var pulse = 1f;
-            if (Application.isPlaying && !_isGazing)
-                pulse = 1f - _pulseAmplitude + (Mathf.Sin(Time.unscaledTime * _pulseSpeed) * 0.5f + 0.5f) * _pulseAmplitude;
-
-            var color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * pulse);
+            var color = Color.Lerp(StartColor, CompleteColor, _progress01);
             _frameLine.startColor = color;
             _frameLine.endColor = color;
         }

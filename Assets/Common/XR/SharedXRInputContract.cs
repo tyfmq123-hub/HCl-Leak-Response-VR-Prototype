@@ -7,6 +7,46 @@ using UnityEngine.XR.Interaction.Toolkit.Inputs;
 
 namespace HClTraining.SharedXR
 {
+    /// <summary>
+    /// Stage-independent pause signal owned by the Shared XR layer. Stage assemblies
+    /// can use this without depending on App code, while head/controller tracking and
+    /// App UI input remain alive.
+    /// </summary>
+    public static class SharedTrainingPause
+    {
+        static float pauseStartedAt;
+        static float pausedDuration;
+
+        public static bool IsPaused { get; private set; }
+        public static float UnscaledTime => UnityEngine.Time.unscaledTime - pausedDuration -
+                                            (IsPaused ? UnityEngine.Time.unscaledTime - pauseStartedAt : 0f);
+        public static float UnscaledDeltaTime => IsPaused ? 0f : UnityEngine.Time.unscaledDeltaTime;
+        public static event Action<bool> Changed;
+
+        public static void SetPaused(bool paused)
+        {
+            if (IsPaused == paused)
+                return;
+
+            if (paused)
+                pauseStartedAt = UnityEngine.Time.unscaledTime;
+            else
+                pausedDuration += Mathf.Max(0f, UnityEngine.Time.unscaledTime - pauseStartedAt);
+
+            IsPaused = paused;
+            Changed?.Invoke(paused);
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetRuntimeState()
+        {
+            IsPaused = false;
+            pauseStartedAt = 0f;
+            pausedDuration = 0f;
+            Changed = null;
+        }
+    }
+
     public enum SharedXRHand
     {
         Left,
@@ -43,6 +83,7 @@ namespace HClTraining.SharedXR
 
         public static SharedXRInputContract Instance { get; private set; }
         public bool IsReady { get; private set; }
+        public bool GameplayInputSuppressed { get; private set; }
         public event Action<SharedXRHand, SharedXRControl> Performed;
         public event Action<SharedXRHand, SharedXRControl> Canceled;
 
@@ -57,6 +98,7 @@ namespace HClTraining.SharedXR
 
             Instance = this;
             IsReady = false;
+            GameplayInputSuppressed = false;
             actions.Clear();
             DisposeOwnedActions();
 
@@ -83,18 +125,24 @@ namespace HClTraining.SharedXR
 
         public float ReadValue(SharedXRHand hand, SharedXRControl control)
         {
-            return TryGetAction(hand, control, out var action) ? action.ReadValue<float>() : 0f;
+            return !GameplayInputSuppressed && TryGetAction(hand, control, out var action)
+                ? action.ReadValue<float>()
+                : 0f;
         }
 
         public Vector2 ReadThumbstick(SharedXRHand hand)
         {
-            return TryGetAction(hand, SharedXRControl.Thumbstick, out var action)
+            return !GameplayInputSuppressed &&
+                   TryGetAction(hand, SharedXRControl.Thumbstick, out var action)
                 ? action.ReadValue<Vector2>()
                 : Vector2.zero;
         }
 
         public bool SendHaptic(SharedXRHand hand, float amplitude, float duration)
         {
+            if (GameplayInputSuppressed)
+                return false;
+
             var node = hand == SharedXRHand.Left ? XRNode.LeftHand : XRNode.RightHand;
             var device = InputDevices.GetDeviceAtXRNode(node);
             if (!device.isValid || !device.TryGetHapticCapabilities(out var capabilities) ||
@@ -104,6 +152,15 @@ namespace HClTraining.SharedXR
             }
 
             return device.SendHapticImpulse(0u, Mathf.Clamp01(amplitude), Mathf.Max(0f, duration));
+        }
+
+        /// <summary>
+        /// Temporarily suppresses Stage-owned semantic input while keeping the underlying
+        /// XRI action asset enabled for App UI rays and tracked controller poses.
+        /// </summary>
+        public void SetGameplayInputSuppressed(bool suppressed)
+        {
+            GameplayInputSuppressed = suppressed;
         }
 
         /// <summary>
@@ -251,7 +308,7 @@ namespace HClTraining.SharedXR
 
         void Dispatch(InputAction action, Action<SharedXRHand, SharedXRControl> callback)
         {
-            if (callback == null || action == null)
+            if (GameplayInputSuppressed || callback == null || action == null)
                 return;
             foreach (var pair in actions)
             {
@@ -276,6 +333,7 @@ namespace HClTraining.SharedXR
             DisposeOwnedActions();
             actions.Clear();
             IsReady = false;
+            GameplayInputSuppressed = false;
             if (Instance == this)
                 Instance = null;
         }

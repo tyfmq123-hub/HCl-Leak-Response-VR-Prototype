@@ -48,11 +48,11 @@ MonoBehaviour:
   - relativePath: Camera Offset/Hand Visualizer
     typeName: UnityEngine.XR.Hands.Samples.VisualizerSample.HandVisualizer, Unity.XR.Hands.Samples.VisualizerSample,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Hand Visualizer
     typeName: UnityEngine.XR.Hands.Samples.VisualizerSample.HandProcessor, Unity.XR.Hands.Samples.VisualizerSample,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Main Camera
     typeName: UnityEngine.Camera, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral,
       PublicKeyToken=null
@@ -144,6 +144,10 @@ MonoBehaviour:
   - relativePath: Camera Offset/Right Controller
     typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
       Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller
+    typeName: VRHandPoseTool.HandInteractorSide, Senghwan.VRHandPoseTool.Runtime,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     enabled: 1
   - relativePath: Camera Offset/Right Controller/Visual/VRHandPoseTool_VisualOffset_Right/RightHand
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,

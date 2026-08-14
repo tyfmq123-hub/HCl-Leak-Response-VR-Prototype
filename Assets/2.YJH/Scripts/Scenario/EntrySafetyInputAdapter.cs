@@ -20,7 +20,6 @@ namespace JH.EntrySafety
 
         public event Action EquipDetectorPressed;
         public event Action StoreDetectorPressed;
-        public event Action GuidanceRepeatPressed;
         public event Action SimulationGazeConfirmPressed;
         public event Action MoveToPtPressed;
         public event Action RightTriggerPressed;
@@ -69,7 +68,6 @@ namespace JH.EntrySafety
 
         private bool _equipDetectorButtonWasPressed;
         private bool _storeDetectorButtonWasPressed;
-        private bool _guidanceRepeatButtonWasPressed;
         private bool _moveToPtButtonWasPressed;
         private bool _rightTriggerWasPressed;
 
@@ -159,11 +157,6 @@ namespace JH.EntrySafety
                 ref _storeDetectorButtonWasPressed,
                 StoreDetectorPressed);
             UpdatePhysicalButton(
-                isRightHand: false,
-                controlName: "primaryButton",
-                ref _guidanceRepeatButtonWasPressed,
-                GuidanceRepeatPressed);
-            UpdatePhysicalButton(
                 isRightHand: true,
                 controlName: "primaryButton",
                 ref _moveToPtButtonWasPressed,
@@ -203,8 +196,6 @@ namespace JH.EntrySafety
                 EquipDetectorPressed?.Invoke();
             else if (hand == SharedXRHand.Right && control == SharedXRControl.SecondaryButton)
                 StoreDetectorPressed?.Invoke();
-            else if (hand == SharedXRHand.Left && control == SharedXRControl.PrimaryButton)
-                GuidanceRepeatPressed?.Invoke();
             else if (hand == SharedXRHand.Right && control == SharedXRControl.PrimaryButton)
                 MoveToPtPressed?.Invoke();
             else if (hand == SharedXRHand.Right && control == SharedXRControl.Activate)

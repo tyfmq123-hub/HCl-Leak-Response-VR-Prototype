@@ -13,6 +13,7 @@ using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 
@@ -123,17 +124,12 @@ namespace HClTraining.App
             if (!ApplyStartProfile(out error))
                 return false;
 
-            // The completion screen owns no Stage interaction. Keep the common rig
-            // alive, but release both pointer implementations left by the last Stage.
-            SetStartObject("Camera Offset/Left Controller/Ray Interactor", false);
-            SetStartObject("Camera Offset/Right Controller/Ray Interactor", false);
-            SetStartObject("Camera Offset/Left Controller/Left_NearFarInteractor", false);
-            SetStartObject("Camera Offset/Right Controller/Right_NearFarInteractor", false);
+            // Completion is App-owned UI, so retain the standard UI rays configured
+            // by ApplyStartProfile. Near/Far Stage pointers remain disabled there.
             EnableCommonInput(commonXrOrigin.transform, true);
-            startProfileActive = false;
             activeStage = TrainingStage.Complete;
             LastAppliedProfile = "Complete";
-            Debug.Log("[Stage XR Profile] Applied Complete; all controller pointers disabled.", this);
+            Debug.Log("[Stage XR Profile] Applied Complete; locomotion disabled and standard UI rays enabled.", this);
             return true;
         }
 
@@ -163,12 +159,13 @@ namespace HClTraining.App
                 sourceOrigin != null ? sourceOrigin.transform.position : requirements.SpawnPosition,
                 sourceOrigin != null ? sourceOrigin.transform.rotation : requirements.SpawnRotation);
 
-            if (!ApplySharedLocomotionPolicy(commonXrOrigin.transform, out var locomotionError))
+            if (!ApplySharedLocomotionPolicy(commonXrOrigin.transform, requirements, out var locomotionError))
             {
                 error = locomotionError;
                 Debug.LogError("[Stage XR Profile] " + error, this);
                 return false;
             }
+            ConfigureComfortVignette(commonXrOrigin.transform, requirements.ComfortVignette);
             LastReboundReferenceCount = 0;
             if (sourceOrigin != null)
             {
@@ -330,6 +327,8 @@ namespace HClTraining.App
             if (interactor == null)
                 return;
 
+            var lineVisual = interactor.Find("LineVisual");
+            var curveVisualReady = !active || PrepareNearFarCurveVisual(xrRoot, interactor, lineVisual);
             interactor.gameObject.SetActive(active);
             if (!active)
                 return;
@@ -346,17 +345,81 @@ namespace HClTraining.App
                 relativePath.IndexOf("Left Controller", StringComparison.Ordinal) >= 0 ? "Left" : "Right",
                 interactor.name);
 
-            var lineVisual = interactor.Find("LineVisual");
             if (lineVisual != null)
                 lineVisual.gameObject.SetActive(true);
 
             var behaviours = interactor.GetComponentsInChildren<Behaviour>(true);
             for (var i = 0; i < behaviours.Length; i++)
-                if (behaviours[i] != null) behaviours[i].enabled = true;
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null)
+                    continue;
+                behaviour.enabled = !(behaviour is CurveVisualController) || curveVisualReady;
+            }
             var renderers = interactor.GetComponentsInChildren<Renderer>(true);
             for (var i = 0; i < renderers.Length; i++)
                 if (renderers[i] != null) renderers[i].enabled = true;
             SetHapticCapability(interactor.gameObject, haptics);
+        }
+
+        static bool PrepareNearFarCurveVisual(
+            Transform xrRoot,
+            Transform interactor,
+            Transform lineVisual)
+        {
+            if (lineVisual == null)
+                return true;
+
+            var curveVisual = lineVisual.GetComponent<CurveVisualController>();
+            if (curveVisual == null)
+                return true;
+
+            var lineRenderer = curveVisual.lineRenderer ?? lineVisual.GetComponent<LineRenderer>();
+            if (lineRenderer == null)
+            {
+                // The App rig was authored without a LineRenderer on the Near/Far
+                // LineVisual. Add it while the visual is still inactive so the XRI
+                // controller's Awake method can initialize all of its native state.
+                lineRenderer = lineVisual.gameObject.AddComponent<LineRenderer>();
+                var standardRayRenderer = interactor.parent
+                    ?.Find("Ray Interactor")
+                    ?.GetComponent<LineRenderer>();
+                if (standardRayRenderer != null)
+                {
+                    lineRenderer.sharedMaterials = standardRayRenderer.sharedMaterials;
+                    lineRenderer.widthMultiplier = standardRayRenderer.widthMultiplier;
+                    lineRenderer.widthCurve = standardRayRenderer.widthCurve;
+                    lineRenderer.colorGradient = standardRayRenderer.colorGradient;
+                    lineRenderer.numCornerVertices = standardRayRenderer.numCornerVertices;
+                    lineRenderer.numCapVertices = standardRayRenderer.numCapVertices;
+                    lineRenderer.alignment = standardRayRenderer.alignment;
+                    lineRenderer.textureMode = standardRayRenderer.textureMode;
+                    lineRenderer.useWorldSpace = standardRayRenderer.useWorldSpace;
+                }
+                else
+                {
+                    lineRenderer.widthMultiplier = 0.003f;
+                    lineRenderer.useWorldSpace = true;
+                }
+
+                curveVisual.lineRenderer = lineRenderer;
+            }
+
+            var nearFar = interactor.GetComponent<NearFarInteractor>();
+            if (curveVisual.curveInteractionDataProvider == null && nearFar != null)
+                curveVisual.curveInteractionDataProvider = nearFar;
+
+            var ready = curveVisual.lineRenderer != null &&
+                        curveVisual.curveInteractionDataProvider != null;
+            if (!ready)
+            {
+                curveVisual.enabled = false;
+                Debug.LogError(
+                    $"[Stage XR Profile] Near/Far line visual references are incomplete: {interactor.name}.",
+                    curveVisual);
+            }
+
+            return ready;
         }
 
         static void SetHapticCapability(GameObject owner, bool enabled)
@@ -590,6 +653,18 @@ namespace HClTraining.App
                 target.gameObject.SetActive(active);
         }
 
+        static void ConfigureComfortVignette(Transform xrRoot, bool active)
+        {
+            var vignette = xrRoot != null
+                ? xrRoot.GetComponentInChildren<TunnelingVignetteController>(true)
+                : null;
+            if (vignette == null)
+                return;
+
+            vignette.gameObject.SetActive(active);
+            vignette.enabled = active;
+        }
+
         bool ConfigureStartRay(string relativePath, string actionMapName, out string error)
         {
             error = null;
@@ -716,12 +791,20 @@ namespace HClTraining.App
                    name.IndexOf("ClimbProvider", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        static bool ApplySharedLocomotionPolicy(Transform xrRoot, out string error)
+        static bool ApplySharedLocomotionPolicy(
+            Transform xrRoot,
+            StageXRRequirements requirements,
+            out string error)
         {
             error = null;
             if (xrRoot == null)
             {
                 error = "Common XR root is missing while applying shared locomotion.";
+                return false;
+            }
+            if (requirements == null)
+            {
+                error = "Stage XR requirements are missing while applying shared locomotion.";
                 return false;
             }
 
@@ -754,9 +837,9 @@ namespace HClTraining.App
             // Stage rig's component paths or create Stage-specific providers here.
             bodyTransformers[0].enabled = true;
             mediators[0].enabled = true;
-            moveProviders[0].enabled = true;
+            moveProviders[0].enabled = requirements.Movement;
             controllerDrivers[0].enabled = true;
-            snapTurnProviders[0].enabled = true;
+            snapTurnProviders[0].enabled = requirements.Turning;
             return true;
         }
 

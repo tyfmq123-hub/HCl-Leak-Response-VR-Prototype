@@ -320,7 +320,7 @@ namespace VRProject.Valves
             {
                 SendHapticToSelectingInteractors(0.55f, 0.08f);
                 if (pulse < 2)
-                    yield return new WaitForSecondsRealtime(0.16f);
+                    yield return new WaitForSeconds(0.16f);
             }
 
             fullyOpenHapticRoutine = null;

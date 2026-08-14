@@ -50,7 +50,7 @@ namespace VRProject.Valves
         [SerializeField, Range(1, SupportedHandCapacity)] int maximumHands = SupportedHandCapacity;
 
         [Header("Surface Proximity")]
-        [SerializeField, Min(0f)] float maxGrabSurfaceDistance = 0.035f;
+        [SerializeField, Min(0f)] float maxGrabSurfaceDistance = 0.08f;
 
         readonly IXRSelectInteractor[] activeInteractors = new IXRSelectInteractor[SupportedHandCapacity];
         readonly Vector3[] previousHandDirections = new Vector3[SupportedHandCapacity];
@@ -379,7 +379,12 @@ namespace VRProject.Valves
             if (!TryProjectHandDirection(
                     fixedWheelCenterWorld, currentHandPositions[index], initialHingeWorldAxis, minimumHandRadius,
                     out Vector3 currentDirection))
+            {
+                // A hand can briefly cross the wheel center or lose tracking. Discard the
+                // old baseline so tracking recovery cannot apply a large catch-up rotation.
+                hasPreviousHandDirection[index] = false;
                 return;
+            }
 
             currentProjectedHandDirections[index] = currentDirection;
 
@@ -393,8 +398,10 @@ namespace VRProject.Valves
             if (!TryCalculateSignedAngle(previousHandDirections[index], currentDirection, initialHingeWorldAxis,
                     maximumAngularStep, out float deltaAngle))
             {
-                // Keep the previous valid direction so one transient outlier cannot become
-                // the baseline for the following frame.
+                // Re-seed after an outlier. Keeping a stale direction here makes a later
+                // valid frame jump by the whole angle accumulated while tracking was invalid.
+                previousHandDirections[index] = currentDirection;
+                hasPreviousHandDirection[index] = true;
                 return;
             }
 
@@ -813,7 +820,7 @@ namespace VRProject.Valves
             maximumHands = Mathf.Clamp(maximumHands, 1, SupportedHandCapacity);
             maxGrabSurfaceDistance = float.IsFinite(maxGrabSurfaceDistance)
                 ? Mathf.Max(0f, maxGrabSurfaceDistance)
-                : 0.035f;
+                : 0.08f;
             if (hingeJoint == null)
                 hingeJoint = GetComponent<HingeJoint>();
             ApplyConfiguredJointLimits();

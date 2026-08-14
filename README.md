@@ -9,82 +9,90 @@ Unity 기반 염산(HCl) 누출 초동대응 VR 팀 프로젝트입니다.
 ## 1. 기본 협업 원칙
 
 - 각 팀원은 자신의 컴퓨터에 별도의 Unity 프로젝트 폴더를 둡니다.
-- 팀 작업은 `develop` 브랜치를 통해 공유합니다.
-- 실제 기능 개발은 개인 작업 브랜치에서만 진행합니다.
-- `main` 과 `develop` 에 직접 Push 하지 않습니다.
+- 전체 개발 통합은 `integration` 브랜치를 기준으로 합니다.
+- Stage 기능 개발은 담당 Stage의 공식 feature branch에서만 진행합니다.
+- `main`은 출시, 제출, 시연이 가능한 최종 안정본으로 유지합니다.
+- Stage 담당자는 `main`이나 `integration`에 직접 Push하지 않습니다.
+- 공용 통합 영역은 Integration 담당자만 수정합니다.
 
 기본 흐름:
 
 ```text
-최신 develop 받기 → 새 작업 브랜치 생성 → 작업 → Push → Pull Request → develop 병합
+feature Stage branch → integration → main
 ```
 
 ## 2. 브랜치 구성
 
-- `main`: 시연, 제출, 배포가 가능한 안정 버전
-- `develop`: 팀 작업이 합쳐진 최신 통합 버전
-- 개인 작업 브랜치: 기능 또는 작업 단위로 생성
+- `main`: 전체 통합 검증을 통과한 시연, 제출, 배포용 최종 안정 버전
+- `integration`: App Shared XR와 세 Stage를 합치고 검증하는 전체 개발 통합 버전
+- `feature/ppe`: PPE 담당자의 Stage 작업 버전
+- `feature/preentry`: PreEntry 담당자의 Stage 작업 버전
+- `feature/leakresponse`: LeakResponse 담당자의 Stage 작업 버전
 
-예시:
+공식 구조:
 
 ```text
-feature/ppe-room-layout
-feature/ppe-item-selection
-feature/gas-detector
-feature/admin-monitor
-fix/xr-grab-error
-refactor/ppe-material
+main
+  │
+  └── integration
+        ├── feature/ppe
+        ├── feature/preentry
+        └── feature/leakresponse
 ```
 
 원칙:
 
-- 한 브랜치에는 가능하면 하나의 목적만 담습니다.
-- 기능이 끝나면 브랜치는 삭제하고, 다음 작업은 새 브랜치로 시작합니다.
+- Stage feature branch는 항상 최신 `integration`을 기준으로 만듭니다.
+- Stage feature branch에서 `main`으로 직접 merge하거나 Pull Request하지 않습니다.
+- `integration`에는 각 Stage 작업과 공용 통합 변경을 모아 전체 회귀 검증을 수행합니다.
+- 전체 검증이 끝난 `integration`만 `main`에 반영합니다.
 
 ## 3. 최초 작업 흐름
 
 프로젝트 시작 시 역할을 나눕니다.
 
-- 팀원 A: PPE 준비실
-- 팀원 B: 염산 누출 현장
-- 팀원 C: 관리자 모니터 및 UI
+- PPE: PPE 준비실과 PPE 전용 기능
+- PreEntry: 현장 진입 전 확인 절차와 PreEntry 전용 기능
+- LeakResponse: 염산 누출 대응과 LeakResponse 전용 기능
+- Integration: App, Shared XR, 공용 입력/장비, Scene 전환과 전체 통합 검증
 
-작업 시작 예시:
+Stage 작업 시작 예시:
 
 ```bash
-git switch develop
-git pull origin develop
-git switch -c feature/ppe-room
+git switch integration
+git pull origin integration
+git switch -c feature/ppe
 ```
 
-작업 완료 후:
+위 명령은 작업 절차를 설명하는 예시입니다. 실제 브랜치를 만들기 전에는 담당 역할과 현재 변경 파일을 먼저 확인합니다.
+
+작업 파일을 Git stage할 때는 담당 범위의 경로를 명시합니다.
 
 ```bash
-git add .
+git add Assets/1.JSR/Scripts/수정한파일.cs
 git commit -m "feat: PPE 준비실 기본 구성 추가"
-git push origin feature/ppe-room
+git push origin feature/ppe
 ```
 
-GitHub에서 `feature/ppe-room -> develop` Pull Request를 생성합니다.
+`git add .`과 `git add -A`는 사용하지 않습니다.
 
-## 4. 작업이 한 번 합쳐진 이후의 흐름
+## 4. Pull Request와 통합 흐름
 
-첫 병합 이후에는 항상 최신 `develop` 을 다시 받은 뒤 새 브랜치에서 작업합니다.
+Stage 작업 PR은 다음 방향만 사용합니다.
 
-```bash
-git switch develop
-git pull origin develop
-git switch -c feature/ppe-item-selection
+```text
+base: integration  compare: feature/ppe
+base: integration  compare: feature/preentry
+base: integration  compare: feature/leakresponse
 ```
 
-작업 중 `develop` 이 바뀌었다면 먼저 현재 작업을 커밋한 뒤 최신 `develop` 을 반영합니다.
+전체 통합 검증이 끝난 경우에만 다음 방향으로 최종 반영합니다.
 
-```bash
-git add .
-git commit -m "feat: PPE 선택 기능 작업 중"
-git fetch origin
-git merge origin/develop
+```text
+base: main  compare: integration
 ```
+
+작업 중 `integration`이 변경되면 통합 직전에 최신 상태와 자신의 변경을 비교합니다. App, Shared XR, Input, Equipment, SceneFlow, 공용 Prefab 충돌은 Stage 담당자가 임의로 선택해 해결하지 않고 Integration 담당자가 최종 판단합니다.
 
 ## 5. 같은 Scene을 작업할 때
 
@@ -287,7 +295,7 @@ Scene 파일은 자동 병합 결과만 믿지 말고 Unity에서 직접 열어 
 
 ```bash
 git status
-git add .
+git add 담당범위/수정한파일
 git commit -m "feat: 작업 내용"
 git push origin 현재브랜치명
 ```
@@ -295,8 +303,9 @@ git push origin 현재브랜치명
 ## 15. 절대 하면 안 되는 행동
 
 - `main` 브랜치에서 직접 작업하기
-- `develop` 브랜치에서 직접 기능 개발하기
-- `main` 또는 `develop` 에 직접 Push하기
+- `integration` 브랜치에서 Stage 기능을 직접 개발하기
+- Stage 담당자가 `main` 또는 `integration`에 직접 Push하기
+- Stage feature branch에서 `main`으로 직접 Pull Request 또는 merge하기
 - 공유 브랜치에 Force Push 사용하기
 - 다른 사람의 브랜치를 허락 없이 수정하기
 - 같은 Unity Scene을 여러 명이 동시에 수정하기
@@ -310,14 +319,18 @@ git push origin 현재브랜치명
 - Library, Temp, Build 폴더 올리기
 - 프로젝트 전체 ZIP 파일로 덮어쓰기
 - API 키, 비밀번호, 토큰 Commit하기
-- 오류가 발생한 상태로 `develop` 에 병합하기
+- 오류가 발생한 상태로 `integration`에 병합하기
+- `git add .` 또는 `git add -A`로 관련 없는 변경까지 stage하기
 
 ## 16. 핵심 요약
 
 - 모든 팀원은 각자 별도의 로컬 프로젝트 폴더에서 작업합니다.
-- 최신 버전은 `develop` 에 보관합니다.
-- 작업 시작 전에는 항상 최신 `develop` 을 받습니다.
-- 기능 작업은 새 브랜치에서 진행합니다.
+- 최종 안정본은 `main`, 전체 개발 통합본은 `integration`에 보관합니다.
+- Stage 작업 시작 전에는 항상 최신 `integration`을 기준으로 합니다.
+- Stage 기능은 `feature/ppe`, `feature/preentry`, `feature/leakresponse`에서 진행합니다.
+- Stage PR은 `integration`으로 보내고, 전체 검증이 끝난 `integration`만 `main`에 반영합니다.
 - 같은 Scene은 한 명의 담당자만 직접 수정합니다.
 - 에셋과 `.meta` 파일은 항상 함께 관리합니다.
 - 충돌이 발생하면 임의로 덮어쓰지 않습니다.
+
+상세 파일 소유권과 공용 영역 보호 규칙은 [`docs/integration/STAGE_EDITING_BOUNDARIES.md`](docs/integration/STAGE_EDITING_BOUNDARIES.md)를 따릅니다.

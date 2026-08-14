@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 
 /// <summary>
@@ -271,7 +272,7 @@ public class PPETTSManager : MonoBehaviour
         var wait = 0f;
         while (wait < 2.5f && !UnityEngine.XR.XRSettings.isDeviceActive)
         {
-            wait += Time.unscaledDeltaTime;
+            wait += SharedTrainingPause.UnscaledDeltaTime;
             yield return null;
         }
 
@@ -282,15 +283,12 @@ public class PPETTSManager : MonoBehaviour
         if (introStartDelay > 0f)
             yield return new WaitForSeconds(introStartDelay);
 
-        // Opening briefing + interaction tutorial, then current-step prompt.
+        // 2026-08-14 authored opening: incident, preparation goal, interaction,
+        // then the current-step prompt. Keep each sentence as its own subtitle cue.
         Enqueue(
             PPETTSCue.EmergencyIntro,
             PPETTSCue.WearEssentialPPE,
-            PPETTSCue.WearInOrder,
-            PPETTSCue.PointWithRay,
-            PPETTSCue.OutlineShowsSelectable,
-            PPETTSCue.GripSelectThenEquip,
-            PPETTSCue.BButtonCancel);
+            PPETTSCue.GripSelectThenEquip);
 
         var sequence = PPESequenceManager.Resolve();
         EnqueuePromptForStep(sequence != null ? sequence.CurrentRequiredStep : null);
@@ -335,7 +333,7 @@ public class PPETTSManager : MonoBehaviour
 
     void KickPlay()
     {
-        if (playRoutine != null)
+        if (playRoutine != null || queue.Count == 0)
             return;
         playRoutine = StartCoroutine(PlayQueueRoutine());
     }
@@ -363,7 +361,7 @@ public class PPETTSManager : MonoBehaviour
             var loadWait = 0f;
             while (clip.loadState == AudioDataLoadState.Loading && loadWait < 8f)
             {
-                loadWait += Time.unscaledDeltaTime;
+                loadWait += SharedTrainingPause.UnscaledDeltaTime;
                 yield return null;
             }
 
@@ -427,7 +425,7 @@ public class PPETTSManager : MonoBehaviour
             var elapsed = 0f;
             while (elapsed < wait)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += SharedTrainingPause.UnscaledDeltaTime;
                 yield return null;
             }
 
@@ -616,7 +614,6 @@ public class PPETTSManager : MonoBehaviour
     void OnSequenceCompleted()
     {
         Enqueue(
-            PPETTSCue.CheckingPrepStatus,
             PPETTSCue.AllFieldPrepComplete,
             PPETTSCue.GoToFieldEntrance);
         KickPlay();
@@ -712,30 +709,13 @@ public class PPETTSManager : MonoBehaviour
     {
         switch (step)
         {
-            case PPESequenceStep.InnerGloves:
-                Enqueue(PPETTSCue.InnerGlovesEquipped);
-                break;
-            case PPESequenceStep.ProtectiveSuit:
-                Enqueue(PPETTSCue.ChemicalSuitEquipped);
-                break;
-            case PPESequenceStep.ChemicalBoots:
-                Enqueue(PPETTSCue.ChemicalBootsEquipped);
-                break;
             case PPESequenceStep.Respirator:
+                // Transition briefing before the ResponseBag prompt.
                 Enqueue(PPETTSCue.RespiratorEquipped);
                 break;
-            case PPESequenceStep.ResponseBag:
-                Enqueue(PPETTSCue.ResponseBagReady);
-                break;
-            case PPESequenceStep.FaceProtection:
-                Enqueue(PPETTSCue.FaceProtectionEquipped);
-                break;
             case PPESequenceStep.ProtectiveGloves:
-                Enqueue(PPETTSCue.OuterGlovesEquipped);
+                // Transition briefing before the WasteContainer prompt.
                 Enqueue(PPETTSCue.EssentialPPEComplete);
-                break;
-            case PPESequenceStep.WasteContainer:
-                Enqueue(PPETTSCue.WasteContainerReady);
                 break;
         }
 

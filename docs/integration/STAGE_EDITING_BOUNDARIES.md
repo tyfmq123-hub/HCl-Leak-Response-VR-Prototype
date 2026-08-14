@@ -13,7 +13,45 @@
 
 Integration 관리자는 전체 통합 호환성 작업을 위해 각 Stage의 실제 소유 영역을 수정할 수 있다. 이 경우에도 Stage 전용 로직은 해당 Stage 폴더에 둔다.
 
-## 2. Integration 전용 공용 영역
+## 2. 공식 Git 브랜치와 통합 흐름
+
+공식 브랜치 구조는 다음과 같다.
+
+```text
+main
+  │
+  └── integration
+        ├── feature/ppe
+        ├── feature/preentry
+        └── feature/leakresponse
+```
+
+- `main`은 출시, 제출, 시연이 가능한 최종 안정 브랜치다. 전체 검증이 끝난 `integration`만 반영한다.
+- `integration`은 App Shared XR, 공용 인프라, 세 Stage를 합치고 검증하는 전체 개발 통합 브랜치다.
+- `feature/ppe`, `feature/preentry`, `feature/leakresponse`는 각 담당 Stage의 기능과 소유 파일을 작업하는 브랜치다.
+- Stage feature branch는 항상 최신 `integration`에서 시작하며 `main`에서 직접 만들지 않는다.
+- Stage feature branch는 `main`에 직접 merge하거나 Pull Request하지 않는다.
+
+Pull Request 방향은 다음으로 고정한다.
+
+```text
+feature/ppe          ─┐
+feature/preentry      ├──→ integration ──→ main
+feature/leakresponse ─┘
+```
+
+```text
+base: integration  compare: feature/ppe
+base: integration  compare: feature/preentry
+base: integration  compare: feature/leakresponse
+
+전체 통합 검증 완료 후에만:
+base: main         compare: integration
+```
+
+Stage 작업 중 `integration`이 변경되면 통합 직전에 최신 상태와 자신의 변경을 비교한다. App, Shared XR, Input, Equipment, SceneFlow, 공용 Prefab의 충돌은 Stage 담당자가 임의로 선택해 해결하지 않으며 Integration 관리자가 최종 판단한다.
+
+## 3. Integration 전용 공용 영역
 
 다음 기반은 Integration 관리자가 소유한다.
 
@@ -33,7 +71,7 @@ Integration 관리자는 전체 통합 호환성 작업을 위해 각 Stage의 �
 
 Stage 담당자는 위 기반을 직접 수정하지 않는다. 공용 입력 종류나 공용 장비 API가 부족하면 Integration 관리자에게 계약 추가를 요청한다.
 
-## 3. Shared XR 소유 원칙
+## 4. Shared XR 소유 원칙
 
 통합 App 실행에서 플레이어 XR은 하나만 활성화한다.
 
@@ -54,7 +92,7 @@ App / Common XR Origin
 - Controller Visual 보정은 Visual 계층에만 둔다. Tracking Transform이나 Ray Origin을 시각 보정값으로 회전시키지 않는다.
 - 한 손의 활성 포인터는 선택된 방식 하나만 사용한다. Standard Ray와 Near/Far를 동시에 활성화하지 않는다.
 
-## 4. 공용 입력과 Stage 입력의 경계
+## 5. 공용 입력과 Stage 입력의 경계
 
 Integration은 물리 입력을 의미 없는 공용 신호로 제공한다.
 
@@ -81,7 +119,7 @@ SharedXRInputContract
 - 비활성 Stage handler가 같은 입력에 반응하면 안 된다.
 - 일반적인 버튼 동작 추가는 Stage 담당자가 자기 영역에서 수행할 수 있다.
 
-## 5. 공용 플레이어 가방
+## 6. 공용 플레이어 가방
 
 가방 Visual과 위치 기반은 App가 한 개만 소유한다.
 
@@ -95,7 +133,7 @@ SharedXRInputContract
 
 PPE에서 대응가방 착용이 완료되면 그 상태를 App 세션에 반영하고 PreEntry와 LeakResponse까지 같은 Visual을 유지한다. Stage 단독 테스트는 기존 Stage fallback 또는 명시적인 개발 초기화만 사용하며, 실제 통합 진행 상태를 덮어쓰지 않는다.
 
-## 6. PPE 허용 범위
+## 7. PPE 허용 범위
 
 - Scene: `Assets/Scenes/PPE_PreparationRoom.unity`
 - 로직/UI/자막: `Assets/1.JSR/Scripts/`
@@ -114,7 +152,7 @@ PPE 담당자가 관리할 수 있는 예:
 - App의 `StageLifecycleAdapter` 구독 및 Scene 전환
 - 공용 XR/Camera/Input/가방 기반
 
-## 7. PreEntry 허용 범위
+## 8. PreEntry 허용 범위
 
 - Scene: `Assets/Scenes/JH_Test_Scene.unity`
 - 로직/UI/자막: `Assets/2.YJH/Scripts/Scenario/`
@@ -135,7 +173,7 @@ PreEntry 담당자가 관리할 수 있는 예:
 - App의 완료 Adapter와 Scene 전환
 - 공용 XR/Camera/Input/가방 기반
 
-## 8. LeakResponse 허용 범위
+## 9. LeakResponse 허용 범위
 
 - Scene: `Assets/Scenes/SSH_VR_Project.unity`
 - 누출 대응 로직: `Assets/3.SSH/Scripts/LeakResponse/`, `Assets/3.SSH/Scripts/LeakResponseLogic/`
@@ -158,7 +196,25 @@ Sock/Pad 회수는 기존 `INT_AbsorbentSock_Straight_01`, `INT_AbsorbentPad_01`
 - App의 완료 Adapter와 Scene 전환
 - 공용 XR/Camera/Input/가방 기반
 
-## 9. 공통 금지 사항
+## 10. Unity Scene과 파일 소유권
+
+Unity `.unity` Scene은 충돌 해결이 어렵기 때문에 다음 소유권을 지킨다.
+
+```text
+Assets/Scenes/PPE_PreparationRoom.unity → feature/ppe
+Assets/Scenes/JH_Test_Scene.unity       → feature/preentry
+Assets/Scenes/SSH_VR_Project.unity      → feature/leakresponse
+Assets/Scenes/App/                      → integration
+```
+
+- 자기 Stage가 아닌 Scene을 임의로 수정하지 않는다.
+- 여러 사람이 같은 Scene이나 Prefab을 동시에 수정하지 않는다.
+- 한 Stage에서만 사용하는 Script, Prefab, Resource는 해당 Stage가 소유한다.
+- 여러 Stage가 함께 참조하는 Prefab, Script, ScriptableObject, 설정은 Integration/Common 소유로 취급한다.
+- Stage 기능은 공용 XR을 사용하더라도 해당 Stage 폴더에 유지한다. PPE X/Grip, PreEntry Y 측정기, LeakResponse Y Sock/Pad 동작을 App 공용 코드로 옮기지 않는다.
+- 공용 변경이 필요하면 요구사항을 Integration 관리자에게 전달하고 Integration 작업으로 처리한다.
+
+## 11. 공통 금지 사항
 
 - Stage에 새 XR Origin, XR Main Camera, EventSystem, InputActionManager 추가
 - Stage에서 `SceneManager.LoadScene`, `LoadSceneAsync`, `UnloadSceneAsync`, `SetActiveScene` 호출
@@ -167,8 +223,10 @@ Sock/Pad 회수는 기존 `INT_AbsorbentSock_Straight_01`, `INT_AbsorbentPad_01`
 - 공용 가방에 Stage 이름/아이템 선택 로직 하드코딩
 - 다른 Stage 소유 파일을 일반 Stage 작업으로 수정
 - `git add .`, `git add -A`
+- Stage feature branch에서 `main`으로 직접 Pull Request 또는 merge
+- Stage 담당자가 `main` 또는 `integration`에 직접 Push
 
-## 10. 검증 체크리스트
+## 12. 검증 체크리스트
 
 Integration 검증:
 

@@ -333,12 +333,13 @@ namespace VRProject.Valves.Tests
         [TestCase(0f, true)]
         [TestCase(0.02f, true)]
         [TestCase(0.035f, true)]
-        [TestCase(0.04f, false)]
+        [TestCase(0.08f, true)]
+        [TestCase(0.081f, false)]
         [TestCase(float.NaN, false)]
         [TestCase(float.PositiveInfinity, false)]
-        public void SurfaceDistance_UsesInclusiveThirtyFiveMillimeterLimit(float distance, bool expected)
+        public void SurfaceDistance_UsesInclusiveEightyMillimeterLimit(float distance, bool expected)
         {
-            Assert.That(ValveWheelGrabTransformer.IsSurfaceDistanceAllowed(distance, 0.035f),
+            Assert.That(ValveWheelGrabTransformer.IsSurfaceDistanceAllowed(distance, 0.08f),
                 Is.EqualTo(expected));
         }
 
@@ -491,23 +492,30 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void SampleScene_ValveStoresSurfaceLimitAndKeepsTenRimColliders()
+        public void SampleScene_ValveGrabUsesAllWheelRimCollidersAndFixedAttach()
         {
             string scene = ReadSampleScene();
             string transformerBlock = FindWheelComponentBlock(scene,
                 "VRProject.Valves.ValveWheelGrabTransformer");
-            StringAssert.Contains("maxGrabSurfaceDistance: 0.035", transformerBlock);
+            StringAssert.Contains("maxGrabSurfaceDistance: 0.08", transformerBlock);
 
             string interactableBlock = FindWheelComponentBlock(scene,
                 "UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable");
+            StringAssert.Contains("m_SelectMode: 1", interactableBlock);
+            StringAssert.Contains("m_StartingSingleGrabTransformers: []", interactableBlock);
+            StringAssert.Contains("m_StartingMultipleGrabTransformers:", interactableBlock);
+            StringAssert.Contains("- {fileID: 1084262779}", interactableBlock);
+            StringAssert.Contains("m_AttachTransform: {fileID: 2146000111}", interactableBlock);
             Match colliderList = Regex.Match(interactableBlock,
                 "(?ms)^  m_Colliders:\\r?\\n(?<items>(?:  - \\{fileID: \\d+\\}\\r?\\n)+)");
             Assert.That(colliderList.Success, Is.True);
             Assert.That(Regex.Matches(colliderList.Groups["items"].Value, "fileID:").Count,
                 Is.EqualTo(10));
-
-            for (int index = 1; index <= 10; ++index)
-                StringAssert.Contains($"m_Name: RimCollider_{index:00}", scene);
+            StringAssert.Contains("- {fileID: 1862715519}", colliderList.Groups["items"].Value);
+            StringAssert.Contains("- {fileID: 935302004}", colliderList.Groups["items"].Value);
+            StringAssert.Contains("m_Name: RimCollider_01", scene);
+            StringAssert.Contains("m_Name: RimCollider_10", scene);
+            StringAssert.Contains("m_Name: CenterShaftAttach", scene);
         }
 
         static string ReadSampleScene() => File.ReadAllText(
@@ -667,12 +675,14 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void Configurator_DeclaresIdempotentRimAndSingleUndoConfiguration()
+        public void Configurator_DeclaresIdempotentRimGrabAndSingleUndoConfiguration()
         {
             string source = ReadConfigurator();
 
-            StringAssert.Contains("const int RimColliderCount = 10", source);
-            StringAssert.Contains("index * 360f / RimColliderCount", source);
+            StringAssert.Contains("const string CenterShaftColliderName", source);
+            StringAssert.Contains("ConfigureCenterShaftCollider", source);
+            StringAssert.Contains("ConfigureRimColliders", source);
+            StringAssert.Contains("grab.colliders.Add(rimColliders[index])", source);
             StringAssert.Contains("Undo.RegisterCreatedObjectUndo", source);
             StringAssert.Contains("Undo.AddComponent", source);
             StringAssert.Contains("Undo.RecordObject", source);
@@ -684,6 +694,6 @@ namespace VRProject.Valves.Tests
         }
 
         static string ReadConfigurator() => File.ReadAllText(
-            Path.Combine(Application.dataPath, "Editor", "ValveSystem", "ValveWheelSceneConfigurator.cs"));
+            Path.Combine(Application.dataPath, "3.SSH", "Editor", "ValveSystem", "ValveWheelSceneConfigurator.cs"));
     }
 }

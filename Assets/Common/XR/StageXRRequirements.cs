@@ -18,6 +18,9 @@ namespace HClTraining.SharedXR
         [SerializeField] bool uiInteraction;
         [SerializeField] bool grabInteraction;
         [SerializeField] bool haptics;
+        [SerializeField] bool movement;
+        [SerializeField] bool turning;
+        [SerializeField] bool comfortVignette;
 
         public string ScenePath => scenePath;
         public Vector3 SpawnPosition => spawnPosition;
@@ -27,6 +30,9 @@ namespace HClTraining.SharedXR
         public bool UIInteraction => uiInteraction;
         public bool GrabInteraction => grabInteraction;
         public bool Haptics => haptics;
+        public bool Movement => movement;
+        public bool Turning => turning;
+        public bool ComfortVignette => comfortVignette;
 
         /// <summary>
         /// Near/Far already includes far casting. Activating both visual systems
@@ -44,7 +50,10 @@ namespace HClTraining.SharedXR
             bool near,
             bool ui,
             bool grab,
-            bool useHaptics)
+            bool useHaptics,
+            bool allowMovement = true,
+            bool allowTurning = true,
+            bool useComfortVignette = false)
         {
             scenePath = valueScenePath;
             spawnPosition = position;
@@ -54,6 +63,9 @@ namespace HClTraining.SharedXR
             uiInteraction = ui;
             grabInteraction = grab;
             haptics = useHaptics;
+            movement = allowMovement;
+            turning = allowTurning;
+            comfortVignette = useComfortVignette;
         }
 #endif
     }

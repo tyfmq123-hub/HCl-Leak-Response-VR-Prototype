@@ -177,6 +177,31 @@ namespace HClTraining.App
         }
     }
 
+    /// <summary>
+    /// Conservative binocular-safe viewport used by persistent XR HUDs. The full
+    /// rectangular Game View is wider than the area comfortably shared by both
+    /// Quest eyes, so important controls stay inside this inset rectangle.
+    /// </summary>
+    public static class XRUiSafeAreaLayout
+    {
+        public static readonly Vector2 AnchorMin = new Vector2(0.22f, 0.18f);
+        public static readonly Vector2 AnchorMax = new Vector2(0.78f, 0.82f);
+
+        public static RectTransform Create(Transform canvas)
+        {
+            var go = new GameObject("XR_UI_SafeArea", typeof(RectTransform));
+            var rect = go.GetComponent<RectTransform>();
+            rect.SetParent(canvas, false);
+            rect.anchorMin = AnchorMin;
+            rect.anchorMax = AnchorMax;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return rect;
+        }
+    }
+
     static class TrainingUIFactory
     {
         static TMP_FontAsset cachedFont;
@@ -358,6 +383,7 @@ namespace HClTraining.App
         GameObject root;
         GameObject menuPanel;
         GameObject confirmPanel;
+        GameObject controlsPanel;
         Action pendingConfirmedAction;
 
         public void Initialize(AppBootstrap bootstrap)
@@ -376,19 +402,37 @@ namespace HClTraining.App
             scaler.matchWidthOrHeight = 0.5f;
             root = canvas.gameObject;
 
-            TrainingUIFactory.CreateHamburgerButton(
-                canvas.transform, new Vector2(96f, 76f), new Vector2(300f, 430f), ToggleMenu);
-            menuPanel = TrainingUIFactory.CreatePanel(canvas.transform, "MenuPanel", new Vector2(720f, 600f), Vector2.zero).gameObject;
-            TrainingUIFactory.CreateText(menuPanel.transform, "훈련 메뉴", new Vector2(650f, 70f), new Vector2(0f, 230f), 44f);
-            TrainingUIFactory.CreateButton(menuPanel.transform, "계속하기", new Vector2(580f, 85f), new Vector2(0f, 125f), ToggleMenu, true, 30f);
-            TrainingUIFactory.CreateButton(menuPanel.transform, "현재 단계 다시 시작", new Vector2(580f, 85f), new Vector2(0f, 25f),
-                () => Confirm("현재 단계 진행 상태를 초기화하고 다시 시작할까요?", () => app.ScenarioFlow.RestartCurrentStage()), false, 28f);
-            TrainingUIFactory.CreateButton(menuPanel.transform, "처음 화면으로", new Vector2(580f, 85f), new Vector2(0f, -75f),
-                () => Confirm("현재 진행 상태를 종료하고 시작 화면으로 돌아갈까요?", () => app.ScenarioFlow.ReturnToStart()), false, 28f);
-            TrainingUIFactory.CreateButton(menuPanel.transform, "취소", new Vector2(580f, 85f), new Vector2(0f, -175f), ToggleMenu, false, 28f);
+            var safeArea = XRUiSafeAreaLayout.Create(canvas.transform);
+
+            var hamburger = TrainingUIFactory.CreateHamburgerButton(
+                safeArea, new Vector2(82f, 66f), Vector2.zero, ToggleMenu);
+            AnchorTopRight(hamburger.GetComponent<RectTransform>(), new Vector2(-18f, -18f));
+
+            menuPanel = TrainingUIFactory.CreatePanel(safeArea, "MenuPanel", new Vector2(560f, 570f), Vector2.zero,
+                new Color32(12, 27, 45, 238)).gameObject;
+            AnchorTopRight(menuPanel.GetComponent<RectTransform>(), new Vector2(-18f, -96f));
+            TrainingUIFactory.CreateText(menuPanel.transform, "훈련 메뉴", new Vector2(500f, 62f), new Vector2(0f, 235f), 38f);
+            TrainingUIFactory.CreateButton(menuPanel.transform, "계속하기", new Vector2(470f, 76f), new Vector2(0f, 145f), CloseMenu, true, 29f);
+            TrainingUIFactory.CreateButton(menuPanel.transform, "현재 Stage 다시 시작", new Vector2(470f, 76f), new Vector2(0f, 55f),
+                () => Confirm("현재 Stage 진행 상태를 초기화하고 다시 시작할까요?", () => app.ScenarioFlow.RestartCurrentStage()), false, 27f);
+            TrainingUIFactory.CreateButton(menuPanel.transform, "조작 방법", new Vector2(470f, 76f), new Vector2(0f, -35f), ShowControls, false, 28f);
+            TrainingUIFactory.CreateButton(menuPanel.transform, "Stage Selection으로 돌아가기", new Vector2(470f, 76f), new Vector2(0f, -125f),
+                () => Confirm("현재 진행을 종료하고 Stage Selection으로 돌아갈까요?", () => app.ScenarioFlow.ReturnToStart()), false, 25f);
             menuPanel.SetActive(false);
 
-            confirmPanel = TrainingUIFactory.CreatePanel(canvas.transform, "ConfirmPanel", new Vector2(760f, 390f), Vector2.zero,
+            controlsPanel = TrainingUIFactory.CreatePanel(safeArea, "ControlsPanel", new Vector2(680f, 570f), Vector2.zero,
+                new Color32(12, 27, 45, 248)).gameObject;
+            AnchorTopRight(controlsPanel.GetComponent<RectTransform>(), new Vector2(-18f, -96f));
+            TrainingUIFactory.CreateText(controlsPanel.transform, "조작 방법", new Vector2(610f, 62f), new Vector2(0f, 235f), 38f);
+            TrainingUIFactory.CreateText(
+                controlsPanel.transform,
+                "왼손 스틱  이동\n오른손 스틱  30° 회전\nGrip  잡기 / 선택 / 착용\nTrigger  작동\nA · B · X · Y  단계별 안내 동작",
+                new Vector2(590f, 310f), new Vector2(0f, 35f), 28f, TextAlignmentOptions.MidlineLeft,
+                TrainingUIFactory.PaleText);
+            TrainingUIFactory.CreateButton(controlsPanel.transform, "뒤로", new Vector2(470f, 76f), new Vector2(0f, -205f), HideControls, true, 28f);
+            controlsPanel.SetActive(false);
+
+            confirmPanel = TrainingUIFactory.CreatePanel(safeArea, "ConfirmPanel", new Vector2(760f, 390f), Vector2.zero,
                 new Color32(22, 42, 67, 255)).gameObject;
             var confirmText = TrainingUIFactory.CreateText(confirmPanel.transform, string.Empty, new Vector2(670f, 150f), new Vector2(0f, 75f), 29f);
             confirmText.name = "ConfirmMessage";
@@ -400,7 +444,52 @@ namespace HClTraining.App
             RefreshVisibility();
         }
 
-        void ToggleMenu() => menuPanel.SetActive(!menuPanel.activeSelf);
+        static void AnchorTopRight(RectTransform rect, Vector2 position)
+        {
+            if (rect == null)
+                return;
+            rect.anchorMin = Vector2.one;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = Vector2.one;
+            rect.anchoredPosition = position;
+        }
+
+        void ToggleMenu()
+        {
+            if (menuPanel.activeSelf || controlsPanel.activeSelf || confirmPanel.activeSelf)
+                CloseMenu();
+            else
+                OpenMenu();
+        }
+
+        void OpenMenu()
+        {
+            app.PauseController?.PauseTraining();
+            controlsPanel.SetActive(false);
+            confirmPanel.SetActive(false);
+            menuPanel.SetActive(true);
+        }
+
+        void CloseMenu()
+        {
+            pendingConfirmedAction = null;
+            menuPanel.SetActive(false);
+            controlsPanel.SetActive(false);
+            confirmPanel.SetActive(false);
+            app.PauseController?.ResumeTraining();
+        }
+
+        void ShowControls()
+        {
+            menuPanel.SetActive(false);
+            controlsPanel.SetActive(true);
+        }
+
+        void HideControls()
+        {
+            controlsPanel.SetActive(false);
+            menuPanel.SetActive(true);
+        }
 
         void Confirm(string text, Action action)
         {
@@ -415,7 +504,7 @@ namespace HClTraining.App
         void ExecuteConfirmed()
         {
             var action = pendingConfirmedAction;
-            CancelConfirm();
+            CloseMenu();
             action?.Invoke();
         }
 
@@ -423,6 +512,7 @@ namespace HClTraining.App
         {
             pendingConfirmedAction = null;
             confirmPanel.SetActive(false);
+            menuPanel.SetActive(true);
         }
 
         void RefreshVisibility()
@@ -431,13 +521,14 @@ namespace HClTraining.App
             root.SetActive(visible);
             if (!visible)
             {
-                menuPanel.SetActive(false);
-                confirmPanel.SetActive(false);
+                CloseMenu();
             }
         }
 
         void OnDestroy()
         {
+            if (app != null)
+                app.PauseController?.ResumeTraining();
             if (app != null && app.Session != null)
                 app.Session.Changed -= RefreshVisibility;
         }

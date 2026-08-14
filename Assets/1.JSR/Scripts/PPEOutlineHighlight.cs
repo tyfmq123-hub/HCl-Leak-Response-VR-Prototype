@@ -28,6 +28,13 @@ public class PPEOutlineHighlight : MonoBehaviour
     [SerializeField] Color selectedColor = new Color(0.2f, 1f, 0.25f, 1f);
     [SerializeField] [Range(0.5f, 12f)] float selectedWidth = 4.5f;
 
+    [Header("Current Required Step")]
+    [SerializeField] Color requiredCyan = new Color(0.05f, 0.95f, 1f, 1f);
+    [SerializeField] Color requiredYellow = new Color(1f, 0.88f, 0.05f, 1f);
+    [SerializeField] [Range(1f, 12f)] float requiredMinWidth = 5.5f;
+    [SerializeField] [Range(1f, 12f)] float requiredMaxWidth = 8f;
+    [SerializeField] [Min(0.1f)] float requiredPulseSpeed = 1.25f;
+
     [Header("Renderers")]
     [SerializeField] bool includeChildRenderers = true;
     [SerializeField] Material outlineMaterialSource;
@@ -39,11 +46,13 @@ public class PPEOutlineHighlight : MonoBehaviour
     Material outlineInstance;
     int rayHoverCount;
     bool isSelected;
+    bool isRequiredStep;
     bool outlineVisible;
     bool cached;
 
     public bool IsHovered => rayHoverCount > 0;
     public bool IsSelected => isSelected;
+    public bool IsRequiredStep => isRequiredStep;
 
     void Awake()
     {
@@ -87,6 +96,17 @@ public class PPEOutlineHighlight : MonoBehaviour
         rayHoverCount = 0;
         // Keep sticky isSelected flag; only hide renderer materials while disabled.
         ApplyOutlineVisual(false);
+    }
+
+    void Update()
+    {
+        if (!isRequiredStep || outlineInstance == null)
+            return;
+
+        var pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * requiredPulseSpeed * Mathf.PI * 2f);
+        SetOutlineAppearance(
+            Color.Lerp(requiredCyan, requiredYellow, pulse),
+            Mathf.Lerp(requiredMinWidth, requiredMaxWidth, pulse));
     }
 
     void OnDestroy()
@@ -159,8 +179,30 @@ public class PPEOutlineHighlight : MonoBehaviour
         RefreshOutlineState();
     }
 
+    /// <summary>Strong sequence guidance owned separately from hover/selection state.</summary>
+    public void SetRequiredStepHighlighted(bool highlighted)
+    {
+        if (isRequiredStep == highlighted)
+        {
+            RefreshOutlineState();
+            return;
+        }
+
+        isRequiredStep = highlighted;
+        RefreshOutlineState();
+    }
+
     void RefreshOutlineState()
     {
+        // The required target must remain unmistakable even when another object was
+        // hovered or selected out of order. Hover -> select -> equip behavior is unchanged.
+        if (isRequiredStep)
+        {
+            SetOutlineAppearance(requiredCyan, requiredMaxWidth);
+            ApplyOutlineVisual(true);
+            return;
+        }
+
         // Selected has priority over hover.
         if (isSelected && enableSelectedOutline)
         {

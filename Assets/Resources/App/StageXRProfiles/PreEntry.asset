@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
   stage: 2
   sourceScenePath: Assets/Scenes/JH_Test_Scene.unity
-  spawnPosition: {x: 0, y: 0.84, z: -18.76}
+  spawnPosition: {x: 0.407, y: 0, z: -16.27}
   spawnEulerAngles: {x: -0, y: 0, z: 0}
   componentStates:
   - relativePath: 
@@ -40,7 +40,7 @@ MonoBehaviour:
   - relativePath: 
     typeName: UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation.TeleportationProvider,
       Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Left Controller
     typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
       Culture=neutral, PublicKeyToken=null
@@ -109,10 +109,6 @@ MonoBehaviour:
     typeName: UnityEngine.XR.Hands.XRHandMeshController, Unity.XR.Hands, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
     enabled: 0
-  - relativePath: EntrySafetyEquipmentTransferZone
-    typeName: JH.EntrySafety.EntrySafetyEquipmentTransferZone, JH.EntrySafety.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
   - relativePath: Right Controller
     typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
       Culture=neutral, PublicKeyToken=null

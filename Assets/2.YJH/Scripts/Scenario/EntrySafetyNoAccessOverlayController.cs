@@ -1,4 +1,5 @@
 using System.Collections;
+using HClTraining.SharedXR;
 using UnityEngine;
 
 namespace JH.EntrySafety
@@ -15,8 +16,13 @@ namespace JH.EntrySafety
         [SerializeField, Min(0.05f)] private float _fadeOutSeconds = 0.4f;
         [SerializeField] private Renderer _renderer;
         [SerializeField] private Collider _collider;
+        [Header("LeakResponse Return Boundary")]
+        [SerializeField, Min(1f)] private float _returnBoundaryWorldWidth = 16f;
+        [SerializeField, Min(1f)] private float _returnBoundaryWorldHeight = 5f;
+        [SerializeField, Min(0.05f)] private float _returnBoundaryWorldDepth = 0.35f;
 
         private Material _materialInstance;
+        private BoxCollider _returnBoundaryCollider;
         private Color _opaqueColor;
         private bool _hasOpaqueColor;
         private bool _isCleared;
@@ -24,6 +30,9 @@ namespace JH.EntrySafety
 
         public bool IsCleared => _isCleared;
         public bool IsFading => _isFading;
+        public Collider PhysicalBoundaryCollider => _returnBoundaryCollider != null
+            ? _returnBoundaryCollider
+            : _collider;
 
         private void Awake()
         {
@@ -54,6 +63,8 @@ namespace JH.EntrySafety
                 _renderer.enabled = true;
             if (_collider != null)
                 _collider.enabled = true;
+            if (_returnBoundaryCollider != null)
+                _returnBoundaryCollider.enabled = true;
             if (_hasOpaqueColor)
                 ApplyColor(_opaqueColor);
         }
@@ -77,7 +88,7 @@ namespace JH.EntrySafety
             var duration = Mathf.Max(0.05f, _fadeOutSeconds);
             while (elapsed < duration)
             {
-                var delta = Application.isPlaying ? Time.unscaledDeltaTime : duration;
+                var delta = Application.isPlaying ? SharedTrainingPause.UnscaledDeltaTime : duration;
                 elapsed += Mathf.Max(delta, 0.0001f);
                 var t = Mathf.Clamp01(elapsed / duration);
                 var color = start;
@@ -105,6 +116,8 @@ namespace JH.EntrySafety
                 _renderer.enabled = false;
             if (_collider != null)
                 _collider.enabled = false;
+            if (_returnBoundaryCollider != null)
+                _returnBoundaryCollider.enabled = false;
         }
 
         private void EnsureReferences()
@@ -114,6 +127,8 @@ namespace JH.EntrySafety
             if (_collider == null)
                 _collider = GetComponent<Collider>();
 
+            EnsureReturnBoundaryCollider();
+
             if (_renderer == null || _materialInstance != null)
                 return;
 
@@ -122,6 +137,22 @@ namespace JH.EntrySafety
                 ? new Material(source)
                 : new Material(Shader.Find("Sprites/Default"));
             _renderer.sharedMaterial = _materialInstance;
+        }
+
+        private void EnsureReturnBoundaryCollider()
+        {
+            if (_returnBoundaryCollider == null)
+                _returnBoundaryCollider = GetComponent<BoxCollider>();
+            if (_returnBoundaryCollider == null)
+                _returnBoundaryCollider = gameObject.AddComponent<BoxCollider>();
+
+            var scale = transform.lossyScale;
+            _returnBoundaryCollider.center = Vector3.zero;
+            _returnBoundaryCollider.size = new Vector3(
+                _returnBoundaryWorldWidth / Mathf.Max(Mathf.Abs(scale.x), 0.001f),
+                _returnBoundaryWorldHeight / Mathf.Max(Mathf.Abs(scale.y), 0.001f),
+                _returnBoundaryWorldDepth / Mathf.Max(Mathf.Abs(scale.z), 0.001f));
+            _returnBoundaryCollider.isTrigger = false;
         }
 
         private void CaptureOpaqueColor()

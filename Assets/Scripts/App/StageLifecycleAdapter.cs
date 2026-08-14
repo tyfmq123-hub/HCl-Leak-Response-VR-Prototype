@@ -27,6 +27,7 @@ namespace HClTraining.App
 
         readonly List<XRBaseInteractable> narrationBlockedInteractables = new List<XRBaseInteractable>();
         bool stageActionsBlocked;
+        bool menuPaused;
         bool leakArrivalCompleted;
         Coroutine ppeCompletionRoutine;
         InputAction ppeContinueAction;
@@ -104,19 +105,18 @@ namespace HClTraining.App
             if (!boundScene.IsValid() || !boundScene.isLoaded)
                 return;
 
-            var shouldBlock = false;
+            var shouldBlock = menuPaused;
             switch (boundStage)
             {
                 case TrainingStage.PPE:
-                    shouldBlock = PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy;
+                    shouldBlock |= PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy;
                     break;
                 case TrainingStage.PreEntry:
                     // Direct and simulated inputs are gated by EntrySafetyScenarioController.
-                    shouldBlock = false;
                     break;
                 case TrainingStage.LeakResponse:
-                    shouldBlock = !leakArrivalCompleted ||
-                                  (leakNarration != null && (leakNarration.IsPlaying || leakNarration.PendingCount > 0));
+                    shouldBlock |= !leakArrivalCompleted ||
+                                   (leakNarration != null && (leakNarration.IsPlaying || leakNarration.PendingCount > 0));
                     break;
             }
 
@@ -162,6 +162,17 @@ namespace HClTraining.App
             boundScene = default;
             boundStage = TrainingStage.None;
             leakArrivalCompleted = false;
+        }
+
+        /// <summary>
+        /// App menu pause blocks only Stage interactables. Common XR tracking and App UI
+        /// interactors remain active so the player can look around and operate the menu.
+        /// </summary>
+        public void SetMenuPaused(bool paused)
+        {
+            menuPaused = paused;
+            if (paused)
+                SetStageActionsBlocked(true);
         }
 
         void OnPpeCompleted()
@@ -231,6 +242,11 @@ namespace HClTraining.App
 
         void OnEntryCompleted()
         {
+            // SectionCompleted is raised synchronously from the Stage's final A action.
+            // Silence and clear the PreEntry guidance before any fade or Scene unload so
+            // its narration cannot bleed into the completion/next-Stage presentation.
+            entryController?.StopNarration();
+
             if (session.SelectedMode == TrainingMode.Full)
             {
                 if (!scenarioFlow.CompletePreEntryAndHandoff())
@@ -263,6 +279,8 @@ namespace HClTraining.App
         {
             if (boundStage == TrainingStage.PPE)
                 PPETTSManager.Instance?.StopAll();
+            else if (boundStage == TrainingStage.PreEntry)
+                entryController?.StopNarration();
         }
 
         void SetStageActionsBlocked(bool blocked)

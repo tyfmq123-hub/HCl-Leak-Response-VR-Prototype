@@ -1,11 +1,94 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 
 namespace HClTraining.App
 {
+    [DisallowMultipleComponent]
+    public sealed class TrainingPauseController : MonoBehaviour
+    {
+        readonly Dictionary<LocomotionProvider, bool> locomotionStates =
+            new Dictionary<LocomotionProvider, bool>();
+
+        StageLifecycleAdapter lifecycle;
+        SharedXRInputContract sharedInput;
+        Transform commonXrRoot;
+        float previousTimeScale = 1f;
+        bool previousAudioPause;
+
+        public static bool IsTrainingPaused => SharedTrainingPause.IsPaused;
+        public static event Action<bool> PauseChanged
+        {
+            add => SharedTrainingPause.Changed += value;
+            remove => SharedTrainingPause.Changed -= value;
+        }
+        public bool IsPaused => SharedTrainingPause.IsPaused;
+
+        public void Initialize(
+            StageLifecycleAdapter lifecycleAdapter,
+            SharedXRInputContract input,
+            Transform xrRoot)
+        {
+            lifecycle = lifecycleAdapter;
+            sharedInput = input;
+            commonXrRoot = xrRoot;
+        }
+
+        public void PauseTraining()
+        {
+            if (IsTrainingPaused)
+                return;
+
+            SharedTrainingPause.SetPaused(true);
+            previousTimeScale = Time.timeScale;
+            previousAudioPause = AudioListener.pause;
+            Time.timeScale = 0f;
+            AudioListener.pause = true;
+            sharedInput?.SetGameplayInputSuppressed(true);
+            lifecycle?.SetMenuPaused(true);
+
+            locomotionStates.Clear();
+            if (commonXrRoot != null)
+            {
+                var providers = commonXrRoot.GetComponentsInChildren<LocomotionProvider>(true);
+                for (var i = 0; i < providers.Length; i++)
+                {
+                    var provider = providers[i];
+                    if (provider == null)
+                        continue;
+                    locomotionStates[provider] = provider.enabled;
+                    provider.enabled = false;
+                }
+            }
+        }
+
+        public void ResumeTraining()
+        {
+            if (!IsTrainingPaused)
+                return;
+
+            foreach (var pair in locomotionStates)
+                if (pair.Key != null) pair.Key.enabled = pair.Value;
+            locomotionStates.Clear();
+
+            lifecycle?.SetMenuPaused(false);
+            sharedInput?.SetGameplayInputSuppressed(false);
+            AudioListener.pause = previousAudioPause;
+            Time.timeScale = previousTimeScale;
+            SharedTrainingPause.SetPaused(false);
+        }
+
+        void OnDestroy()
+        {
+            ResumeTraining();
+        }
+
+    }
+
     [DisallowMultipleComponent]
     public sealed class TransitionInputLock : MonoBehaviour
     {

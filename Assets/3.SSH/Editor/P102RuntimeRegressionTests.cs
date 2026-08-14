@@ -305,6 +305,167 @@ namespace VRProject.LeakResponse.EditorTests
             }
         }
 
+        [Test]
+        public void RecoveryTongs_UsesRotatedModelLocalHandle_AndCanBeEnabledImmediately()
+        {
+            GameObject tongs = new GameObject("INT_RecoveryTongs_01");
+            GameObject tongsMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tongsMesh.name = "Tongs Mesh";
+            tongsMesh.transform.SetParent(tongs.transform, false);
+            tongsMesh.transform.localScale = new Vector3(0.10f, 0.72f, 0.08f);
+            GameObject ghost = new GameObject("INT_RecoveryTongs_01_ObjectGhost");
+            ghost.transform.SetPositionAndRotation(
+                new Vector3(1f, 0.8f, 2f), Quaternion.Euler(0f, 0f, -90f));
+            GameObject runtimeObject = new GameObject("P102 Recovery Tongs Runtime Test");
+            P102RecoveryTongsRuntime runtime =
+                runtimeObject.AddComponent<P102RecoveryTongsRuntime>();
+
+            try
+            {
+                Assert.That(runtime.Configure(tongs, ghost.transform, null, null, null), Is.True);
+                XRGrabInteractable grab = tongs.GetComponent<XRGrabInteractable>();
+                Assert.That(runtime.HandleGrabCollider, Is.Not.Null);
+                Assert.That(runtime.HandleGrabCollider.enabled, Is.True);
+                Assert.That(grab.colliders.Count, Is.EqualTo(1));
+                Assert.That(grab.colliders[0], Is.SameAs(runtime.HandleGrabCollider));
+                Assert.That(grab.useDynamicAttach, Is.True);
+                Assert.That(grab.matchAttachRotation, Is.False);
+                Assert.That(grab.snapToColliderVolume, Is.True);
+                Assert.That(grab.addDefaultGrabTransformers, Is.False);
+                Assert.That(grab.trackScale, Is.False);
+                Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
+                Assert.That(grab.GetSingleGrabTransformerAt(0),
+                    Is.TypeOf<UnityEngine.XR.Interaction.Toolkit.Transformers.
+                        XRSingleGrabFreeTransformer>());
+
+                Transform handle = runtime.HandleGrabCollider.transform;
+                Assert.That(handle.localPosition.y, Is.LessThan(-0.1f),
+                    "The rotated model must still resolve its handle from the local long axis.");
+                Assert.That(runtime.IsGrabEnabled, Is.False);
+                Invoke(runtime, "EnableRecoveryInteraction");
+                Assert.That(runtime.IsGrabEnabled, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(runtimeObject);
+                UnityEngine.Object.DestroyImmediate(ghost);
+                UnityEngine.Object.DestroyImmediate(tongs);
+            }
+        }
+
+        [Test]
+        public void RecoveryTongs_PrefersAuthoredRightHandPoseAttach()
+        {
+            GameObject tongs = new GameObject("INT_RecoveryTongs_01");
+            GameObject tongsMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tongsMesh.name = "Tongs Mesh";
+            tongsMesh.transform.SetParent(tongs.transform, false);
+            tongsMesh.transform.localScale = new Vector3(0.10f, 0.72f, 0.08f);
+            GameObject attachObject = new GameObject(P102RuntimeUtility.RightHandPoseAttachName);
+            attachObject.transform.SetParent(tongs.transform, false);
+            attachObject.transform.SetLocalPositionAndRotation(
+                new Vector3(0.04f, -0.2f, 0.03f), Quaternion.Euler(15f, 30f, 45f));
+            GameObject poseGhostsRoot = new GameObject(
+                P102RuntimeUtility.HandPoseGhostsRootName);
+            poseGhostsRoot.transform.SetParent(tongs.transform, false);
+            GameObject poseGhostVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            poseGhostVisual.name = "Right Hand Pose Ghost Visual";
+            poseGhostVisual.transform.SetParent(poseGhostsRoot.transform, false);
+            poseGhostVisual.transform.localPosition = new Vector3(50f, 50f, 50f);
+            poseGhostVisual.transform.localScale = Vector3.one * 8f;
+            GameObject ghost = new GameObject("INT_RecoveryTongs_01_ObjectGhost");
+            GameObject runtimeObject = new GameObject("P102 Recovery Tongs Authored Attach Test");
+            P102RecoveryTongsRuntime runtime =
+                runtimeObject.AddComponent<P102RecoveryTongsRuntime>();
+
+            try
+            {
+                Assert.That(runtime.Configure(tongs, ghost.transform, null, null, null), Is.True);
+                XRGrabInteractable grab = tongs.GetComponent<XRGrabInteractable>();
+                Assert.That(grab.attachTransform, Is.SameAs(attachObject.transform));
+                Assert.That(grab.useDynamicAttach, Is.False);
+                Assert.That(grab.matchAttachPosition, Is.True);
+                Assert.That(grab.matchAttachRotation, Is.True);
+                Assert.That(grab.snapToColliderVolume, Is.False);
+                Assert.That(grab.addDefaultGrabTransformers, Is.False);
+                Assert.That(grab.trackScale, Is.False);
+                Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
+                Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.False);
+                Assert.That(runtime.HandleGrabCollider.transform.localPosition.y,
+                    Is.LessThan(-0.1f),
+                    "Pose ghost renderers must not distort the physical tongs bounds.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(runtimeObject);
+                UnityEngine.Object.DestroyImmediate(ghost);
+                UnityEngine.Object.DestroyImmediate(tongs);
+            }
+        }
+
+        [Test]
+        public void WasteContainerLid_PrefersAuthoredRightHandPoseAttach()
+        {
+            GameObject container = new GameObject("INT_WasteContainer_01");
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            body.name = "HazWasteContainer_Body";
+            body.transform.SetParent(container.transform, false);
+            GameObject lid = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            lid.name = "HazWasteContainer_Lid";
+            lid.transform.SetParent(container.transform, false);
+            lid.transform.localPosition = new Vector3(0f, 0.75f, 0f);
+            GameObject attachObject = new GameObject(P102RuntimeUtility.RightHandPoseAttachName);
+            attachObject.transform.SetParent(lid.transform, false);
+            attachObject.transform.SetLocalPositionAndRotation(
+                new Vector3(0.1f, 0.2f, -0.05f), Quaternion.Euler(20f, 40f, 60f));
+            GameObject poseGhostsRoot = new GameObject(
+                P102RuntimeUtility.HandPoseGhostsRootName);
+            poseGhostsRoot.transform.SetParent(lid.transform, false);
+            GameObject poseGhostVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            poseGhostVisual.name = "Right Hand Pose Ghost Visual";
+            poseGhostVisual.transform.SetParent(poseGhostsRoot.transform, false);
+            poseGhostVisual.transform.localPosition = new Vector3(50f, 50f, 50f);
+            poseGhostVisual.transform.localScale = Vector3.one * 8f;
+            GameObject sideGhost = new GameObject("HazWasteContainer_Lid_ObjectGhost");
+            GameObject absorptionObject = new GameObject("Absorption Controller");
+            var absorption = absorptionObject.AddComponent<
+                VRProject.LeakResponse.HClAbsorptionVisualController>();
+            GameObject runtimeObject = new GameObject("P102 Waste Lid Authored Attach Test");
+            P102WasteContainerRuntime runtime =
+                runtimeObject.AddComponent<P102WasteContainerRuntime>();
+
+            try
+            {
+                Assert.That(runtime.Configure(container, null, absorption), Is.True);
+                XRGrabInteractable grab = lid.GetComponent<XRGrabInteractable>();
+                Assert.That(grab.attachTransform, Is.SameAs(attachObject.transform));
+                Assert.That(grab.useDynamicAttach, Is.False);
+                Assert.That(grab.matchAttachPosition, Is.True);
+                Assert.That(grab.matchAttachRotation, Is.True);
+                Assert.That(grab.snapToColliderVolume, Is.False);
+                Assert.That(grab.addDefaultGrabTransformers, Is.False);
+                Assert.That(grab.trackScale, Is.False);
+                Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
+                Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.False);
+                Assert.That(Vector3.Distance(
+                        runtime.LidHandleCollider.bounds.center,
+                        lid.GetComponent<Renderer>().bounds.center),
+                    Is.LessThan(1f),
+                    "Pose ghost renderers must not distort the lid handle bounds.");
+            }
+            finally
+            {
+                GameObject closedGhost = FindRuntimeObject(
+                    "HazWasteContainer_Lid_ClosedGhost_Runtime");
+                if (closedGhost != null)
+                    UnityEngine.Object.DestroyImmediate(closedGhost);
+                UnityEngine.Object.DestroyImmediate(runtimeObject);
+                UnityEngine.Object.DestroyImmediate(absorptionObject);
+                UnityEngine.Object.DestroyImmediate(sideGhost);
+                UnityEngine.Object.DestroyImmediate(container);
+            }
+        }
+
         static void CreateFlangeRig(out GameObject cameraObject, out GameObject flangeRoot,
             out Transform leakPoint, out BoxCollider flangeCollider, out P102FlangeGazeRuntime gaze)
         {

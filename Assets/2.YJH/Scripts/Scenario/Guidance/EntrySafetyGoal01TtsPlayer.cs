@@ -1,4 +1,5 @@
 using System;
+using HClTraining.SharedXR;
 using UnityEngine;
 
 namespace JH.EntrySafety
@@ -21,7 +22,7 @@ namespace JH.EntrySafety
 
         public bool IsPlaying =>
             (_audioSource != null && _audioSource.isPlaying) ||
-            Time.unscaledTime < _playingUntilUnscaledTime;
+            SharedTrainingPause.UnscaledTime < _playingUntilUnscaledTime;
 
         public float GetClipLength(EntrySafetyStep step)
         {
@@ -50,7 +51,7 @@ namespace JH.EntrySafety
             _audioSource.clip = clip;
             _audioSource.Play();
             _playingStep = step;
-            _playingUntilUnscaledTime = Time.unscaledTime + clip.length;
+            _playingUntilUnscaledTime = SharedTrainingPause.UnscaledTime + clip.length;
             return clip.length;
         }
 

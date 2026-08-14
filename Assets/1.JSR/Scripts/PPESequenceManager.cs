@@ -93,6 +93,7 @@ public class PPESequenceManager : MonoBehaviour
     void Start()
     {
         WarnIfCurrentStepMissingInScene();
+        RefreshRequiredStepHighlights();
     }
 
     void WarnIfCurrentStepMissingInScene()
@@ -231,6 +232,7 @@ public class PPESequenceManager : MonoBehaviour
         if (currentIndex >= order.Count)
         {
             sequenceComplete = true;
+            RefreshRequiredStepHighlights();
             OnRequiredStepChanged?.Invoke(null);
             // Finalize before completed listeners so they see Source=PpeSceneResult.
             PPELoadoutPresets.CommitPpeSceneResult();
@@ -239,6 +241,7 @@ public class PPESequenceManager : MonoBehaviour
             return true;
         }
 
+        RefreshRequiredStepHighlights();
         OnRequiredStepChanged?.Invoke(order[currentIndex]);
         PPELoadoutData.SyncFromScene();
         Debug.Log($"[PPE Sequence] Step complete: {type}. Next: {order[currentIndex]}", this);
@@ -303,6 +306,7 @@ public class PPESequenceManager : MonoBehaviour
         sequenceComplete = false;
         completedSteps.Clear();
         EnsureDefaultOrder();
+        RefreshRequiredStepHighlights();
         OnRequiredStepChanged?.Invoke(CurrentRequiredStep);
         PPELoadoutData.SyncFromScene();
         Debug.Log("[PPE Sequence] Sequence reset.", this);
@@ -331,6 +335,62 @@ public class PPESequenceManager : MonoBehaviour
             default:
                 return string.Empty;
         }
+    }
+
+    void RefreshRequiredStepHighlights()
+    {
+        var highlights = FindObjectsByType<PPEOutlineHighlight>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.InstanceID);
+        var required = CurrentRequiredStep;
+        var claimedCurrentTarget = false;
+
+        for (var i = 0; i < highlights.Length; i++)
+        {
+            var highlight = highlights[i];
+            if (highlight == null)
+                continue;
+
+            var matches = required.HasValue &&
+                          TryResolveHighlightStep(highlight, out var step) &&
+                          step == required.Value;
+            var isUsableCurrentTarget = matches && !claimedCurrentTarget &&
+                                        highlight.gameObject.activeInHierarchy &&
+                                        highlight.enabled;
+            highlight.SetRequiredStepHighlighted(isUsableCurrentTarget);
+            claimedCurrentTarget |= isUsableCurrentTarget;
+        }
+    }
+
+    static bool TryResolveHighlightStep(PPEOutlineHighlight highlight, out PPESequenceStep step)
+    {
+        step = default;
+        if (highlight == null)
+            return false;
+
+        var equipable = highlight.GetComponent<PPEEquipable>();
+        if (equipable == null)
+            equipable = highlight.GetComponentInParent<PPEEquipable>(true);
+        if (equipable == null)
+            equipable = highlight.GetComponentInChildren<PPEEquipable>(true);
+        if (equipable != null)
+            return TryGetStep(equipable.ItemId, out step);
+
+        if (highlight.GetComponent<WasteContainerPrepareInteractable>() != null ||
+            highlight.GetComponentInParent<WasteContainerPrepareInteractable>(true) != null)
+        {
+            step = PPESequenceStep.WasteContainer;
+            return true;
+        }
+
+        if (highlight.GetComponent<ResponseBagPrepareInteractable>() != null ||
+            highlight.GetComponentInParent<ResponseBagPrepareInteractable>(true) != null)
+        {
+            step = PPESequenceStep.ResponseBag;
+            return true;
+        }
+
+        return false;
     }
 
     public static bool TryGetStep(string itemId, out PPESequenceStep step)

@@ -102,6 +102,7 @@ namespace HClTraining.SharedXR
             }
 
             EnsureAccessObjects();
+            StabilizeBagPhysics();
         }
 
         void LateUpdate()
@@ -170,6 +171,24 @@ namespace HClTraining.SharedXR
             accessRoot.localPosition = bagRoot.localPosition;
             accessRoot.localRotation = bagRoot.localRotation;
             accessRoot.localScale = Vector3.one;
+        }
+
+        void StabilizeBagPhysics()
+        {
+            if (bagRoot == null)
+                return;
+
+            var bodies = bagRoot.GetComponentsInChildren<Rigidbody>(true);
+            for (var i = 0; i < bodies.Length; i++)
+            {
+                var body = bodies[i];
+                if (body == null)
+                    continue;
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.useGravity = false;
+                body.isKinematic = true;
+            }
         }
 
         static Transform FindDescendant(Transform root, string exactName)

@@ -957,7 +957,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 220280046}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01f69dc1cb084aa42b2f2f8cd87bc770, type: 3}
   m_Name: 
@@ -2861,7 +2861,7 @@ MonoBehaviour:
   _arrivalContextSeconds: 3
   _initialPressureMpa: 4.12
   _reducedPressureMpa: 1.2
-  _pressureDecreaseSeconds: 5
+  _pressureDecreaseSeconds: 9
   _stopZoneAnchor: {fileID: 1948871330}
   _stopZoneRadiusMeters: 0.18
   _useAnchorScaleAsRadius: 1

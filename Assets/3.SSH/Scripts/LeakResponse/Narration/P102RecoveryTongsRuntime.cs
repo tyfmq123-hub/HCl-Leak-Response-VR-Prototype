@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace VRProject.LeakResponse.Narration
 {
@@ -16,7 +17,9 @@ namespace VRProject.LeakResponse.Narration
         Transform tongsGhost;
         Transform handleTransform;
         Transform tipTransform;
+        Transform authoredHandPoseAttach;
         XRGrabInteractable grabInteractable;
+        BoxCollider handleGrabCollider;
         Rigidbody tongsRigidbody;
         P102RecoveryRuntime recovery;
         P102WasteContainerRuntime waste;
@@ -33,10 +36,14 @@ namespace VRProject.LeakResponse.Narration
         bool returned;
         bool pickupGuidanceStarted;
         bool sockGuidanceCompleted;
+        bool handPoseWristCorrected;
+        Coroutine grabConfirmationRoutine;
         float lastProgressTime;
 
         public bool IsConfigured => tongsRoot != null && grabInteractable != null && tipTransform != null;
         public P102RecoveryItemState HeldItem => heldItem;
+        public Collider HandleGrabCollider => handleGrabCollider;
+        public bool IsGrabEnabled => grabInteractable != null && grabInteractable.enabled;
 
         public bool Configure(GameObject newTongsRoot, Transform newTongsGhost,
             P102RecoveryRuntime recoveryRuntime, P102WasteContainerRuntime wasteRuntime,
@@ -53,6 +60,7 @@ namespace VRProject.LeakResponse.Narration
             returned = false;
             pickupGuidanceStarted = false;
             sockGuidanceCompleted = false;
+            handPoseWristCorrected = false;
 
             if (tongsRoot == null)
             {
@@ -68,6 +76,8 @@ namespace VRProject.LeakResponse.Narration
                 return false;
             }
 
+            tongsRoot.SetActive(true);
+            P102RuntimeUtility.HideHandPoseGhostRenderers(tongsRoot);
             tongsRoot.transform.SetPositionAndRotation(tongsGhost.position, tongsGhost.rotation);
             tongsGhost.gameObject.SetActive(false);
 
@@ -84,7 +94,7 @@ namespace VRProject.LeakResponse.Narration
             BoxCollider legacyFullBoundsCollider = tongsRoot.GetComponent<BoxCollider>();
             if (legacyFullBoundsCollider != null)
                 legacyFullBoundsCollider.enabled = false;
-            BoxCollider handleGrabCollider = EnsureHandleGrabCollider(tongsRoot, handleTransform);
+            handleGrabCollider = EnsureHandleGrabCollider(tongsRoot, handleTransform);
             EnsureJawPhysicalCollider(tongsRoot, tipTransform);
             grabInteractable = P102RuntimeUtility.GetOrAdd<XRGrabInteractable>(tongsRoot);
             grabInteractable.enabled = false;
@@ -92,22 +102,36 @@ namespace VRProject.LeakResponse.Narration
             if (handleGrabCollider != null)
                 grabInteractable.colliders.Add(handleGrabCollider);
 
-            Transform attachTransform = handleTransform.Find("P102_TongsBlackHandleAttach_Runtime");
+            authoredHandPoseAttach = P102RuntimeUtility.FindDescendantTransform(
+                tongsRoot, P102RuntimeUtility.RightHandPoseAttachName);
+            Transform attachTransform = authoredHandPoseAttach;
             if (attachTransform == null)
             {
-                var attachObject = new GameObject("P102_TongsBlackHandleAttach_Runtime");
-                attachTransform = attachObject.transform;
-                attachTransform.SetParent(handleTransform, false);
+                attachTransform = handleTransform.Find("P102_TongsBlackHandleAttach_Runtime");
+                if (attachTransform == null)
+                {
+                    var attachObject = new GameObject("P102_TongsBlackHandleAttach_Runtime");
+                    attachTransform = attachObject.transform;
+                    attachTransform.SetParent(handleTransform, false);
+                }
+                attachTransform.localPosition = handleGrabCollider != null
+                    ? handleGrabCollider.center
+                    : Vector3.zero;
+                attachTransform.localRotation = Quaternion.identity;
             }
-            attachTransform.localPosition = handleGrabCollider != null
-                ? handleGrabCollider.center
-                : Vector3.zero;
-            attachTransform.localRotation = Quaternion.identity;
+
+            bool hasAuthoredHandPose = authoredHandPoseAttach != null;
+            handPoseWristCorrected = hasAuthoredHandPose &&
+                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
+                    grabInteractable, authoredHandPoseAttach);
             grabInteractable.attachTransform = attachTransform;
-            grabInteractable.useDynamicAttach = true;
+            grabInteractable.useDynamicAttach = !hasAuthoredHandPose;
             grabInteractable.matchAttachPosition = true;
-            grabInteractable.matchAttachRotation = false;
-            grabInteractable.snapToColliderVolume = true;
+            grabInteractable.matchAttachRotation = hasAuthoredHandPose;
+            grabInteractable.snapToColliderVolume = !hasAuthoredHandPose;
+            grabInteractable.throwOnDetach = false;
+            grabInteractable.selectMode = InteractableSelectMode.Single;
+            P102RuntimeUtility.ConfigureExactPoseGrabTracking(grabInteractable);
             grabInteractable.selectEntered.AddListener(OnTongsSelected);
             grabInteractable.selectExited.AddListener(OnTongsReleased);
             grabInteractable.activated.AddListener(OnActivated);
@@ -115,7 +139,12 @@ namespace VRProject.LeakResponse.Narration
             if (narration != null)
                 narration.CueCompleted += OnCueCompleted;
             if (waste != null)
+            {
                 waste.ItemDeposited += OnItemDeposited;
+                waste.LidStowed += EnableRecoveryInteraction;
+                if (waste.IsLidStowed)
+                    EnableRecoveryInteraction();
+            }
             return true;
         }
 
@@ -144,22 +173,26 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
+                grabInteractable, authoredHandPoseAttach, args);
+
             if (tongsRigidbody != null)
             {
                 tongsRigidbody.useGravity = false;
                 tongsRigidbody.isKinematic = true;
             }
 
-            if (recoveryActionEnabled)
+            if (recoveryActionEnabled && !pickupGuidanceStarted)
             {
-                pickupGuidanceStarted = true;
-                lastProgressTime = Time.unscaledTime;
-                narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
+                StopGrabConfirmation();
+                grabConfirmationRoutine = StartCoroutine(
+                    ConfirmTongsAttached(args.interactorObject));
             }
         }
 
         void OnTongsReleased(SelectExitEventArgs args)
         {
+            StopGrabConfirmation();
             if (args.isCanceled || returned || tongsRoot == null)
                 return;
 
@@ -171,6 +204,39 @@ namespace VRProject.LeakResponse.Narration
             }
 
             StartCoroutine(EnableReleasedTongsPhysics());
+        }
+
+        IEnumerator ConfirmTongsAttached(IXRSelectInteractor interactor)
+        {
+            const int maxFrames = 6;
+            for (int frame = 0; frame < maxFrames; ++frame)
+            {
+                yield return null;
+                if (grabInteractable == null || !grabInteractable.isSelected ||
+                    interactor == null || !grabInteractable.interactorsSelecting.Contains(interactor))
+                {
+                    grabConfirmationRoutine = null;
+                    yield break;
+                }
+
+                P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
+                    grabInteractable, authoredHandPoseAttach, interactor);
+                if (authoredHandPoseAttach == null ||
+                    P102RuntimeUtility.IsAuthoredAttachAligned(
+                        grabInteractable, authoredHandPoseAttach, interactor))
+                {
+                    pickupGuidanceStarted = true;
+                    lastProgressTime = Time.unscaledTime;
+                    narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
+                    grabConfirmationRoutine = null;
+                    yield break;
+                }
+            }
+
+            Debug.LogWarning(
+                "[P102 Flow] Tongs Select was detected, but the authored hand attach did not " +
+                "reach the controller. Pickup narration remains blocked until a valid Grab.", this);
+            grabConfirmationRoutine = null;
         }
 
         IEnumerator EnableReleasedTongsPhysics()
@@ -327,9 +393,7 @@ namespace VRProject.LeakResponse.Narration
         {
             if (cue == P102LeakNarrationCue.ContainerLidStowed)
             {
-                recoveryActionEnabled = true;
-                if (grabInteractable != null)
-                    grabInteractable.enabled = true;
+                EnableRecoveryInteraction();
             }
             else if (cue == P102LeakNarrationCue.AllSocksRecovered)
             {
@@ -380,6 +444,7 @@ namespace VRProject.LeakResponse.Narration
 
         void Unsubscribe()
         {
+            StopGrabConfirmation();
             if (grabInteractable != null)
             {
                 grabInteractable.selectEntered.RemoveListener(OnTongsSelected);
@@ -390,7 +455,32 @@ namespace VRProject.LeakResponse.Narration
             if (narration != null)
                 narration.CueCompleted -= OnCueCompleted;
             if (waste != null)
+            {
                 waste.ItemDeposited -= OnItemDeposited;
+                waste.LidStowed -= EnableRecoveryInteraction;
+            }
+        }
+
+        void StopGrabConfirmation()
+        {
+            if (grabConfirmationRoutine == null)
+                return;
+            StopCoroutine(grabConfirmationRoutine);
+            grabConfirmationRoutine = null;
+        }
+
+        void EnableRecoveryInteraction()
+        {
+            recoveryActionEnabled = true;
+            if (authoredHandPoseAttach != null)
+            {
+                handPoseWristCorrected =
+                    P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
+                        grabInteractable, authoredHandPoseAttach) ||
+                    handPoseWristCorrected;
+            }
+            if (grabInteractable != null && !returned)
+                grabInteractable.enabled = true;
         }
 
         void OnItemDeposited(P102RecoveryItemState item)
@@ -408,12 +498,15 @@ namespace VRProject.LeakResponse.Narration
                 tip.SetParent(root.transform, false);
             }
 
-            if (P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+            if (TryGetRendererLocalBounds(root, out Bounds bounds))
             {
-                tip.position = new Vector3(
-                    bounds.center.x,
-                    bounds.max.y - bounds.size.y * 0.075f,
-                    bounds.center.z);
+                int axis = LongestAxis(bounds.size);
+                Vector3 localPosition = bounds.center;
+                SetAxis(ref localPosition, axis,
+                    GetAxis(bounds.max, axis) - GetAxis(bounds.size, axis) * 0.075f);
+                tip.localPosition = localPosition;
+                tip.localRotation = Quaternion.identity;
+                tip.localScale = Vector3.one;
             }
             return tip;
         }
@@ -428,12 +521,15 @@ namespace VRProject.LeakResponse.Narration
                 handle.SetParent(root.transform, false);
             }
 
-            if (P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+            if (TryGetRendererLocalBounds(root, out Bounds bounds))
             {
-                handle.position = new Vector3(
-                    bounds.center.x,
-                    bounds.min.y + bounds.size.y * 0.05f,
-                    bounds.center.z);
+                int axis = LongestAxis(bounds.size);
+                Vector3 localPosition = bounds.center;
+                SetAxis(ref localPosition, axis,
+                    GetAxis(bounds.min, axis) + GetAxis(bounds.size, axis) * 0.18f);
+                handle.localPosition = localPosition;
+                handle.localRotation = Quaternion.identity;
+                handle.localScale = Vector3.one;
             }
             return handle;
         }
@@ -441,7 +537,7 @@ namespace VRProject.LeakResponse.Narration
         static BoxCollider EnsureHandleGrabCollider(GameObject root, Transform handle)
         {
             if (root == null || handle == null ||
-                !P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+                !TryGetRendererLocalBounds(root, out Bounds bounds))
             {
                 return null;
             }
@@ -450,24 +546,21 @@ namespace VRProject.LeakResponse.Narration
             if (collider == null)
                 collider = handle.gameObject.AddComponent<BoxCollider>();
 
-            bool hasNamedHandleBounds = P102RuntimeUtility.TryGetRendererBounds(handle.gameObject,
-                out Bounds handleBounds);
-            Vector3 worldCenter = hasNamedHandleBounds ? handleBounds.center : handle.position;
-            Vector3 worldSize = hasNamedHandleBounds
-                ? new Vector3(
-                    Mathf.Max(0.12f, handleBounds.size.x * 1.15f),
-                    Mathf.Max(0.08f, handleBounds.size.y * 1.15f),
-                    Mathf.Max(0.08f, handleBounds.size.z * 1.15f))
-                : new Vector3(
-                    Mathf.Clamp(bounds.size.x * 0.52f, 0.20f, 0.42f),
-                    Mathf.Clamp(bounds.size.y * 0.075f, 0.06f, 0.11f),
-                    Mathf.Clamp(bounds.size.z * 0.78f, 0.06f, 0.14f));
-            Vector3 handleScale = handle.lossyScale;
-            collider.center = handle.InverseTransformPoint(worldCenter);
-            collider.size = new Vector3(
-                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(handleScale.x)),
-                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(handleScale.y)),
-                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(handleScale.z)));
+            int axis = LongestAxis(bounds.size);
+            Vector3 colliderSize = bounds.size * 1.25f;
+            SetAxis(ref colliderSize, axis,
+                Mathf.Max(GetAxis(bounds.size, axis) * 0.38f,
+                    WorldDistanceToLocal(root.transform, axis, 0.22f)));
+            for (int currentAxis = 0; currentAxis < 3; ++currentAxis)
+            {
+                if (currentAxis == axis)
+                    continue;
+                SetAxis(ref colliderSize, currentAxis,
+                    Mathf.Max(GetAxis(colliderSize, currentAxis),
+                        WorldDistanceToLocal(root.transform, currentAxis, 0.085f)));
+            }
+            collider.center = Vector3.zero;
+            collider.size = colliderSize;
             collider.isTrigger = false;
             collider.enabled = true;
             return collider;
@@ -476,7 +569,7 @@ namespace VRProject.LeakResponse.Narration
         static BoxCollider EnsureJawPhysicalCollider(GameObject root, Transform tip)
         {
             if (root == null || tip == null ||
-                !P102RuntimeUtility.TryGetRendererBounds(root, out Bounds bounds))
+                !TryGetRendererLocalBounds(root, out Bounds bounds))
             {
                 return null;
             }
@@ -485,19 +578,85 @@ namespace VRProject.LeakResponse.Narration
             if (collider == null)
                 collider = tip.gameObject.AddComponent<BoxCollider>();
 
-            Vector3 worldSize = new Vector3(
-                Mathf.Clamp(bounds.size.x * 0.52f, 0.18f, 0.38f),
-                Mathf.Clamp(bounds.size.y * 0.075f, 0.06f, 0.12f),
-                Mathf.Clamp(bounds.size.z * 0.78f, 0.06f, 0.16f));
-            Vector3 tipScale = tip.lossyScale;
+            int axis = LongestAxis(bounds.size);
+            Vector3 localSize = bounds.size * 1.15f;
+            SetAxis(ref localSize, axis,
+                Mathf.Max(GetAxis(bounds.size, axis) * 0.22f,
+                    WorldDistanceToLocal(root.transform, axis, 0.16f)));
             collider.center = Vector3.zero;
-            collider.size = new Vector3(
-                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(tipScale.x)),
-                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(tipScale.y)),
-                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(tipScale.z)));
+            collider.size = localSize;
             collider.isTrigger = false;
             collider.enabled = true;
             return collider;
+        }
+
+        static bool TryGetRendererLocalBounds(GameObject root, out Bounds localBounds)
+        {
+            localBounds = default;
+            if (root == null)
+                return false;
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            bool hasPoint = false;
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; ++rendererIndex)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null ||
+                    P102RuntimeUtility.IsHandPoseGhostTransform(
+                        renderer.transform, root.transform))
+                    continue;
+
+                Bounds worldBounds = renderer.bounds;
+                Vector3 min = worldBounds.min;
+                Vector3 max = worldBounds.max;
+                for (int corner = 0; corner < 8; ++corner)
+                {
+                    Vector3 worldPoint = new Vector3(
+                        (corner & 1) == 0 ? min.x : max.x,
+                        (corner & 2) == 0 ? min.y : max.y,
+                        (corner & 4) == 0 ? min.z : max.z);
+                    Vector3 localPoint = root.transform.InverseTransformPoint(worldPoint);
+                    if (!hasPoint)
+                    {
+                        localBounds = new Bounds(localPoint, Vector3.zero);
+                        hasPoint = true;
+                    }
+                    else
+                    {
+                        localBounds.Encapsulate(localPoint);
+                    }
+                }
+            }
+
+            return hasPoint;
+        }
+
+        static int LongestAxis(Vector3 size)
+        {
+            if (size.x >= size.y && size.x >= size.z)
+                return 0;
+            return size.y >= size.z ? 1 : 2;
+        }
+
+        static float GetAxis(Vector3 value, int axis)
+        {
+            return axis == 0 ? value.x : axis == 1 ? value.y : value.z;
+        }
+
+        static void SetAxis(ref Vector3 value, int axis, float component)
+        {
+            if (axis == 0)
+                value.x = component;
+            else if (axis == 1)
+                value.y = component;
+            else
+                value.z = component;
+        }
+
+        static float WorldDistanceToLocal(Transform transform, int axis, float worldDistance)
+        {
+            Vector3 scale = transform != null ? transform.lossyScale : Vector3.one;
+            return worldDistance / Mathf.Max(0.0001f, Mathf.Abs(GetAxis(scale, axis)));
         }
     }
 }

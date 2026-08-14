@@ -23,6 +23,8 @@ namespace HClTraining.App
         public SharedXRInputContract SharedInput { get; private set; }
         public SharedPlayerEquipment SharedEquipment { get; private set; }
         public CommonErrorUI ErrorUI { get; private set; }
+        public CommonTrainingMenu TrainingMenu { get; private set; }
+        public TrainingPauseController PauseController { get; private set; }
         public Camera MainCamera { get; private set; }
 
         void Awake()
@@ -61,6 +63,7 @@ namespace HClTraining.App
             var inputLock = GetOrAdd<TransitionInputLock>();
             var fade = GetOrAdd<ScreenFadeController>();
             var lifecycle = GetOrAdd<StageLifecycleAdapter>();
+            PauseController = GetOrAdd<TrainingPauseController>();
             SceneFlow = GetOrAdd<SceneFlowController>();
             ScenarioFlow = GetOrAdd<ScenarioFlowManager>();
             ErrorUI = GetOrAdd<CommonErrorUI>();
@@ -77,8 +80,10 @@ namespace HClTraining.App
             ScenarioFlow.Initialize(Session, SceneFlow, Inventory);
             lifecycle.Initialize(ScenarioFlow, Session, Inventory, PPEState);
             SceneFlow.Initialize(inputLock, fade, XRProfiles, lifecycle, Session, PPEState, Inventory, ErrorUI);
+            PauseController.Initialize(lifecycle, SharedInput, commonXrOrigin.transform);
 
-            GetOrAdd<CommonTrainingMenu>().Initialize(this);
+            TrainingMenu = GetOrAdd<CommonTrainingMenu>();
+            TrainingMenu.Initialize(this);
         }
 
         IEnumerator Start()

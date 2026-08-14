@@ -3,11 +3,19 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
+using UnityEngine.XR.Interaction.Toolkit.Transformers;
 
 namespace VRProject.LeakResponse.Narration
 {
     public static class P102RuntimeUtility
     {
+        public const string RightHandPoseAttachName = "VRHandPoseTool_Attach_Right";
+        public const string HandPoseGhostsRootName = "VRHandPoseTool_Ghosts";
+        const string RightWristName = "R_Wrist";
+
         static TMP_FontAsset runtimeKoreanFont;
         static Sprite roundedPanelSprite;
         static bool missingRuntimeFontReported;
@@ -61,6 +69,243 @@ namespace VRProject.LeakResponse.Narration
             return results;
         }
 
+        public static Transform FindDescendantTransform(GameObject root, string exactName)
+        {
+            if (root == null || string.IsNullOrEmpty(exactName))
+                return null;
+
+            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; ++i)
+            {
+                Transform candidate = transforms[i];
+                if (candidate != null &&
+                    string.Equals(candidate.name, exactName, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        public static int HideHandPoseGhostRenderers(GameObject root)
+        {
+            Transform ghostsRoot = FindDescendantTransform(root, HandPoseGhostsRootName);
+            if (ghostsRoot == null)
+                return 0;
+
+            Renderer[] renderers = ghostsRoot.GetComponentsInChildren<Renderer>(true);
+            int hiddenCount = 0;
+            for (int i = 0; i < renderers.Length; ++i)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null)
+                    continue;
+
+                renderer.enabled = false;
+                ++hiddenCount;
+            }
+
+            return hiddenCount;
+        }
+
+        public static bool IsHandPoseGhostTransform(Transform candidate, Transform rootLimit)
+        {
+            Transform current = candidate;
+            while (current != null)
+            {
+                if (string.Equals(current.name, HandPoseGhostsRootName,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                if (current == rootLimit)
+                    break;
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        public static XRSingleGrabFreeTransformer ConfigureExactPoseGrabTracking(
+            XRGrabInteractable grab)
+        {
+            if (grab == null)
+                return null;
+
+            XRSingleGrabFreeTransformer transformer =
+                GetOrAdd<XRSingleGrabFreeTransformer>(grab.gameObject);
+            grab.addDefaultGrabTransformers = false;
+            grab.ClearSingleGrabTransformers();
+            grab.ClearMultipleGrabTransformers();
+            grab.AddSingleGrabTransformer(transformer);
+            grab.trackScale = false;
+            grab.attachEaseInTime = 0f;
+            return transformer;
+        }
+
+        /// <summary>
+        /// HandSideAwareGrabInteractable creates a dynamic attach during Select. Re-seed that
+        /// generated transform from the authored hand-pose attach so the held object converges
+        /// to the exact pose previewed by the VR Hand Pose Tool ghost.
+        /// </summary>
+        public static bool ApplyAuthoredHandPoseAttach(
+            XRGrabInteractable grab, Transform authoredAttach, SelectEnterEventArgs args)
+        {
+            if (grab == null || authoredAttach == null || args?.interactorObject == null)
+                return false;
+
+            return ApplyAuthoredHandPoseAttach(
+                grab, authoredAttach, args.interactorObject);
+        }
+
+        public static bool TryPrepareRightWristCorrectedAttach(
+            XRGrabInteractable grab, Transform authoredAttach)
+        {
+            if (grab == null || authoredAttach == null)
+                return false;
+
+            IXRSelectInteractor interactor = FindRightHandSelectInteractor();
+            return interactor != null && TryApplyRightWristCorrection(
+                grab.transform, authoredAttach, grab, interactor);
+        }
+
+        public static bool ApplyAuthoredHandPoseAttach(
+            XRGrabInteractable grab, Transform authoredAttach, IXRSelectInteractor interactor)
+        {
+            if (grab == null || authoredAttach == null || interactor == null)
+                return false;
+
+            Transform activeAttach = grab.GetAttachTransform(interactor);
+            if (activeAttach == null)
+                return false;
+
+            if (activeAttach != authoredAttach)
+            {
+                activeAttach.SetPositionAndRotation(
+                    authoredAttach.position, authoredAttach.rotation);
+            }
+
+            return true;
+        }
+
+        public static bool IsAuthoredAttachAligned(
+            XRGrabInteractable grab, Transform authoredAttach, IXRSelectInteractor interactor,
+            float positionTolerance = 0.03f, float rotationTolerance = 8f)
+        {
+            if (grab == null || authoredAttach == null || interactor == null)
+                return false;
+
+            Transform interactorAttach = interactor.GetAttachTransform(grab);
+            return interactorAttach != null &&
+                   Vector3.Distance(authoredAttach.position, interactorAttach.position) <=
+                   Mathf.Max(0f, positionTolerance) &&
+                   Quaternion.Angle(authoredAttach.rotation, interactorAttach.rotation) <=
+                   Mathf.Max(0f, rotationTolerance);
+        }
+
+        static bool TryApplyRightWristCorrection(
+            Transform target, Transform authoredAttach, XRGrabInteractable grab,
+            IXRSelectInteractor interactor)
+        {
+            if (target == null || authoredAttach == null || grab == null || interactor == null)
+                return false;
+
+            Transform ghostsRoot = FindDescendantTransform(
+                target.gameObject, HandPoseGhostsRootName);
+            Transform ghostWrist = ghostsRoot != null
+                ? FindDescendantTransform(ghostsRoot.gameObject, RightWristName)
+                : null;
+            Transform controllerWrist = FindControllerWrist(interactor.transform);
+            Transform interactorAttach = interactor.GetAttachTransform(grab);
+            if (ghostWrist == null || controllerWrist == null || interactorAttach == null)
+                return false;
+
+            Vector3 ghostWristLocalPosition = target.InverseTransformPoint(ghostWrist.position);
+            Quaternion ghostWristLocalRotation =
+                Quaternion.Inverse(target.rotation) * ghostWrist.rotation;
+            Vector3 controllerWristLocalPosition =
+                interactorAttach.InverseTransformPoint(controllerWrist.position);
+            Quaternion controllerWristLocalRotation =
+                Quaternion.Inverse(interactorAttach.rotation) * controllerWrist.rotation;
+
+            Quaternion inverseWristRotation =
+                Quaternion.Inverse(controllerWristLocalRotation);
+            Vector3 inverseWristPosition =
+                inverseWristRotation * -controllerWristLocalPosition;
+            Quaternion correctedLocalRotation =
+                ghostWristLocalRotation * inverseWristRotation;
+            Vector3 correctedLocalPosition =
+                ghostWristLocalRotation * inverseWristPosition + ghostWristLocalPosition;
+
+            authoredAttach.SetPositionAndRotation(
+                target.TransformPoint(correctedLocalPosition),
+                target.rotation * correctedLocalRotation);
+            return true;
+        }
+
+        static Transform FindControllerWrist(Transform interactorTransform)
+        {
+            Transform current = interactorTransform;
+            for (int depth = 0; current != null && depth < 8; ++depth)
+            {
+                Transform wrist = FindDescendantTransform(current.gameObject, RightWristName);
+                if (wrist != null && !IsHandPoseGhostTransform(wrist, current))
+                    return wrist;
+                current = current.parent;
+            }
+
+            return null;
+        }
+
+        static IXRSelectInteractor FindRightHandSelectInteractor()
+        {
+            XRBaseInteractor[] interactors =
+                Resources.FindObjectsOfTypeAll<XRBaseInteractor>();
+            IXRSelectInteractor best = null;
+            int bestScore = int.MinValue;
+            for (int i = 0; i < interactors.Length; ++i)
+            {
+                XRBaseInteractor candidate = interactors[i];
+                if (candidate == null || !candidate.gameObject.scene.IsValid() ||
+                    candidate is not IXRSelectInteractor selectable ||
+                    !IsRightControllerHierarchy(candidate.transform))
+                {
+                    continue;
+                }
+
+                int score = candidate.gameObject.activeInHierarchy ? 10 : 0;
+                if (candidate.name.IndexOf("NearFar", StringComparison.OrdinalIgnoreCase) >= 0)
+                    score += 100;
+                if (candidate.name.StartsWith("Right_", StringComparison.Ordinal))
+                    score += 20;
+                if (score <= bestScore)
+                    continue;
+
+                best = selectable;
+                bestScore = score;
+            }
+
+            return best;
+        }
+
+        static bool IsRightControllerHierarchy(Transform transform)
+        {
+            Transform current = transform;
+            for (int depth = 0; current != null && depth < 8; ++depth)
+            {
+                if (string.Equals(current.name, "Right Controller", StringComparison.Ordinal) ||
+                    current.name.StartsWith("Right_", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                current = current.parent;
+            }
+
+            return false;
+        }
+
         public static bool TryGetRendererBounds(GameObject root, out Bounds bounds)
         {
             bounds = default;
@@ -72,7 +317,8 @@ namespace VRProject.LeakResponse.Narration
             for (int i = 0; i < renderers.Length; ++i)
             {
                 Renderer renderer = renderers[i];
-                if (renderer == null)
+                if (renderer == null ||
+                    IsHandPoseGhostTransform(renderer.transform, root.transform))
                     continue;
 
                 if (!initialized)
@@ -163,6 +409,13 @@ namespace VRProject.LeakResponse.Narration
                 bodies[i].isKinematic = true;
             }
 
+            Behaviour[] behaviours = ghost.GetComponentsInChildren<Behaviour>(true);
+            for (int i = 0; i < behaviours.Length; ++i)
+            {
+                if (behaviours[i] != null)
+                    behaviours[i].enabled = false;
+            }
+
             Material ghostMaterial = CreateCyanMaterial(
                 $"{ghostName} Material", new Color(0.1f, 0.9f, 1f, 0.38f));
             if (ghostMaterial != null)
@@ -179,6 +432,9 @@ namespace VRProject.LeakResponse.Narration
             Renderer[] renderers = ghost.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; ++i)
             {
+                if (IsHandPoseGhostTransform(renderers[i].transform, ghost.transform))
+                    continue;
+
                 int materialCount = renderers[i].sharedMaterials.Length;
                 if (materialCount == 0 || ghostMaterial == null)
                     continue;

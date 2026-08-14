@@ -14,6 +14,8 @@ namespace VRProject.LeakResponse.Narration
         const float IntakeHorizontalMargin = 0.35f;
         const float IntakeHeightAboveRim = 1f;
         const float IntakeDepthBelowRim = 0.28f;
+        const float SideLidCaptureDistance = 0.65f;
+        const float ClosedLidCaptureDistance = 0.55f;
 
         readonly UniqueDepositGate depositGate = new UniqueDepositGate(RequiredDepositCount);
 
@@ -22,7 +24,9 @@ namespace VRProject.LeakResponse.Narration
         GameObject lidObject;
         Transform sideGhost;
         Transform closedGhost;
+        Transform lidAuthoredHandPoseAttach;
         XRGrabInteractable lidGrab;
+        BoxCollider lidHandleCollider;
         Rigidbody lidRigidbody;
         Rigidbody bodyRigidbody;
         P102LeakNarrationController narration;
@@ -38,10 +42,13 @@ namespace VRProject.LeakResponse.Narration
         bool finalCloseEnabled;
         bool lidStowed;
         bool snappingLid;
+        bool lidHandPoseWristCorrected;
+        Coroutine lidReleaseRoutine;
         int depositedPads;
         int visibleDepositedCount;
 
         public event Action<P102RecoveryItemState> ItemDeposited;
+        public event Action LidStowed;
 
         public int DepositedCount => depositGate.DepositedCount;
         public int VisibleDepositedCount => visibleDepositedCount;
@@ -58,6 +65,8 @@ namespace VRProject.LeakResponse.Narration
             absorptionController.IsFinalCleanupComplete;
         public bool IsLockedClosed => depositGate.IsLocked;
         public bool IsConfigured => containerRoot != null && bodyObject != null && lidObject != null;
+        public Collider LidHandleCollider => lidHandleCollider;
+        public bool IsLidStowed => lidStowed;
 
         public bool Configure(GameObject newContainerRoot, P102LeakNarrationController narrationController,
             HClAbsorptionVisualController absorption)
@@ -77,6 +86,11 @@ namespace VRProject.LeakResponse.Narration
             designatedContainerRotation = containerRoot.transform.rotation;
             depositedPads = 0;
             visibleDepositedCount = 0;
+            lidStowEnabled = false;
+            finalCloseEnabled = false;
+            lidStowed = false;
+            snappingLid = false;
+            lidHandPoseWristCorrected = false;
 
             bodyObject = FindDescendant(containerRoot, "HazWasteContainer_Body");
             lidObject = FindDescendant(containerRoot, "HazWasteContainer_Lid");
@@ -88,6 +102,8 @@ namespace VRProject.LeakResponse.Narration
                 Debug.LogError("[P102 Flow] Waste Container body or separable lid is missing. The step remains incomplete.", this);
                 return false;
             }
+
+            P102RuntimeUtility.HideHandPoseGhostRenderers(lidObject);
 
             originalLidParent = lidObject.transform.parent;
             closedPosition = lidObject.transform.position;
@@ -112,19 +128,31 @@ namespace VRProject.LeakResponse.Narration
             BoxCollider lidCollider = P102RuntimeUtility.EnsureBoundsCollider(lidObject, false);
             if (lidCollider != null)
                 lidCollider.enabled = false;
-            BoxCollider lidHandleCollider = EnsureLidHandleGrabCollider();
+            lidHandleCollider = EnsureLidHandleGrabCollider();
             lidGrab = P102RuntimeUtility.GetOrAdd<XRGrabInteractable>(lidObject);
             lidGrab.enabled = false;
             lidGrab.colliders.Clear();
             if (lidHandleCollider != null)
                 lidGrab.colliders.Add(lidHandleCollider);
-            lidGrab.attachTransform = lidHandleCollider != null
-                ? lidHandleCollider.transform
-                : null;
-            lidGrab.useDynamicAttach = false;
+            lidAuthoredHandPoseAttach = P102RuntimeUtility.FindDescendantTransform(
+                lidObject, P102RuntimeUtility.RightHandPoseAttachName);
+            bool hasAuthoredHandPose = lidAuthoredHandPoseAttach != null;
+            lidHandPoseWristCorrected = hasAuthoredHandPose &&
+                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
+                    lidGrab, lidAuthoredHandPoseAttach);
+            lidGrab.attachTransform = hasAuthoredHandPose
+                ? lidAuthoredHandPoseAttach
+                : lidHandleCollider != null
+                    ? lidHandleCollider.transform
+                    : null;
+            lidGrab.useDynamicAttach = !hasAuthoredHandPose;
             lidGrab.matchAttachPosition = true;
-            lidGrab.matchAttachRotation = true;
-            lidGrab.snapToColliderVolume = false;
+            lidGrab.matchAttachRotation = hasAuthoredHandPose;
+            lidGrab.snapToColliderVolume = !hasAuthoredHandPose;
+            lidGrab.throwOnDetach = false;
+            lidGrab.selectMode = InteractableSelectMode.Single;
+            P102RuntimeUtility.ConfigureExactPoseGrabTracking(lidGrab);
+            lidGrab.selectEntered.AddListener(OnLidSelectEntered);
             lidGrab.selectExited.AddListener(OnLidSelectExited);
             hasDepositBounds = P102RuntimeUtility.TryGetRendererBounds(bodyObject, out depositBounds);
             if (!hasDepositBounds)
@@ -213,6 +241,7 @@ namespace VRProject.LeakResponse.Narration
             {
                 lidStowEnabled = true;
                 SetGhostVisible(sideGhost, true);
+                PrepareLidHandPoseAttachIfNeeded();
                 if (lidGrab != null)
                     lidGrab.enabled = true;
             }
@@ -220,6 +249,7 @@ namespace VRProject.LeakResponse.Narration
             {
                 finalCloseEnabled = CanFinalLock;
                 SetGhostVisible(closedGhost, finalCloseEnabled);
+                PrepareLidHandPoseAttachIfNeeded();
                 if (lidGrab != null)
                     lidGrab.enabled = finalCloseEnabled;
                 if (!finalCloseEnabled)
@@ -239,20 +269,61 @@ namespace VRProject.LeakResponse.Narration
                 narration.EnqueueOnce(P102LeakNarrationCue.SockRecoveryStarted);
         }
 
+        void OnLidSelectEntered(SelectEnterEventArgs args)
+        {
+            StopLidReleaseRoutine();
+            P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
+                lidGrab, lidAuthoredHandPoseAttach, args);
+            if (lidRigidbody == null)
+                return;
+
+            lidRigidbody.linearVelocity = Vector3.zero;
+            lidRigidbody.angularVelocity = Vector3.zero;
+            lidRigidbody.useGravity = false;
+            lidRigidbody.isKinematic = true;
+        }
+
+        void PrepareLidHandPoseAttachIfNeeded()
+        {
+            if (lidAuthoredHandPoseAttach == null)
+                return;
+
+            lidHandPoseWristCorrected =
+                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
+                    lidGrab, lidAuthoredHandPoseAttach) ||
+                lidHandPoseWristCorrected;
+        }
+
         void OnLidSelectExited(SelectExitEventArgs args)
         {
             if (args.isCanceled || snappingLid || lidObject == null || depositGate.IsLocked)
                 return;
 
+            StopLidReleaseRoutine();
+            lidReleaseRoutine = StartCoroutine(TrySnapLidAfterRelease());
+        }
+
+        IEnumerator TrySnapLidAfterRelease()
+        {
+            // XR Grab finishes its release bookkeeping after selectExited. Evaluate the
+            // visible lid on the next frame so the capture test uses the settled pose.
+            yield return null;
+            lidReleaseRoutine = null;
+            if (lidGrab == null || lidGrab.isSelected || snappingLid || lidObject == null ||
+                depositGate.IsLocked)
+            {
+                yield break;
+            }
+
             if (!lidStowed && lidStowEnabled && sideGhost != null &&
-                Vector3.Distance(lidObject.transform.position, sideGhost.position) <= 0.35f)
+                IsLidNearGhost(sideGhost, SideLidCaptureDistance))
             {
                 StartCoroutine(SnapLid(sideGhost.position, sideGhost.rotation, false));
-                return;
+                yield break;
             }
 
             if (lidStowed && finalCloseEnabled && CanFinalLock &&
-                Vector3.Distance(lidObject.transform.position, closedPosition) <= 0.35f)
+                IsLidNearPose(closedGhost, closedPosition, ClosedLidCaptureDistance))
             {
                 StartCoroutine(SnapLid(closedPosition, closedRotation, true));
             }
@@ -261,6 +332,8 @@ namespace VRProject.LeakResponse.Narration
         IEnumerator SnapLid(Vector3 targetPosition, Quaternion targetRotation, bool finalLock)
         {
             snappingLid = true;
+            if (lidGrab != null)
+                lidGrab.enabled = false;
             lidRigidbody.linearVelocity = Vector3.zero;
             lidRigidbody.angularVelocity = Vector3.zero;
             lidRigidbody.useGravity = false;
@@ -298,6 +371,7 @@ namespace VRProject.LeakResponse.Narration
                 lidStowed = true;
                 SetGhostVisible(sideGhost, false);
                 lidGrab.enabled = false;
+                LidStowed?.Invoke();
                 narration?.EnqueueOnce(P102LeakNarrationCue.ContainerLidStowed);
             }
 
@@ -408,8 +482,12 @@ namespace VRProject.LeakResponse.Narration
 
         void Unsubscribe()
         {
+            StopLidReleaseRoutine();
             if (lidGrab != null)
+            {
+                lidGrab.selectEntered.RemoveListener(OnLidSelectEntered);
                 lidGrab.selectExited.RemoveListener(OnLidSelectExited);
+            }
             if (narration != null)
             {
                 narration.CueStarted -= OnCueStarted;
@@ -472,12 +550,12 @@ namespace VRProject.LeakResponse.Narration
             }
 
             Vector3 worldSize = new Vector3(
-                Mathf.Clamp(lidBounds.size.x * 0.46f, 0.18f, 0.42f),
-                Mathf.Clamp(lidBounds.size.y * 0.22f, 0.06f, 0.12f),
-                Mathf.Clamp(lidBounds.size.z * 0.18f, 0.08f, 0.20f));
+                Mathf.Clamp(lidBounds.size.x * 0.38f, 0.18f, 0.34f),
+                Mathf.Clamp(lidBounds.size.y * 0.30f, 0.08f, 0.14f),
+                Mathf.Clamp(lidBounds.size.z * 0.20f, 0.09f, 0.18f));
             handle.position = new Vector3(
                 lidBounds.center.x,
-                lidBounds.max.y - worldSize.y * 0.5f,
+                lidBounds.max.y - worldSize.y * 0.35f,
                 lidBounds.center.z);
             handle.rotation = containerRoot.transform.rotation;
             handle.localScale = Vector3.one;
@@ -494,6 +572,36 @@ namespace VRProject.LeakResponse.Narration
             collider.isTrigger = false;
             collider.enabled = true;
             return collider;
+        }
+
+        bool IsLidNearGhost(Transform ghost, float captureDistance)
+        {
+            return IsLidNearPose(ghost, ghost != null ? ghost.position : Vector3.zero,
+                captureDistance);
+        }
+
+        bool IsLidNearPose(Transform ghost, Vector3 fallbackPosition, float captureDistance)
+        {
+            if (lidObject == null)
+                return false;
+
+            Vector3 lidCenter = P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds)
+                ? lidBounds.center
+                : lidObject.transform.position;
+            Vector3 targetCenter = ghost != null &&
+                                   P102RuntimeUtility.TryGetRendererBounds(ghost.gameObject,
+                                       out Bounds ghostBounds)
+                ? ghostBounds.center
+                : fallbackPosition;
+            return Vector3.Distance(lidCenter, targetCenter) <= Mathf.Max(0f, captureDistance);
+        }
+
+        void StopLidReleaseRoutine()
+        {
+            if (lidReleaseRoutine == null)
+                return;
+            StopCoroutine(lidReleaseRoutine);
+            lidReleaseRoutine = null;
         }
 
         void CreateOrUpdateBodyCollider(string objectName, Vector3 worldCenter, Vector3 worldSize)

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using HClTraining.App;
 using HClTraining.SharedXR;
 using Unity.XR.CoreUtils;
@@ -12,10 +13,13 @@ using UnityEngine.SceneManagement;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
+using VRProject.Valves;
 
 public static class IntegrationSceneValidator
 {
@@ -90,13 +94,13 @@ public static class IntegrationSceneValidator
                 failures.Add($"Build Settings scene #{i} path mismatch: expected {expectedPath}, got {actualPath}.");
             if (!buildScene.enabled)
                 failures.Add($"Build Settings scene is disabled: {expectedPath}");
-            if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(expectedPath)))
+            var assetExists = !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(expectedPath)) &&
+                              File.Exists(Path.GetFullPath(expectedPath));
+            if (!assetExists)
                 failures.Add($"Build Settings scene asset is missing: {expectedPath}");
-            else if (!Application.CanStreamedLevelBeLoaded(expectedPath))
-                failures.Add($"Build Settings scene cannot be loaded at runtime: {expectedPath}");
 
             report.Add($"BuildSettings[{i}] Path={actualPath}, Enabled={buildScene.enabled}, " +
-                       $"Loadable={Application.CanStreamedLevelBeLoaded(expectedPath)}");
+                       $"AssetExists={assetExists}");
         }
     }
 
@@ -133,7 +137,8 @@ public static class IntegrationSceneValidator
 
             report.Add($"{assetPath}: Scene={scenePath}, StandardRay={requirements.UseStandardRayPointer}, " +
                        $"NearFar={requirements.UseNearFarPointer}, UI={requirements.UIInteraction}, " +
-                       $"Grab={requirements.GrabInteraction}, Haptic={requirements.Haptics}");
+                       $"Grab={requirements.GrabInteraction}, Haptic={requirements.Haptics}, " +
+                       $"Comfort={requirements.ComfortVignette}");
         }
 
         foreach (var expected in expectedScenes)
@@ -150,7 +155,8 @@ public static class IntegrationSceneValidator
                 StringComparison.OrdinalIgnoreCase))
         {
             if (!requirements.FarInteraction || requirements.NearInteraction ||
-                !requirements.UIInteraction || !requirements.GrabInteraction)
+                !requirements.UIInteraction || !requirements.GrabInteraction ||
+                requirements.ComfortVignette)
             {
                 failures.Add("PPE requirements must declare Standard Ray + UI + Grab, without Near/Far mode.");
             }
@@ -159,18 +165,20 @@ public static class IntegrationSceneValidator
                      StringComparison.OrdinalIgnoreCase))
         {
             if (requirements.FarInteraction || requirements.NearInteraction ||
-                requirements.UIInteraction || requirements.GrabInteraction)
+                requirements.UIInteraction || requirements.GrabInteraction ||
+                requirements.Movement || requirements.Turning || requirements.ComfortVignette)
             {
-                failures.Add("PreEntry requirements must keep pointer/UI/XRI Grab disabled; its detector uses Stage input and scripted attach.");
+                failures.Add("PreEntry requirements must keep pointer/UI/XRI Grab/movement/turning disabled; its detector uses Stage input and scripted attach.");
             }
         }
         else if (string.Equals(scenePath, NormalizePath(SceneFlowController.LeakResponseScenePath),
                      StringComparison.OrdinalIgnoreCase))
         {
             if (!requirements.FarInteraction || !requirements.NearInteraction ||
-                !requirements.UIInteraction || !requirements.GrabInteraction)
+                !requirements.UIInteraction || !requirements.GrabInteraction ||
+                !requirements.ComfortVignette)
             {
-                failures.Add("LeakResponse requirements must declare Near + Far + UI + Grab.");
+                failures.Add("LeakResponse requirements must declare Near + Far + UI + Grab + Comfort vignette.");
             }
         }
     }
@@ -245,8 +253,13 @@ public static class IntegrationSceneValidator
                 failures.Add($"{scenePath}: expected exactly one AppBootstrap, found {appBootstrapCount}");
             if (scenePath == SceneFlowController.AppScenePath)
                 ValidateCommonXr(firstOrigin, failures);
+            if (scenePath == SceneFlowController.PreEntryScenePath)
+                ValidatePreEntryLocomotion(firstOrigin, failures);
             if (scenePath == SceneFlowController.LeakResponseScenePath)
+            {
                 ValidateLeakResponseEntrySpawn(scene, failures);
+                ValidateLeakValveGrabColliders(scene, failures);
+            }
 
             report.Add($"{scenePath}: XR={xrOriginCount}, MissingScripts={missingScriptCount}, " +
                        $"BrokenReferences={brokenReferenceCount}, AppBootstrap={appBootstrapCount}");
@@ -255,6 +268,25 @@ public static class IntegrationSceneValidator
         {
             if (openedHere && scene.IsValid() && scene.isLoaded)
                 EditorSceneManager.CloseScene(scene, true);
+        }
+    }
+
+    static void ValidatePreEntryLocomotion(XROrigin origin, List<string> failures)
+    {
+        if (origin == null)
+            return;
+
+        var enabledMove = origin.GetComponentsInChildren<ContinuousMoveProvider>(true)
+            .Count(provider => provider != null && provider.enabled);
+        var enabledTurn = origin.GetComponentsInChildren<SnapTurnProvider>(true)
+            .Count(provider => provider != null && provider.enabled);
+        var enabledTeleport = origin.GetComponentsInChildren<TeleportationProvider>(true)
+            .Count(provider => provider != null && provider.enabled);
+        if (enabledMove != 0 || enabledTurn != 0 || enabledTeleport != 0)
+        {
+            failures.Add(
+                $"PreEntry standalone locomotion must be disabled; enabled Move/Turn/Teleport=" +
+                $"{enabledMove}/{enabledTurn}/{enabledTeleport}.");
         }
     }
 
@@ -298,10 +330,15 @@ public static class IntegrationSceneValidator
         {
             var followerObject = new SerializedObject(follower);
             var offset = followerObject.FindProperty("localPositionOffset");
+            var followsHeadHeight = followerObject.FindProperty("followCameraHeight");
+            var stableBodyFrame = followerObject.FindProperty("useStableOriginBodyFrame");
             var followsHeadYaw = followerObject.FindProperty("useCameraYawOnly");
-            var expectedOffset = new Vector3(-0.4785f, -1.01f, 0.132f);
+            var expectedOffset = new Vector3(-0.52f, 0.65f, 0.14f);
             if (offset == null || Vector3.Distance(offset.vector3Value, expectedOffset) > 0.001f)
                 failures.Add($"Shared response bag body offset must be {expectedOffset}.");
+            if (followsHeadHeight == null || followsHeadHeight.boolValue ||
+                stableBodyFrame == null || !stableBodyFrame.boolValue)
+                failures.Add("Shared response bag must use the stable XR Origin body frame and ignore tracked HMD height.");
             if (followsHeadYaw == null || followsHeadYaw.boolValue)
                 failures.Add("Shared response bag must ignore HMD look yaw and remain fixed to XR Origin/body yaw.");
         }
@@ -353,20 +390,23 @@ public static class IntegrationSceneValidator
             return;
         }
 
-        ValidateVignetteProvider("Move", providers[0], 0.55f, failures);
-        ValidateVignetteProvider("Turn", providers[1], 0.755f, failures);
+        var canonicalMove = origin.GetComponent<ContinuousMoveProvider>();
+        var canonicalTurn = origin.GetComponent<SnapTurnProvider>();
+        ValidateVignetteProvider("Move", providers[0], canonicalMove, 0.68f, failures);
+        ValidateVignetteProvider("Turn", providers[1], canonicalTurn, 0.78f, failures);
     }
 
-    static void ValidateVignetteProvider(
+        static void ValidateVignetteProvider(
         string label,
         LocomotionVignetteProvider provider,
+        LocomotionProvider expectedProvider,
         float aperture,
         List<string> failures)
     {
         if (provider == null || !provider.enabled || !provider.overrideDefaultParameters ||
-            provider.locomotionProvider == null)
+            provider.locomotionProvider == null || provider.locomotionProvider != expectedProvider)
         {
-            failures.Add($"Shared Comfort {label} provider is missing, disabled, or not overriding LeakResponse values.");
+            failures.Add($"Shared Comfort {label} provider is missing, disabled, or not wired to the canonical App locomotion provider.");
             return;
         }
 
@@ -422,6 +462,30 @@ public static class IntegrationSceneValidator
             failures.Add("LeakResponseEntrySpawn must be a root scene marker, not part of a movable object hierarchy.");
     }
 
+    static void ValidateLeakValveGrabColliders(Scene scene, List<string> failures)
+    {
+        var valves = new List<ValveWheelClosureController>();
+        foreach (var root in scene.GetRootGameObjects())
+            valves.AddRange(root.GetComponentsInChildren<ValveWheelClosureController>(true));
+
+        if (valves.Count != 2)
+            failures.Add($"LeakResponse must contain two configured valve wheels, found {valves.Count}.");
+
+        for (var i = 0; i < valves.Count; i++)
+        {
+            var grab = valves[i] != null ? valves[i].GetComponent<XRGrabInteractable>() : null;
+            if (grab == null || grab.colliders.Count != 10 ||
+                grab.colliders.Any(collider =>
+                    !(collider is CapsuleCollider capsule) || !capsule.enabled || !capsule.isTrigger ||
+                    !capsule.name.StartsWith("RimCollider_", StringComparison.Ordinal)) ||
+                grab.attachTransform == null ||
+                grab.attachTransform.name != "CenterShaftAttach")
+            {
+                failures.Add($"Valve '{valves[i]?.name}' must expose ten enabled wheel-rim Grab colliders and its fixed attach pose.");
+            }
+        }
+    }
+
     static void ValidateSharedLocomotion(Transform origin, List<string> failures)
     {
         var bodyTransformers = origin.GetComponents<XRBodyTransformer>();
@@ -450,6 +514,20 @@ public static class IntegrationSceneValidator
             snapTurnProviders[0].rightHandTurnInput,
             "RightHand",
             failures);
+
+        if (moveProviders[0].rightHandMoveInput == null ||
+            moveProviders[0].rightHandMoveInput.inputSourceMode != XRInputValueReader.InputSourceMode.Unused ||
+            moveProviders[0].rightHandMoveInput.inputActionReference != null)
+        {
+            failures.Add("Common XR right Move input must be unused; the right thumbstick is reserved for Snap Turn.");
+        }
+
+        if (snapTurnProviders[0].leftHandTurnInput == null ||
+            snapTurnProviders[0].leftHandTurnInput.inputSourceMode != XRInputValueReader.InputSourceMode.Unused ||
+            snapTurnProviders[0].leftHandTurnInput.inputActionReference != null)
+        {
+            failures.Add("Common XR left Turn input must be unused; the left thumbstick is reserved for movement.");
+        }
     }
 
     static void ValidateLocomotionReader(

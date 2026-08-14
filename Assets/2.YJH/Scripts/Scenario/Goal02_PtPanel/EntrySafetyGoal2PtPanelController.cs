@@ -1,4 +1,5 @@
 using System.Collections;
+using HClTraining.SharedXR;
 using TMPro;
 using UnityEngine;
 
@@ -40,7 +41,7 @@ namespace JH.EntrySafety
         [Header("Temporary process tuning")]
         [SerializeField, Min(0f)] private float _initialPressureMpa = 4.12f;
         [SerializeField, Min(0f)] private float _reducedPressureMpa = 1.20f;
-        [SerializeField, Min(0.1f)] private float _pressureDecreaseSeconds = 5f;
+        [SerializeField, Min(0.1f)] private float _pressureDecreaseSeconds = 9f;
         [Header("P-102 STOP zone (scene editable)")]
         [Tooltip("Move this transform in the Scene view to place the STOP proximity sphere.")]
         [SerializeField] private Transform _stopZoneAnchor;
@@ -90,6 +91,17 @@ namespace JH.EntrySafety
             ResetPresentation();
         }
 
+        private void Update()
+        {
+            if (!_pumpStopped || !_pressureDecreaseStarted || IsPressureDecreaseComplete)
+                return;
+
+            _pressureElapsed = Mathf.Min(_pressureDecreaseSeconds, _pressureElapsed + Time.deltaTime);
+            var progress = _pressureElapsed / _pressureDecreaseSeconds;
+            _pressureMpa = Mathf.Lerp(_initialPressureMpa, _reducedPressureMpa, progress);
+            RefreshReadouts();
+        }
+
         private void ResolveLiveXrRefs()
         {
             // Common XR Origin is named differently from the stage XR Origin.
@@ -132,7 +144,7 @@ namespace JH.EntrySafety
             }
 
             SetTargets(EntrySafetyGazeTargetId.None);
-            UpdateGazeHighlight(EntrySafetyGazeTargetId.None, false);
+            UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
             RefreshReadouts();
             _hasInitialized = true;
         }
@@ -155,7 +167,7 @@ namespace JH.EntrySafety
 
             _isArrivalContextActive = true;
             SetTargets(EntrySafetyGazeTargetId.None);
-            UpdateGazeHighlight(EntrySafetyGazeTargetId.None, false);
+            UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
             yield return new WaitForSeconds(_arrivalContextSeconds);
             _isArrivalContextActive = false;
         }
@@ -165,7 +177,7 @@ namespace JH.EntrySafety
             if (!_hasInitialized)
                 ResetPresentation();
 
-            _ = gazeProgress01;
+            _ = isGazing;
 
             if (step != _lastStep)
             {
@@ -177,27 +189,16 @@ namespace JH.EntrySafety
                 _stepElapsed += deltaTime;
             }
 
-            if (_pumpStopped &&
-                _pressureDecreaseStarted &&
-                !IsPressureDecreaseComplete &&
-                step == EntrySafetyStep.WaitPressureDecrease)
-            {
-                _pressureElapsed = Mathf.Min(_pressureDecreaseSeconds, _pressureElapsed + deltaTime);
-                var progress = _pressureElapsed / _pressureDecreaseSeconds;
-                _pressureMpa = Mathf.Lerp(_initialPressureMpa, _reducedPressureMpa, progress);
-                RefreshReadouts();
-            }
-
             if (_isArrivalContextActive)
             {
                 SetTargets(EntrySafetyGazeTargetId.None);
-                UpdateGazeHighlight(EntrySafetyGazeTargetId.None, false);
+                UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
                 return;
             }
 
             var target = EntrySafetyGazeTargetMap.GetRequiredTarget(step);
             SetTargets(target);
-            UpdateGazeHighlight(target, isGazing);
+            UpdateGazeHighlight(target, gazeProgress01);
             if (step != EntrySafetyStep.StopPump || _pumpStopped)
                 SetStopProximityVisible(false);
         }
@@ -236,7 +237,10 @@ namespace JH.EntrySafety
 
             _pumpStopped = true;
             _pressureElapsed = 0f;
-            _pressureDecreaseStarted = false;
+            // Start depressurizing as soon as the physical STOP input succeeds.
+            // Nine seconds leaves the readout near its final value after the
+            // STOP narration and two-second visual confirmation have finished.
+            _pressureDecreaseStarted = true;
             _pressureMpa = _initialPressureMpa;
             _isRightHandInsideStopZone = false;
             SetStopProximityVisible(false);
@@ -246,8 +250,8 @@ namespace JH.EntrySafety
         }
 
         /// <summary>
-        /// Starts the P-102 pressure drop during WaitPressureDecrease.
-        /// Prefer matching <paramref name="durationSeconds"/> to the wait-step TTS length.
+        /// Legacy entry point for flows that reach WaitPressureDecrease without
+        /// having started the pressure drop from the STOP input.
         /// </summary>
         public void BeginPressureDecrease(float durationSeconds)
         {
@@ -266,6 +270,12 @@ namespace JH.EntrySafety
         public void ShowWaitFeedback()
         {
             // Guidance text UI removed; pressure wait continues without panel copy.
+        }
+
+        public void ClearGazeFocus()
+        {
+            SetTargets(EntrySafetyGazeTargetId.None);
+            UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
         }
 
         /// <summary>Keeps Goal 2 complete without restoring the removed world-card guidance texts.</summary>
@@ -306,7 +316,7 @@ namespace JH.EntrySafety
             _fadeCanvasGroup.blocksRaycasts = alpha > 0f;
             while (elapsed < seconds)
             {
-                elapsed += Time.unscaledDeltaTime;
+                elapsed += SharedTrainingPause.UnscaledDeltaTime;
                 _fadeCanvasGroup.alpha = Mathf.Lerp(start, alpha, elapsed / seconds);
                 yield return null;
             }
@@ -324,7 +334,7 @@ namespace JH.EntrySafety
             SetTargetActive(_reducedPressureTarget, activeTarget == EntrySafetyGazeTargetId.ReducedPressureDisplay && IsPressureDecreaseComplete);
         }
 
-        private void UpdateGazeHighlight(EntrySafetyGazeTargetId activeTarget, bool isGazing)
+        private void UpdateGazeHighlight(EntrySafetyGazeTargetId activeTarget, float gazeProgress01)
         {
             if (_gazeHighlight == null)
                 return;
@@ -344,7 +354,7 @@ namespace JH.EntrySafety
 
             var faceOutward = -GetPanelForward();
             _gazeHighlight.Follow(anchor, faceOutward, GetHighlightSize(activeTarget, anchor));
-            _gazeHighlight.SetGazing(isGazing);
+            _gazeHighlight.SetProgress(gazeProgress01);
         }
 
         private Transform GetHighlightAnchor(EntrySafetyGazeTargetId targetId)

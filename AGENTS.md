@@ -1,6 +1,9 @@
 # HCl Leak Response VR Repository Rules
 
 - 작업 시작 전에 역할을 Integration, PPE, PreEntry, LeakResponse 중 하나로 선언한다.
+- 공식 브랜치 흐름은 `feature/ppe|feature/preentry|feature/leakresponse → integration → main`이다.
+- Stage feature branch는 최신 `integration`을 기준으로 하며 `main`에 직접 merge하거나 Pull Request하지 않는다.
+- `main`은 최종 안정본, `integration`은 전체 개발 통합본으로 사용한다.
 - Integration 작업이라고 명시되지 않은 경우 공용 통합 영역을 수정하지 않는다.
 - Integration 관리자는 cross-stage 호환성 작업 시 각 기능의 실제 Stage 소유 영역을 수정할 수 있지만, Stage 전용 로직을 App 공용 코드로 옮기지 않는다.
 - Stage 담당자는 `docs/integration/STAGE_EDITING_BOUNDARIES.md`의 자기 Stage 허용 범위만 수정한다.
