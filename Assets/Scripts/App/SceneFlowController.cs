@@ -13,7 +13,9 @@ namespace HClTraining.App
     public sealed class SceneFlowController : MonoBehaviour
     {
         public const string AppScenePath = "Assets/Scenes/App/App.unity";
+        public const string TitleScenePath = "Assets/3.JH/Scenes/Prototype/TitleScene.unity";
         public const string StartScenePath = "Assets/Scenes/App/Start.unity";
+        public const string LoadingScenePath = "Assets/Scenes/App/Loading.unity";
         public const string PpeScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
         public const string PreEntryScenePath = "Assets/Scenes/JH_Test_Scene.unity";
         public const string LeakResponseScenePath = "Assets/Scenes/SSH_VR_Project.unity";
@@ -56,6 +58,7 @@ namespace HClTraining.App
         }
 
         public bool ShowStart() => RequestTransition(StartScenePath, TrainingStage.None);
+        public bool ShowTitle() => RequestTransition(TitleScenePath, TrainingStage.None);
         public bool ShowStage(TrainingStage stage) => RequestTransition(PathFor(stage), stage);
         public bool ShowComplete() => RequestTransition(CompleteScenePath, TrainingStage.Complete);
 
@@ -77,6 +80,13 @@ namespace HClTraining.App
             inventory.ReturnAllToStorage();
             yield return null;
             yield return UnloadContentScenes();
+
+            if (stage != TrainingStage.None && stage != TrainingStage.Complete)
+            {
+                yield return RunControllerGuide();
+                if (transitionRoutine == null)
+                    yield break;
+            }
 
             var plan = BuildLoadPlan(scenePath, stage);
             var loadOrder = plan.BuildLoadOrder();
@@ -130,6 +140,8 @@ namespace HClTraining.App
                 }
 
                 contentScenes.Add(loadedScene);
+                if (PathsMatch(path, TitleScenePath) && !PathsMatch(path, plan.PrimaryScenePath))
+                    ConfigureTitleAsBackground(loadedScene);
                 if (isLeakScene)
                     P102LeakStageActivation.Apply(loadedScene, stage == TrainingStage.LeakResponse);
                 if (isPreEntryScene)
@@ -157,6 +169,8 @@ namespace HClTraining.App
             {
                 if (!xrProfiles.ApplyStartProfile(out var startXrError))
                     errorUI?.Show(startXrError);
+                if (PathsMatch(contentScene.path, TitleScenePath))
+                    BindTitleMenu(contentScene);
             }
             else if (stage == TrainingStage.Complete)
             {
@@ -191,10 +205,137 @@ namespace HClTraining.App
             // its profile audit has run. Start/Complete have no active Stage audit,
             // so restore the App-owned semantic actions at the transition boundary.
             AppBootstrap.Instance?.SharedInput?.EnsureActionsEnabled();
+            AppBootstrap.Instance?.TrainingMenu?.EnsureInitialWorldPlacement();
 
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);
             transitionRoutine = null;
+        }
+
+        IEnumerator RunControllerGuide()
+        {
+            if (!Application.CanStreamedLevelBeLoaded(LoadingScenePath))
+            {
+                Debug.LogWarning("[Scene Flow] Controller Guide Scene is not in Build Settings; continuing without it.", this);
+                yield break;
+            }
+
+            Scene titleBackgroundScene = default;
+            if (Application.CanStreamedLevelBeLoaded(TitleScenePath))
+            {
+                var backgroundLoad = SceneManager.LoadSceneAsync(TitleScenePath, LoadSceneMode.Additive);
+                if (backgroundLoad != null)
+                {
+                    while (!backgroundLoad.isDone)
+                        yield return null;
+                    titleBackgroundScene = SceneManager.GetSceneByPath(TitleScenePath);
+                    if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
+                    {
+                        ConfigureTitleAsBackground(titleBackgroundScene);
+                        if (!xrProfiles.PrepareDependencyScene(titleBackgroundScene, out var backgroundError))
+                            Debug.LogWarning($"[Scene Flow] Title background XR cleanup failed: {backgroundError}", this);
+                    }
+                }
+            }
+
+            var load = SceneManager.LoadSceneAsync(LoadingScenePath, LoadSceneMode.Additive);
+            if (load == null)
+            {
+                Debug.LogWarning("[Scene Flow] Controller Guide Scene load could not be started; continuing to the Stage.", this);
+                yield break;
+            }
+            while (!load.isDone)
+                yield return null;
+
+            var loadingScene = SceneManager.GetSceneByPath(LoadingScenePath);
+            if (!loadingScene.IsValid() || !loadingScene.isLoaded)
+            {
+                Debug.LogWarning("[Scene Flow] Controller Guide Scene was not found after load; continuing to the Stage.", this);
+                yield break;
+            }
+
+            SceneManager.SetActiveScene(loadingScene);
+            inputLock.Unlock(true);
+            yield return fade.FadeIn();
+
+            var waitUntil = Time.realtimeSinceStartup + 5f;
+            while (ControllerTutorialManager.Active == null && Time.realtimeSinceStartup < waitUntil)
+                yield return null;
+
+            if (ControllerTutorialManager.Active == null)
+            {
+                Debug.LogError("[Scene Flow] Controller Guide manager was not created; skipping the guide to preserve Stage flow.", this);
+            }
+            else
+            {
+                while (!ControllerTutorialManager.Active.ContinueRequested)
+                    yield return null;
+            }
+
+            if (!inputLock.TryLock())
+                Debug.LogWarning("[Scene Flow] Could not reacquire the transition input lock after Controller Guide.", this);
+            yield return fade.FadeOut();
+
+            var unload = SceneManager.UnloadSceneAsync(loadingScene);
+            if (unload != null)
+                while (!unload.isDone)
+                    yield return null;
+
+            if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
+            {
+                var backgroundUnload = SceneManager.UnloadSceneAsync(titleBackgroundScene);
+                if (backgroundUnload != null)
+                    while (!backgroundUnload.isDone)
+                        yield return null;
+            }
+        }
+
+        static void ConfigureTitleAsBackground(Scene titleScene)
+        {
+            foreach (var root in titleScene.GetRootGameObjects())
+            {
+                var transforms = root.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < transforms.Length; i++)
+                {
+                    var item = transforms[i];
+                    if (item == null)
+                        continue;
+                    if (item.name == "TitleMenuHost" || item.name == "TitleSceneAppXrCompat" ||
+                        item.name == "XR Origin (VR)" || item.name == "XR Interaction Manager")
+                        item.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        void BindTitleMenu(Scene titleScene)
+        {
+            TitleMenuController menu = null;
+            foreach (var root in titleScene.GetRootGameObjects())
+            {
+                menu = root.GetComponentInChildren<TitleMenuController>(true);
+                if (menu != null)
+                    break;
+            }
+
+            if (menu == null)
+            {
+                Debug.LogError("[Scene Flow] TitleScene is missing TitleMenuController.", this);
+                return;
+            }
+
+            // Education enters the existing guided course selection. Training is
+            // intentionally kept on the Title screen and shows its coming-soon UI.
+            menu.OnEducationSelected.AddListener(() => ShowStart());
+            menu.OnExitClicked.AddListener(RequestApplicationExit);
+        }
+
+        static void RequestApplicationExit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         public bool HandoffPreEntryToLoadedLeakResponse()
@@ -354,6 +495,8 @@ namespace HClTraining.App
 
         static StageLoadPlan BuildLoadPlan(string primaryScenePath, TrainingStage stage)
         {
+            if (stage == TrainingStage.None && PathsMatch(primaryScenePath, StartScenePath))
+                return new StageLoadPlan(primaryScenePath, new[] { TitleScenePath });
             if (stage == TrainingStage.PreEntry)
                 return new StageLoadPlan(primaryScenePath, new[] { LeakResponseScenePath });
             if (stage == TrainingStage.LeakResponse)

@@ -3495,7 +3495,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -10307,6 +10307,7 @@ GameObject:
   - component: {fileID: 1249142855}
   - component: {fileID: 1249142854}
   - component: {fileID: 1249142853}
+  - component: {fileID: 1249142856}
   - component: {fileID: 1249142852}
   m_Layer: 0
   m_Name: TunnelingVignette
@@ -10356,7 +10357,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_DefaultParameters:
-    m_ApertureSize: 0.82
+    m_ApertureSize: 1
     m_FeatheringEffect: 0.25
     m_EaseInTime: 0.04
     m_EaseOutTime: 0.1
@@ -10366,7 +10367,7 @@ MonoBehaviour:
     m_VignetteColorBlend: {r: 0, g: 0, b: 0, a: 1}
     m_ApertureVerticalPosition: 0
   m_CurrentParameters:
-    m_ApertureSize: 0.7
+    m_ApertureSize: 1
     m_FeatheringEffect: 0.2
     m_EaseInTime: 0.3
     m_EaseOutTime: 0.3
@@ -10410,6 +10411,18 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1249142850}
   m_Mesh: {fileID: 1337149907330944951, guid: 5833e680dc0f7ae47aec6b4286570484, type: 3}
+--- !u!114 &1249142856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1249142850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68b49e1a6b204c07a47df391a59a5688, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!23 &1249142855
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -10417,7 +10430,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1249142850}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -16384,7 +16397,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyAnchorFollower
   xrCamera: {fileID: 453007392}
-  localPositionOffset: {x: -0.52, y: 0.65, z: 0.14}
+  localPositionOffset: {x: -0.38, y: 0.65, z: 0.1}
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 0

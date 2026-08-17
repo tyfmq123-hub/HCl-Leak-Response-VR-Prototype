@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using HClTraining.App;
 using HClTraining.SharedXR;
+using JH.EntrySafety;
 using Unity.XR.CoreUtils;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -26,7 +27,9 @@ public static class IntegrationSceneValidator
     static readonly (string path, int expectedXrOrigins)[] TargetScenes =
     {
         (SceneFlowController.AppScenePath, 1),
+        (SceneFlowController.TitleScenePath, 1),
         (SceneFlowController.StartScenePath, 0),
+        (SceneFlowController.LoadingScenePath, 0),
         (SceneFlowController.PpeScenePath, 1),
         (SceneFlowController.PreEntryScenePath, 1),
         (SceneFlowController.LeakResponseScenePath, 1),
@@ -69,7 +72,7 @@ public static class IntegrationSceneValidator
         if (failures.Count != 0)
             throw new InvalidOperationException("Integration scene validation failed:\n" + string.Join("\n", failures));
 
-        Debug.Log("[Integration Scene Validation] All six Scenes, XR profiles, serialization, and Build Settings passed.");
+        Debug.Log("[Integration Scene Validation] All eight Scenes, XR profiles, serialization, and Build Settings passed.");
     }
 
     static void ValidateBuildSettings(List<string> failures, List<string> report)
@@ -253,6 +256,20 @@ public static class IntegrationSceneValidator
                 failures.Add($"{scenePath}: expected exactly one AppBootstrap, found {appBootstrapCount}");
             if (scenePath == SceneFlowController.AppScenePath)
                 ValidateCommonXr(firstOrigin, failures);
+            if (scenePath == SceneFlowController.TitleScenePath)
+            {
+                var titleMenus = scene.GetRootGameObjects()
+                    .SelectMany(root => root.GetComponentsInChildren<TitleMenuController>(true)).ToArray();
+                if (titleMenus.Length != 1)
+                    failures.Add($"TitleScene must contain exactly one TitleMenuController, found {titleMenus.Length}.");
+            }
+            if (scenePath == SceneFlowController.LoadingScenePath)
+            {
+                var guides = scene.GetRootGameObjects()
+                    .SelectMany(root => root.GetComponentsInChildren<ControllerTutorialManager>(true)).ToArray();
+                if (guides.Length != 1)
+                    failures.Add($"Loading Scene must contain exactly one ControllerTutorialManager, found {guides.Length}.");
+            }
             if (scenePath == SceneFlowController.PreEntryScenePath)
                 ValidatePreEntryLocomotion(firstOrigin, failures);
             if (scenePath == SceneFlowController.LeakResponseScenePath)
@@ -380,6 +397,9 @@ public static class IntegrationSceneValidator
         }
 
         var vignette = vignettes[0];
+        var visibilityGuards = origin.GetComponentsInChildren<ComfortVignetteVisibilityGuard>(true);
+        if (visibilityGuards.Length != 1 || visibilityGuards[0].gameObject != vignette.gameObject)
+            failures.Add($"Common XR comfort vignette must contain exactly one co-located visibility guard, found {visibilityGuards.Length}.");
         ValidateVignetteParameters("default", vignette.defaultParameters,
             0.82f, 0.25f, 0.04f, 0.10f, 0.02f, failures);
 

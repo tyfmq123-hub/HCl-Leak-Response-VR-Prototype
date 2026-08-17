@@ -45,6 +45,14 @@ namespace VRProject.LeakResponse.Narration
         {
             recoveryUnlocked = true;
             DisableDirectGrab();
+            // Recovery uses the tongs' proximity test, not physical collision. Installed
+            // absorbents must not behave like steps and lift the CharacterController.
+            Collider[] colliders = GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; ++i)
+            {
+                if (colliders[i] != null)
+                    colliders[i].enabled = false;
+            }
         }
 
         public void DisableDirectGrab()

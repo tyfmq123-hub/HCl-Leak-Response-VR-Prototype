@@ -14,7 +14,7 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
     [Header("Offset (relative to horizontal facing)")]
     // Left hip / low waist relative to HMD (meters). The wider X offset keeps
     // the bag body beside the torso after its long axis is rotated front-to-back.
-    [SerializeField] Vector3 localPositionOffset = new Vector3(-0.52f, -0.90f, 0.14f);
+    [SerializeField] Vector3 localPositionOffset = new Vector3(-0.38f, -0.90f, 0.10f);
 
     [Header("Smoothing")]
     [SerializeField] [Min(0f)] float positionSmoothTime = 0.08f;
@@ -52,7 +52,14 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
         {
             if (useStableOriginBodyFrame)
             {
-                transform.localPosition = localPositionOffset;
+                // Locomotion moves the XR Origin, but real room-scale walking only moves
+                // the tracked camera inside it. Follow that tracked X/Z exactly so worn
+                // equipment cannot remain behind in world space as the player walks.
+                var cameraLocal = transform.parent.InverseTransformPoint(xrCamera.position);
+                transform.localPosition = new Vector3(
+                    cameraLocal.x + localPositionOffset.x,
+                    localPositionOffset.y,
+                    cameraLocal.z + localPositionOffset.z);
                 transform.localRotation = Quaternion.identity;
                 return;
             }
@@ -96,7 +103,11 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
         {
             if (useStableOriginBodyFrame)
             {
-                transform.localPosition = localPositionOffset;
+                var cameraLocal = transform.parent.InverseTransformPoint(xrCamera.position);
+                transform.localPosition = new Vector3(
+                    cameraLocal.x + localPositionOffset.x,
+                    localPositionOffset.y,
+                    cameraLocal.z + localPositionOffset.z);
                 transform.localRotation = Quaternion.identity;
                 return;
             }

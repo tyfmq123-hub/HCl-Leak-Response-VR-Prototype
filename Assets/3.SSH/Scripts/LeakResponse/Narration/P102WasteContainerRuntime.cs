@@ -36,6 +36,7 @@ namespace VRProject.LeakResponse.Narration
         Vector3 designatedContainerPosition;
         Quaternion designatedContainerRotation;
         Transform originalLidParent;
+        Transform heldLidInteractorAttach;
         Bounds depositBounds;
         bool hasDepositBounds;
         bool lidStowEnabled;
@@ -44,7 +45,6 @@ namespace VRProject.LeakResponse.Narration
         bool snappingLid;
         bool lidHandPoseWristCorrected;
         Coroutine lidReleaseRoutine;
-        int depositedPads;
         int visibleDepositedCount;
 
         public event Action<P102RecoveryItemState> ItemDeposited;
@@ -84,7 +84,6 @@ namespace VRProject.LeakResponse.Narration
             containerRoot.SetActive(true);
             designatedContainerPosition = containerRoot.transform.position;
             designatedContainerRotation = containerRoot.transform.rotation;
-            depositedPads = 0;
             visibleDepositedCount = 0;
             lidStowEnabled = false;
             finalCloseEnabled = false;
@@ -151,6 +150,9 @@ namespace VRProject.LeakResponse.Narration
             lidGrab.snapToColliderVolume = !hasAuthoredHandPose;
             lidGrab.throwOnDetach = false;
             lidGrab.selectMode = InteractableSelectMode.Single;
+            lidGrab.movementType = XRGrabInteractable.MovementType.Kinematic;
+            lidGrab.smoothPosition = false;
+            lidGrab.smoothRotation = false;
             P102RuntimeUtility.ConfigureExactPoseGrabTracking(lidGrab);
             lidGrab.selectEntered.AddListener(OnLidSelectEntered);
             lidGrab.selectExited.AddListener(OnLidSelectExited);
@@ -195,13 +197,12 @@ namespace VRProject.LeakResponse.Narration
             if (!depositGate.TryDeposit(uniqueId) || !item.MarkDeposited())
                 return false;
 
-            if (item.Kind == P102AbsorbentKind.Pad)
-                ++depositedPads;
             PlaceInStack(item, depositGate.DepositedCount - 1);
             ItemDeposited?.Invoke(item);
+            CompleteRemainingKind(item.Kind, item);
             Debug.Log($"[P102 Flow] Waste deposited {depositGate.DepositedCount}/{RequiredDepositCount}", item);
 
-            if (depositedPads == 3)
+            if (item.Kind == P102AbsorbentKind.Pad)
                 narration?.EnqueueOnce(P102LeakNarrationCue.AllPadsRecovered);
             if (CanFinalLock)
             {
@@ -210,6 +211,43 @@ namespace VRProject.LeakResponse.Narration
             }
 
             return true;
+        }
+
+        void CompleteRemainingKind(P102AbsorbentKind kind, P102RecoveryItemState representative)
+        {
+            P102RecoveryRuntime recoveryRuntime =
+                representative != null ? representative.GetComponentInParent<P102RecoveryRuntime>() : null;
+            if (recoveryRuntime == null)
+                recoveryRuntime = FindAnyObjectByType<P102RecoveryRuntime>();
+            if (recoveryRuntime == null)
+                return;
+
+            for (int i = 0; i < recoveryRuntime.Items.Count; ++i)
+            {
+                P102RecoveryItemState other = recoveryRuntime.Items[i];
+                if (other == null || other == representative || other.Kind != kind || other.IsDeposited)
+                    continue;
+                if (!depositGate.TryDeposit(other.GetInstanceID()) || !other.MarkDeposited())
+                    continue;
+
+                XRGrabInteractable otherGrab = other.GetComponent<XRGrabInteractable>();
+                if (otherGrab != null)
+                    otherGrab.enabled = false;
+                Collider[] colliders = other.GetComponentsInChildren<Collider>(true);
+                for (int colliderIndex = 0; colliderIndex < colliders.Length; ++colliderIndex)
+                {
+                    if (colliders[colliderIndex] != null)
+                        colliders[colliderIndex].enabled = false;
+                }
+                Renderer[] renderers = other.GetComponentsInChildren<Renderer>(true);
+                for (int rendererIndex = 0; rendererIndex < renderers.Length; ++rendererIndex)
+                {
+                    if (renderers[rendererIndex] != null)
+                        renderers[rendererIndex].enabled = false;
+                }
+                ++visibleDepositedCount;
+                ItemDeposited?.Invoke(other);
+            }
         }
 
         bool IsItemWithinDepositZone(P102RecoveryItemState item)
@@ -274,6 +312,33 @@ namespace VRProject.LeakResponse.Narration
             StopLidReleaseRoutine();
             P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
                 lidGrab, lidAuthoredHandPoseAttach, args);
+            heldLidInteractorAttach = args?.interactorObject?.GetAttachTransform(lidGrab);
+            if (heldLidInteractorAttach != null && lidObject != null)
+            {
+                Transform handleAttach = lidAuthoredHandPoseAttach != null
+                    ? lidAuthoredHandPoseAttach
+                    : lidHandleCollider != null ? lidHandleCollider.transform : null;
+                if (handleAttach != null)
+                {
+                    Quaternion attachRotationInLid =
+                        Quaternion.Inverse(lidObject.transform.rotation) * handleAttach.rotation;
+                    Vector3 attachPositionInLid =
+                        lidObject.transform.InverseTransformPoint(handleAttach.position);
+                    Quaternion targetRotation = heldLidInteractorAttach.rotation *
+                                                Quaternion.Inverse(attachRotationInLid);
+                    Vector3 scaledAttachPosition = Vector3.Scale(
+                        attachPositionInLid, lidObject.transform.lossyScale);
+                    Vector3 targetPosition = heldLidInteractorAttach.position -
+                                             targetRotation * scaledAttachPosition;
+                    lidObject.transform.SetPositionAndRotation(targetPosition, targetRotation);
+                }
+
+                // Keep the lid in the controller hierarchy so locomotion and snap-turn cannot
+                // introduce a one-frame offset or fling it away.
+                lidObject.transform.SetParent(heldLidInteractorAttach, true);
+                lidGrab.trackPosition = false;
+                lidGrab.trackRotation = false;
+            }
             if (lidRigidbody == null)
                 return;
 
@@ -296,6 +361,14 @@ namespace VRProject.LeakResponse.Narration
 
         void OnLidSelectExited(SelectExitEventArgs args)
         {
+            heldLidInteractorAttach = null;
+            if (lidObject != null)
+                lidObject.transform.SetParent(originalLidParent, true);
+            if (lidGrab != null)
+            {
+                lidGrab.trackPosition = true;
+                lidGrab.trackRotation = true;
+            }
             if (args.isCanceled || snappingLid || lidObject == null || depositGate.IsLocked)
                 return;
 
@@ -549,10 +622,12 @@ namespace VRProject.LeakResponse.Narration
                 handle.SetParent(lidObject.transform, true);
             }
 
+            // The whole visible lid is a valid touch target. Selection still snaps to the
+            // authored handle attach, so the player never has to crouch to the small handle.
             Vector3 worldSize = new Vector3(
-                Mathf.Clamp(lidBounds.size.x * 0.38f, 0.18f, 0.34f),
-                Mathf.Clamp(lidBounds.size.y * 0.30f, 0.08f, 0.14f),
-                Mathf.Clamp(lidBounds.size.z * 0.20f, 0.09f, 0.18f));
+                Mathf.Max(0.20f, lidBounds.size.x * 1.08f),
+                Mathf.Max(0.10f, lidBounds.size.y * 1.35f),
+                Mathf.Max(0.20f, lidBounds.size.z * 1.08f));
             handle.position = new Vector3(
                 lidBounds.center.x,
                 lidBounds.max.y - worldSize.y * 0.35f,
@@ -564,7 +639,7 @@ namespace VRProject.LeakResponse.Narration
             if (collider == null)
                 collider = handle.gameObject.AddComponent<BoxCollider>();
             Vector3 scale = handle.lossyScale;
-            collider.center = Vector3.zero;
+            collider.center = handle.InverseTransformPoint(lidBounds.center);
             collider.size = new Vector3(
                 worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
                 worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(scale.y)),

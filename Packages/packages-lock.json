@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "com.senghwan.vr-hand-pose-tool": {
-      "version": "file:E:/WorkSpace/vr-hand-pose-tool",
+      "version": "file:C:/Project/vr-hand-pose-tool",
       "depth": 0,
       "source": "local",
       "dependencies": {

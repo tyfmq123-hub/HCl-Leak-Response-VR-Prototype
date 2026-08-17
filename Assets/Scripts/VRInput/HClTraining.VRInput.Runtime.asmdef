@@ -1,0 +1,14 @@
+{
+    "name": "HClTraining.VRInput.Runtime",
+    "rootNamespace": "HClTraining.VRInput",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

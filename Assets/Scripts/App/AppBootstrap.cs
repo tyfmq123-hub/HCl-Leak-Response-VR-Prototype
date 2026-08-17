@@ -3,6 +3,7 @@ using HClTraining.SharedXR;
 using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering;
 using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace HClTraining.App
@@ -35,6 +36,11 @@ namespace HClTraining.App
                 return;
             }
             Instance = this;
+
+            // Quest screenshots include the eye texture outside the visible lens.
+            // URP's hidden-area occlusion mesh leaves that crescent unrendered,
+            // exposing the camera clear color on the right edge of captures.
+            XRSRPSettings.occlusionMeshScale = 0f;
 
             ResolveCommonXr();
             if (commonXrOrigin == null)
@@ -89,7 +95,7 @@ namespace HClTraining.App
         IEnumerator Start()
         {
             yield return null;
-            SceneFlow.ShowStart();
+            SceneFlow.ShowTitle();
         }
 
         void ResolveCommonXr()

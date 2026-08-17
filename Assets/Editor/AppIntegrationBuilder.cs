@@ -176,6 +176,7 @@ public static class AppIntegrationBuilder
 
     static void ConfigureCommonXrContracts(Transform commonOrigin)
     {
+        var xrCamera = commonOrigin != null ? commonOrigin.GetComponentInChildren<Camera>(true) : null;
         var move = commonOrigin != null ? commonOrigin.GetComponent<ContinuousMoveProvider>() : null;
         var turn = commonOrigin != null ? commonOrigin.GetComponent<SnapTurnProvider>() : null;
         var vignette = commonOrigin != null
@@ -183,6 +184,11 @@ public static class AppIntegrationBuilder
             : null;
         if (move == null || turn == null || vignette == null)
             throw new InvalidOperationException("Common XR locomotion/vignette components are incomplete.");
+
+        // Quest screenshots can include pixels outside the asymmetric eye frustum.
+        // Never expose the Starter Assets blue camera fallback in those pixels.
+        if (xrCamera != null)
+            xrCamera.backgroundColor = Color.black;
 
         var rightMove = move.rightHandMoveInput ??
             new XRInputValueReader<Vector2>("Right Hand Move", XRInputValueReader.InputSourceMode.Unused);
@@ -197,7 +203,14 @@ public static class AppIntegrationBuilder
         turn.leftHandTurnInput = leftTurn;
 
         vignette.enabled = true;
-        vignette.defaultParameters = CreateVignetteParameters(0.82f, 0.25f, 0.04f, 0.10f, 0.02f);
+        if (vignette.GetComponent<ComfortVignetteVisibilityGuard>() == null)
+            vignette.gameObject.AddComponent<ComfortVignetteVisibilityGuard>();
+        var vignetteRenderer = vignette.GetComponent<MeshRenderer>();
+        if (vignetteRenderer != null)
+            vignetteRenderer.enabled = false;
+        // Aperture 1 is fully open: no comfort mesh is visible while idle.
+        // Locomotion providers below still close it during move/snap-turn.
+        vignette.defaultParameters = CreateVignetteParameters(1f, 0.25f, 0.04f, 0.10f, 0.02f);
         vignette.locomotionVignetteProviders = new List<LocomotionVignetteProvider>
         {
             new LocomotionVignetteProvider
@@ -473,7 +486,9 @@ public static class AppIntegrationBuilder
         EditorBuildSettings.scenes = new[]
         {
             new EditorBuildSettingsScene(SceneFlowController.AppScenePath, true),
+            new EditorBuildSettingsScene(SceneFlowController.TitleScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.StartScenePath, true),
+            new EditorBuildSettingsScene(SceneFlowController.LoadingScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.PpeScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.PreEntryScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.LeakResponseScenePath, true),

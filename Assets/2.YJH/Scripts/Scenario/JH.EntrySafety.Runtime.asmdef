@@ -4,7 +4,9 @@
   "references": [
     "HClTraining.SharedXR.Runtime",
     "Unity.InputSystem",
-        "Unity.TextMeshPro"
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

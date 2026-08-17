@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -36,9 +37,14 @@ namespace VRProject.LeakResponse.Narration
         bool returned;
         bool pickupGuidanceStarted;
         bool sockGuidanceCompleted;
-        bool handPoseWristCorrected;
         Coroutine grabConfirmationRoutine;
         float lastProgressTime;
+        readonly Dictionary<XRBaseInputInteractor, XRBaseInputInteractor.InputTriggerType>
+            originalSelectTriggers = new();
+        Transform heldInteractorAttach;
+        Transform tongsOriginalParent;
+        Vector3 heldLocalPosition;
+        Quaternion heldLocalRotation;
 
         public bool IsConfigured => tongsRoot != null && grabInteractable != null && tipTransform != null;
         public P102RecoveryItemState HeldItem => heldItem;
@@ -60,7 +66,6 @@ namespace VRProject.LeakResponse.Narration
             returned = false;
             pickupGuidanceStarted = false;
             sockGuidanceCompleted = false;
-            handPoseWristCorrected = false;
 
             if (tongsRoot == null)
             {
@@ -77,6 +82,7 @@ namespace VRProject.LeakResponse.Narration
             }
 
             tongsRoot.SetActive(true);
+            tongsOriginalParent = tongsRoot.transform.parent;
             P102RuntimeUtility.HideHandPoseGhostRenderers(tongsRoot);
             tongsRoot.transform.SetPositionAndRotation(tongsGhost.position, tongsGhost.rotation);
             tongsGhost.gameObject.SetActive(false);
@@ -120,17 +126,21 @@ namespace VRProject.LeakResponse.Narration
                 attachTransform.localRotation = Quaternion.identity;
             }
 
-            bool hasAuthoredHandPose = authoredHandPoseAttach != null;
-            handPoseWristCorrected = hasAuthoredHandPose &&
-                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
-                    grabInteractable, authoredHandPoseAttach);
             grabInteractable.attachTransform = attachTransform;
-            grabInteractable.useDynamicAttach = !hasAuthoredHandPose;
+            // The authored hand-pose rotation does not match every Quest controller attach.
+            // Preserve the actual handle pose at selection so the long tool cannot snap,
+            // flip, or orbit around the hand while it is being carried.
+            grabInteractable.useDynamicAttach = true;
             grabInteractable.matchAttachPosition = true;
-            grabInteractable.matchAttachRotation = hasAuthoredHandPose;
-            grabInteractable.snapToColliderVolume = !hasAuthoredHandPose;
+            grabInteractable.matchAttachRotation = false;
+            grabInteractable.snapToColliderVolume = true;
             grabInteractable.throwOnDetach = false;
             grabInteractable.selectMode = InteractableSelectMode.Single;
+            grabInteractable.movementType = XRGrabInteractable.MovementType.Kinematic;
+            grabInteractable.trackPosition = true;
+            grabInteractable.trackRotation = true;
+            grabInteractable.smoothPosition = false;
+            grabInteractable.smoothRotation = false;
             P102RuntimeUtility.ConfigureExactPoseGrabTracking(grabInteractable);
             grabInteractable.selectEntered.AddListener(OnTongsSelected);
             grabInteractable.selectExited.AddListener(OnTongsReleased);
@@ -166,6 +176,22 @@ namespace VRProject.LeakResponse.Narration
             lastProgressTime = Time.unscaledTime;
         }
 
+        void LateUpdate()
+        {
+            if (heldInteractorAttach == null || tongsRoot == null || grabInteractable == null ||
+                !grabInteractable.isSelected)
+                return;
+
+            tongsRoot.transform.SetPositionAndRotation(
+                heldInteractorAttach.TransformPoint(heldLocalPosition),
+                heldInteractorAttach.rotation * heldLocalRotation);
+            if (tongsRigidbody != null)
+            {
+                tongsRigidbody.linearVelocity = Vector3.zero;
+                tongsRigidbody.angularVelocity = Vector3.zero;
+            }
+        }
+
         void OnDestroy()
         {
             Unsubscribe();
@@ -173,8 +199,28 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
-            P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
-                grabInteractable, authoredHandPoseAttach, args);
+            if (args?.interactorObject is XRBaseInputInteractor inputInteractor)
+            {
+                if (!originalSelectTriggers.ContainsKey(inputInteractor))
+                    originalSelectTriggers.Add(
+                        inputInteractor, inputInteractor.selectActionTrigger);
+                inputInteractor.selectActionTrigger =
+                    XRBaseInputInteractor.InputTriggerType.Toggle;
+            }
+
+            heldInteractorAttach = args?.interactorObject?.GetAttachTransform(grabInteractable);
+            if (heldInteractorAttach != null && tongsRoot != null)
+            {
+                heldLocalPosition = heldInteractorAttach.InverseTransformPoint(
+                    tongsRoot.transform.position);
+                heldLocalRotation = Quaternion.Inverse(heldInteractorAttach.rotation) *
+                                    tongsRoot.transform.rotation;
+                // Make locomotion and snap-turn move the tool in the exact same hierarchy
+                // update as the controller. This removes frame-order drift and flying.
+                tongsRoot.transform.SetParent(heldInteractorAttach, true);
+            }
+            grabInteractable.trackPosition = false;
+            grabInteractable.trackRotation = false;
 
             if (tongsRigidbody != null)
             {
@@ -193,6 +239,20 @@ namespace VRProject.LeakResponse.Narration
         void OnTongsReleased(SelectExitEventArgs args)
         {
             StopGrabConfirmation();
+            if (args?.interactorObject is XRBaseInputInteractor inputInteractor &&
+                originalSelectTriggers.TryGetValue(inputInteractor, out var originalTrigger))
+            {
+                inputInteractor.selectActionTrigger = originalTrigger;
+                originalSelectTriggers.Remove(inputInteractor);
+            }
+            heldInteractorAttach = null;
+            if (tongsRoot != null)
+                tongsRoot.transform.SetParent(tongsOriginalParent, true);
+            if (grabInteractable != null)
+            {
+                grabInteractable.trackPosition = true;
+                grabInteractable.trackRotation = true;
+            }
             if (args.isCanceled || returned || tongsRoot == null)
                 return;
 
@@ -208,34 +268,14 @@ namespace VRProject.LeakResponse.Narration
 
         IEnumerator ConfirmTongsAttached(IXRSelectInteractor interactor)
         {
-            const int maxFrames = 6;
-            for (int frame = 0; frame < maxFrames; ++frame)
+            yield return null;
+            if (grabInteractable != null && grabInteractable.isSelected && interactor != null &&
+                grabInteractable.interactorsSelecting.Contains(interactor))
             {
-                yield return null;
-                if (grabInteractable == null || !grabInteractable.isSelected ||
-                    interactor == null || !grabInteractable.interactorsSelecting.Contains(interactor))
-                {
-                    grabConfirmationRoutine = null;
-                    yield break;
-                }
-
-                P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
-                    grabInteractable, authoredHandPoseAttach, interactor);
-                if (authoredHandPoseAttach == null ||
-                    P102RuntimeUtility.IsAuthoredAttachAligned(
-                        grabInteractable, authoredHandPoseAttach, interactor))
-                {
-                    pickupGuidanceStarted = true;
-                    lastProgressTime = Time.unscaledTime;
-                    narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
-                    grabConfirmationRoutine = null;
-                    yield break;
-                }
+                pickupGuidanceStarted = true;
+                lastProgressTime = Time.unscaledTime;
+                narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
             }
-
-            Debug.LogWarning(
-                "[P102 Flow] Tongs Select was detected, but the authored hand attach did not " +
-                "reach the controller. Pickup narration remains blocked until a valid Grab.", this);
             grabConfirmationRoutine = null;
         }
 
@@ -439,6 +479,7 @@ namespace VRProject.LeakResponse.Narration
             tongsRoot.transform.SetPositionAndRotation(tongsGhost.position, tongsGhost.rotation);
             tongsGhost.gameObject.SetActive(false);
             grabInteractable.enabled = false;
+            RestoreSelectTriggers();
             narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsReturned);
         }
 
@@ -452,6 +493,7 @@ namespace VRProject.LeakResponse.Narration
                 grabInteractable.activated.RemoveListener(OnActivated);
                 grabInteractable.deactivated.RemoveListener(OnDeactivated);
             }
+            RestoreSelectTriggers();
             if (narration != null)
                 narration.CueCompleted -= OnCueCompleted;
             if (waste != null)
@@ -472,15 +514,18 @@ namespace VRProject.LeakResponse.Narration
         void EnableRecoveryInteraction()
         {
             recoveryActionEnabled = true;
-            if (authoredHandPoseAttach != null)
-            {
-                handPoseWristCorrected =
-                    P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
-                        grabInteractable, authoredHandPoseAttach) ||
-                    handPoseWristCorrected;
-            }
             if (grabInteractable != null && !returned)
                 grabInteractable.enabled = true;
+        }
+
+        void RestoreSelectTriggers()
+        {
+            foreach (var entry in originalSelectTriggers)
+            {
+                if (entry.Key != null)
+                    entry.Key.selectActionTrigger = entry.Value;
+            }
+            originalSelectTriggers.Clear();
         }
 
         void OnItemDeposited(P102RecoveryItemState item)

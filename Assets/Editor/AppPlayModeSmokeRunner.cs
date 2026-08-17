@@ -105,6 +105,19 @@ public static class AppPlayModeSmokeRunner
         try
         {
             var app = AppBootstrap.Instance;
+            var guide = ControllerTutorialManager.Active;
+            if (guide != null && !guide.ContinueRequested)
+            {
+                if (!guide.OrientationCompleted)
+                {
+                    var completeGuide = typeof(ControllerTutorialManager).GetMethod(
+                        "CompleteGuide", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    Require(completeGuide != null, "Controller Guide completion method missing.");
+                    completeGuide.Invoke(guide, null);
+                }
+                guide.RequestContinue();
+            }
+
             if (app == null || app.SceneFlow == null || app.SceneFlow.IsTransitioning)
                 return;
 
@@ -112,6 +125,14 @@ public static class AppPlayModeSmokeRunner
             switch (phase)
             {
                 case 0:
+                    if (IsContentLoaded(SceneFlowController.TitleScenePath))
+                    {
+                        ValidateRuntime("Initial Title", TrainingStage.None);
+                        var titleMenu = UnityEngine.Object.FindAnyObjectByType<JH.EntrySafety.TitleMenuController>();
+                        Require(titleMenu != null, "Title menu controller missing.");
+                        titleMenu.SelectEducation();
+                        return;
+                    }
                     if (!IsContentLoaded(SceneFlowController.StartScenePath)) return;
                     ValidateRuntime("Initial Start", TrainingStage.None);
                     Require(UnityEngine.Object.FindAnyObjectByType<StartMenuPresenter>() != null, "Start menu presenter missing.");
@@ -796,6 +817,9 @@ public static class AppPlayModeSmokeRunner
             var vignette = xrRoot.GetComponentInChildren<TunnelingVignetteController>(true);
             Require(vignette != null && vignette.isActiveAndEnabled,
                 $"{label}: LeakResponse comfort vignette is not active.");
+            var visibilityGuards = xrRoot.GetComponentsInChildren<ComfortVignetteVisibilityGuard>(true);
+            Require(visibilityGuards.Length == 1 && visibilityGuards[0].gameObject == vignette.gameObject,
+                $"{label}: comfort vignette visibility guard is missing, duplicated, or attached to the wrong object.");
             Require(vignette.locomotionVignetteProviders.Count == 2 &&
                     ReferenceEquals(vignette.locomotionVignetteProviders[0].locomotionProvider, moveProvider) &&
                     ReferenceEquals(vignette.locomotionVignetteProviders[1].locomotionProvider, turnProvider),

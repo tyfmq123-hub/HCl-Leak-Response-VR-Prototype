@@ -9,8 +9,14 @@ EditorBuildSettings:
     path: Assets/Scenes/App/App.unity
     guid: 1f476d899ddb97942a29b2b7767fc665
   - enabled: 1
+    path: Assets/3.JH/Scenes/Prototype/TitleScene.unity
+    guid: 0ca09ba654eefe649a72844c545a8351
+  - enabled: 1
     path: Assets/Scenes/App/Start.unity
     guid: 67fddc2a7b4acb0488942ca7c39c47fd
+  - enabled: 1
+    path: Assets/Scenes/App/Loading.unity
+    guid: 7a707b226485c0340be001f5c63e1e1b
   - enabled: 1
     path: Assets/Scenes/PPE_PreparationRoom.unity
     guid: 87a3203d21380de46b7ec9c353781419

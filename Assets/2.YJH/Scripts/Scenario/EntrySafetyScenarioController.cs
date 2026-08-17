@@ -181,18 +181,15 @@ namespace JH.EntrySafety
             // Every step becomes actionable only after its matching guidance TTS has finished.
             if (IsGuidanceTtsBlocking())
             {
-                var listeningStep = _stateMachine.CurrentStep;
-                if (listeningStep == EntrySafetyStep.WaitWindChange)
-                {
-                    // Keep phrase 6 on screen until the windsock finishes rotating.
-                    KeepSubtitleForStep(EntrySafetyStep.WaitWindChange);
-                }
-
                 HideWindsockGazeProgress();
                 _gazeAdapter.SetGuideRayVisible(false);
                 _equipmentTransferZone.UpdateZone(false, Time.deltaTime);
                 return;
             }
+
+            // Match the other stages: guidance text is a TTS subtitle, not a persistent
+            // objective panel. Once narration has finished, remove both text and backdrop.
+            _guidanceView.SetVisible(false);
 
             var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.CheckInitialWind || step == EntrySafetyStep.CheckChangedWind)
@@ -237,8 +234,6 @@ namespace JH.EntrySafety
             }
             else if (step == EntrySafetyStep.WaitWindChange)
             {
-                // Keep phrase 6 visible after TTS ends, then rotate, then move on.
-                KeepSubtitleForStep(EntrySafetyStep.WaitWindChange);
                 HideWindsockGazeProgress();
                 _gazeAdapter.SetGuideRayVisible(true);
                 _windChangeController.Begin();
@@ -484,16 +479,6 @@ namespace JH.EntrySafety
                 _guidanceView.ShowInstruction(instruction);
                 _guidanceView.SetVisible(false);
             }
-        }
-
-        private void KeepSubtitleForStep(EntrySafetyStep step)
-        {
-            var instruction = EntrySafetyInstructionCatalog.GetInstruction(step);
-            if (instruction == null)
-                return;
-
-            _guidanceView.SetVisible(true);
-            _guidanceView.ShowInstruction(instruction);
         }
 
         private void PlayStepTts(EntrySafetyStep step)

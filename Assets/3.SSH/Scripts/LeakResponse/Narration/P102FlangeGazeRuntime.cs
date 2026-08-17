@@ -89,8 +89,8 @@ namespace VRProject.LeakResponse.Narration
         const string CountdownObjectName = "P102_FlangeGazeCountdown_Runtime";
         const string LeakMarkerObjectName = "P102_LeakPointMarker_Runtime";
         const float LeakMarkerDiameterMeters = 0.18f;
-        const float GazeAcceptanceRadiusMeters = 0.16f;
-        const float MaximumGazeAngleDegrees = 9f;
+        const float GazeAcceptanceRadiusMeters = 0.28f;
+        const float MaximumGazeAngleDegrees = 16f;
 
         static readonly Color MarkerIdleColor = new Color(1f, 0.78f, 0.04f, 1f);
         static readonly Color MarkerGazingColor = new Color(0.15f, 1f, 0.22f, 1f);

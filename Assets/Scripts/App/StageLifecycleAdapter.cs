@@ -320,6 +320,14 @@ namespace HClTraining.App
                         narrationBlockedInteractables.Contains(interactable))
                         continue;
 
+                    // Narration may start as a direct result of a successful Grab
+                    // (for example RecoveryTongsPickedUp). Disabling an interactable
+                    // that is already selected cancels the hand attachment and leaves
+                    // the tool frozen until TTS ends. Block new interactions during
+                    // narration, but always preserve objects already held by a hand.
+                    if (interactable is XRGrabInteractable heldGrab && heldGrab.isSelected)
+                        continue;
+
                     narrationBlockedInteractables.Add(interactable);
                     interactable.enabled = false;
                 }

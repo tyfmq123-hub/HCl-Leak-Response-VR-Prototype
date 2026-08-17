@@ -241,6 +241,48 @@ namespace HClTraining.App
             root.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }
 
+        public static bool PlaceOnNamedSurface(
+            Transform root, Camera camera, string objectName, Vector2 canvasSize, float inset = 0.9f)
+        {
+            if (root == null || camera == null || string.IsNullOrWhiteSpace(objectName))
+                return false;
+
+            Transform surface = null;
+            var transforms = UnityEngine.Object.FindObjectsByType<Transform>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < transforms.Length; i++)
+            {
+                if (transforms[i] != null && transforms[i].name == objectName)
+                {
+                    surface = transforms[i];
+                    break;
+                }
+            }
+            if (surface == null)
+                return false;
+
+            var renderers = surface.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+                return false;
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            var cameraForward = Vector3.ProjectOnPlane(camera.transform.forward, Vector3.up).normalized;
+            if (cameraForward.sqrMagnitude < 0.01f)
+                cameraForward = camera.transform.forward;
+            var towardCamera = (camera.transform.position - bounds.center).normalized;
+            // Keep the UI clearly in front of the slightly angled board mesh.
+            // A tiny offset caused half of the Canvas to intersect the white face.
+            root.position = bounds.center + towardCamera * 0.12f;
+            root.rotation = Quaternion.LookRotation(cameraForward, Vector3.up);
+
+            var widthScale = bounds.size.x / Mathf.Max(1f, canvasSize.x);
+            var heightScale = bounds.size.y / Mathf.Max(1f, canvasSize.y);
+            root.localScale = Vector3.one * Mathf.Min(widthScale, heightScale) * inset;
+            return true;
+        }
+
         public static Image CreatePanel(Transform parent, string name, Vector2 size, Vector2 position, Color? color = null)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -385,21 +427,15 @@ namespace HClTraining.App
         GameObject confirmPanel;
         GameObject controlsPanel;
         Action pendingConfirmedAction;
+        bool worldPlacementInitialized;
 
         public void Initialize(AppBootstrap bootstrap)
         {
             app = bootstrap;
             var canvas = TrainingUIFactory.CreateWorldCanvas(transform, "CommonTrainingMenuCanvas", new Vector2(900f, 850f), true);
-            canvas.renderMode = RenderMode.ScreenSpaceCamera;
             canvas.worldCamera = app.MainCamera;
-            canvas.planeDistance = 0.75f;
             canvas.overrideSorting = true;
             canvas.sortingOrder = 31900;
-            var scaler = canvas.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
             root = canvas.gameObject;
 
             var safeArea = XRUiSafeAreaLayout.Create(canvas.transform);
@@ -417,7 +453,11 @@ namespace HClTraining.App
                 () => Confirm("현재 Stage 진행 상태를 초기화하고 다시 시작할까요?", () => app.ScenarioFlow.RestartCurrentStage()), false, 27f);
             TrainingUIFactory.CreateButton(menuPanel.transform, "조작 방법", new Vector2(470f, 76f), new Vector2(0f, -35f), ShowControls, false, 28f);
             TrainingUIFactory.CreateButton(menuPanel.transform, "Stage Selection으로 돌아가기", new Vector2(470f, 76f), new Vector2(0f, -125f),
-                () => Confirm("현재 진행을 종료하고 Stage Selection으로 돌아갈까요?", () => app.ScenarioFlow.ReturnToStart()), false, 25f);
+                () => Confirm(
+                    app.Session.CurrentStage == TrainingStage.None
+                        ? "모드 선택 화면으로 돌아갈까요?"
+                        : "현재 진행을 종료하고 Stage Selection으로 돌아갈까요?",
+                    ReturnBack), false, 25f);
             menuPanel.SetActive(false);
 
             controlsPanel = TrainingUIFactory.CreatePanel(safeArea, "ControlsPanel", new Vector2(680f, 570f), Vector2.zero,
@@ -442,6 +482,16 @@ namespace HClTraining.App
 
             app.Session.Changed += RefreshVisibility;
             RefreshVisibility();
+        }
+
+        public void EnsureInitialWorldPlacement()
+        {
+            if (worldPlacementInitialized || root == null || app == null || app.MainCamera == null)
+                return;
+            // TitleScene positions the shared XR Origin after AppBootstrap runs.
+            // Place once after that, then preserve all manual world adjustments.
+            TrainingUIFactory.PlaceFixedInView(root.transform, app.MainCamera, 1.5f);
+            worldPlacementInitialized = true;
         }
 
         static void AnchorTopRight(RectTransform rect, Vector2 position)
@@ -517,12 +567,22 @@ namespace HClTraining.App
 
         void RefreshVisibility()
         {
-            var visible = app.Session.CurrentStage != TrainingStage.None && app.Session.CurrentStage != TrainingStage.Complete;
+            // Keep the hamburger available on course selection as well as during
+            // training, so the user can always return to the Title mode choice.
+            var visible = app.Session.CurrentStage != TrainingStage.Complete;
             root.SetActive(visible);
             if (!visible)
             {
                 CloseMenu();
             }
+        }
+
+        void ReturnBack()
+        {
+            if (app.Session.CurrentStage == TrainingStage.None)
+                app.SceneFlow.ShowTitle();
+            else
+                app.ScenarioFlow.ReturnToStart();
         }
 
         void OnDestroy()
