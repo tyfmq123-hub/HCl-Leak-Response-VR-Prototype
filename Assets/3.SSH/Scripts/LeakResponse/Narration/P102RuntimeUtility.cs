@@ -318,6 +318,30 @@ namespace VRProject.LeakResponse.Narration
             return false;
         }
 
+        public static Transform ResolveStableControllerAnchor(IXRSelectInteractor interactor)
+        {
+            if (interactor is not Component component)
+                return null;
+
+            Transform interactorTransform = component.transform;
+            Transform current = interactorTransform;
+            for (int depth = 0; current != null && depth < 8; ++depth)
+            {
+                if (string.Equals(current.name, "Left Controller", StringComparison.Ordinal) ||
+                    string.Equals(current.name, "Right Controller", StringComparison.Ordinal))
+                {
+                    return current;
+                }
+
+                current = current.parent;
+            }
+
+            // A custom rig may not use the shared controller names. Its interactor root is
+            // still safer than the selectable attach transform, which Near/Far manipulation
+            // moves and rotates in response to the thumbstick.
+            return interactorTransform;
+        }
+
         public static bool TryGetRendererBounds(GameObject root, out Bounds bounds)
         {
             bounds = default;
@@ -744,7 +768,10 @@ namespace VRProject.LeakResponse.Narration
 
         void OnSelected(SelectEnterEventArgs args)
         {
-            heldAttach = args?.interactorObject?.GetAttachTransform(grab);
+            Transform selectionAttach = args?.interactorObject?.GetAttachTransform(grab);
+            heldAttach = P102RuntimeUtility.ResolveStableControllerAnchor(
+                             args?.interactorObject) ??
+                         selectionAttach;
             if (heldAttach == null)
                 return;
 

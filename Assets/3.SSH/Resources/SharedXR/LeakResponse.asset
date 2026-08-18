@@ -15,7 +15,7 @@ MonoBehaviour:
   scenePath: Assets/Scenes/SSH_VR_Project.unity
   spawnPosition: {x: 0, y: 0, z: -11.13}
   spawnEulerAngles: {x: 0, y: 0, z: 0}
-  farInteraction: 1
+  farInteraction: 0
   nearInteraction: 1
   uiInteraction: 1
   grabInteraction: 1

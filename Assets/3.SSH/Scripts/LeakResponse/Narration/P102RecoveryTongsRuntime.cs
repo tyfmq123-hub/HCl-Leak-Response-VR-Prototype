@@ -209,7 +209,9 @@ namespace VRProject.LeakResponse.Narration
                     XRBaseInputInteractor.InputTriggerType.Toggle;
             }
 
-            heldInteractorAttach = args?.interactorObject?.GetAttachTransform(grabInteractable);
+            heldInteractorAttach = P102RuntimeUtility.ResolveStableControllerAnchor(
+                                        args?.interactorObject) ??
+                                    args?.interactorObject?.GetAttachTransform(grabInteractable);
             if (heldInteractorAttach != null && tongsRoot != null)
             {
                 heldLocalPosition = heldInteractorAttach.InverseTransformPoint(

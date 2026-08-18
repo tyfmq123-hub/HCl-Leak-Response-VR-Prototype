@@ -328,7 +328,9 @@ namespace HClTraining.App
                 return;
 
             var lineVisual = interactor.Find("LineVisual");
-            var curveVisualReady = !active || PrepareNearFarCurveVisual(xrRoot, interactor, lineVisual);
+            var showFarVisual = active && farCasting;
+            var curveVisualReady = !showFarVisual ||
+                                   PrepareNearFarCurveVisual(xrRoot, interactor, lineVisual);
             interactor.gameObject.SetActive(active);
             if (!active)
                 return;
@@ -346,7 +348,7 @@ namespace HClTraining.App
                 interactor.name);
 
             if (lineVisual != null)
-                lineVisual.gameObject.SetActive(true);
+                lineVisual.gameObject.SetActive(showFarVisual);
 
             var behaviours = interactor.GetComponentsInChildren<Behaviour>(true);
             for (var i = 0; i < behaviours.Length; i++)
@@ -354,11 +356,12 @@ namespace HClTraining.App
                 var behaviour = behaviours[i];
                 if (behaviour == null)
                     continue;
-                behaviour.enabled = !(behaviour is CurveVisualController) || curveVisualReady;
+                behaviour.enabled = !(behaviour is CurveVisualController) ||
+                                    (showFarVisual && curveVisualReady);
             }
             var renderers = interactor.GetComponentsInChildren<Renderer>(true);
             for (var i = 0; i < renderers.Length; i++)
-                if (renderers[i] != null) renderers[i].enabled = true;
+                if (renderers[i] != null) renderers[i].enabled = showFarVisual;
             SetHapticCapability(interactor.gameObject, haptics);
         }
 

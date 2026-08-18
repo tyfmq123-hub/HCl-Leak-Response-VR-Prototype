@@ -16,6 +16,7 @@ namespace VRProject.LeakResponse.Narration
         const float IntakeDepthBelowRim = 0.28f;
         const float SideLidCaptureDistance = 0.85f;
         const float ClosedLidCaptureDistance = 0.75f;
+        const float ClosedLidRimClearance = 0.01f;
 
         enum LidSnapOutcome
         {
@@ -43,7 +44,7 @@ namespace VRProject.LeakResponse.Narration
         Vector3 designatedContainerPosition;
         Quaternion designatedContainerRotation;
         Transform originalLidParent;
-        Transform heldLidInteractorAttach;
+        Transform heldLidControllerAnchor;
         Bounds depositBounds;
         bool hasDepositBounds;
         bool lidStowEnabled;
@@ -112,6 +113,7 @@ namespace VRProject.LeakResponse.Narration
             P102RuntimeUtility.HideHandPoseGhostRenderers(lidObject);
 
             originalLidParent = lidObject.transform.parent;
+            AlignClosedLidToContainerRim();
             closedPosition = lidObject.transform.position;
             closedRotation = lidObject.transform.rotation;
 
@@ -319,30 +321,33 @@ namespace VRProject.LeakResponse.Narration
             StopLidReleaseRoutine();
             P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
                 lidGrab, lidAuthoredHandPoseAttach, args);
-            heldLidInteractorAttach = args?.interactorObject?.GetAttachTransform(lidGrab);
-            if (heldLidInteractorAttach != null && lidObject != null)
+            Transform selectionAttach = args?.interactorObject?.GetAttachTransform(lidGrab);
+            heldLidControllerAnchor = P102RuntimeUtility.ResolveStableControllerAnchor(
+                                          args?.interactorObject) ??
+                                      selectionAttach;
+            if (heldLidControllerAnchor != null && lidObject != null)
             {
                 Transform handleAttach = lidAuthoredHandPoseAttach != null
                     ? lidAuthoredHandPoseAttach
                     : lidHandleCollider != null ? lidHandleCollider.transform : null;
-                if (handleAttach != null)
+                if (handleAttach != null && selectionAttach != null)
                 {
                     Quaternion attachRotationInLid =
                         Quaternion.Inverse(lidObject.transform.rotation) * handleAttach.rotation;
                     Vector3 attachPositionInLid =
                         lidObject.transform.InverseTransformPoint(handleAttach.position);
-                    Quaternion targetRotation = heldLidInteractorAttach.rotation *
+                    Quaternion targetRotation = selectionAttach.rotation *
                                                 Quaternion.Inverse(attachRotationInLid);
                     Vector3 scaledAttachPosition = Vector3.Scale(
                         attachPositionInLid, lidObject.transform.lossyScale);
-                    Vector3 targetPosition = heldLidInteractorAttach.position -
+                    Vector3 targetPosition = selectionAttach.position -
                                              targetRotation * scaledAttachPosition;
                     lidObject.transform.SetPositionAndRotation(targetPosition, targetRotation);
                 }
 
-                // Keep the lid in the controller hierarchy so locomotion and snap-turn cannot
-                // introduce a one-frame offset or fling it away.
-                lidObject.transform.SetParent(heldLidInteractorAttach, true);
+                // Keep the lid under the tracked controller, never under Near/Far's movable
+                // attach transform. Thumbstick anchor manipulation must not move or rotate it.
+                lidObject.transform.SetParent(heldLidControllerAnchor, true);
                 lidGrab.trackPosition = false;
                 lidGrab.trackRotation = false;
             }
@@ -368,7 +373,7 @@ namespace VRProject.LeakResponse.Narration
 
         void OnLidSelectExited(SelectExitEventArgs args)
         {
-            heldLidInteractorAttach = null;
+            heldLidControllerAnchor = null;
             if (lidObject != null)
                 lidObject.transform.SetParent(originalLidParent, true);
             if (lidGrab != null)
@@ -728,6 +733,23 @@ namespace VRProject.LeakResponse.Narration
                 worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)));
             collider.isTrigger = false;
             collider.enabled = true;
+        }
+
+        void AlignClosedLidToContainerRim()
+        {
+            if (bodyObject == null || lidObject == null ||
+                !P102RuntimeUtility.TryGetRendererBounds(bodyObject, out Bounds bodyBounds) ||
+                !P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds))
+            {
+                Debug.LogWarning(
+                    "[P102 Flow] Waste lid rim alignment skipped because renderer bounds are unavailable.",
+                    this);
+                return;
+            }
+
+            float targetBottom = bodyBounds.max.y + ClosedLidRimClearance;
+            float verticalOffset = targetBottom - lidBounds.min.y;
+            lidObject.transform.position += Vector3.up * verticalOffset;
         }
 
         static void SetGhostVisible(Transform ghost, bool visible)
