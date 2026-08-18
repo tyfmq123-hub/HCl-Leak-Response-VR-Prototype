@@ -40,7 +40,6 @@ public static class AppPlayModeSmokeRunner
     static readonly List<string> report = new List<string>();
     static bool hooked;
     static Camera validatedMainCamera;
-    static bool validatedTrainingMenuPause;
     static bool validatedBagBodySpace;
 
     static AppPlayModeSmokeRunner()
@@ -64,7 +63,6 @@ public static class AppPlayModeSmokeRunner
         SessionState.SetInt(PhaseKey, 0);
         SessionState.SetString(StartedKey, EditorApplication.timeSinceStartup.ToString("R"));
         validatedMainCamera = null;
-        validatedTrainingMenuPause = false;
         validatedBagBodySpace = false;
         Hook();
         EditorSceneManager.OpenScene(SceneFlowController.AppScenePath, OpenSceneMode.Single);
@@ -335,11 +333,6 @@ public static class AppPlayModeSmokeRunner
         {
             ValidateBagBodySpaceMotion(label, app);
             validatedBagBodySpace = true;
-        }
-        if (!validatedTrainingMenuPause && expectedStage == TrainingStage.PPE)
-        {
-            ValidateTrainingMenuPause(label, app);
-            validatedTrainingMenuPause = true;
         }
         if (expectedStage == TrainingStage.PPE)
         {
@@ -864,37 +857,6 @@ public static class AppPlayModeSmokeRunner
         Require(checklist.IsContentVisible == before,
             $"{label}: PPE checklist did not return to its prior state after the regression check.");
         report.Add($"PASS {label}: Left X checklist toggle regression.");
-    }
-
-    static void ValidateTrainingMenuPause(string label, AppBootstrap app)
-    {
-        Require(app.TrainingMenu != null && app.PauseController != null,
-            $"{label}: common training menu/pause controller is missing.");
-        var safeArea = app.TrainingMenu.transform.Find("CommonTrainingMenuCanvas/XR_UI_SafeArea")
-            as RectTransform;
-        Require(safeArea != null &&
-                Vector2.Distance(safeArea.anchorMin, XRUiSafeAreaLayout.AnchorMin) < 0.001f &&
-                Vector2.Distance(safeArea.anchorMax, XRUiSafeAreaLayout.AnchorMax) < 0.001f,
-            $"{label}: common HUD is not using the conservative Quest safe area.");
-        var hamburger = app.TrainingMenu.transform.Find("CommonTrainingMenuCanvas/XR_UI_SafeArea/TrainingMenuHamburger")
-            ?.GetComponent<UnityEngine.UI.Button>();
-        Require(hamburger != null, $"{label}: safe-area hamburger button is missing.");
-        var trackedPose = app.MainCamera != null ? app.MainCamera.GetComponent<TrackedPoseDriver>() : null;
-        var previousTimeScale = Time.timeScale;
-
-        hamburger.onClick.Invoke();
-        Require(SharedTrainingPause.IsPaused && app.SharedInput.GameplayInputSuppressed &&
-                Mathf.Approximately(Time.timeScale, 0f) && AudioListener.pause,
-            $"{label}: opening the training menu did not pause Stage time/audio/input.");
-        Require(trackedPose != null && trackedPose.isActiveAndEnabled,
-            $"{label}: HMD tracking was disabled while the training menu was open.");
-        Require(app.TrainingMenu.transform.Find("CommonTrainingMenuCanvas/XR_UI_SafeArea/MenuPanel")?.gameObject.activeSelf == true,
-            $"{label}: compact training menu panel did not open.");
-
-        hamburger.onClick.Invoke();
-        Require(!SharedTrainingPause.IsPaused && !app.SharedInput.GameplayInputSuppressed &&
-                Mathf.Approximately(Time.timeScale, previousTimeScale) && !AudioListener.pause,
-            $"{label}: closing the training menu did not resume Stage state.");
     }
 
     static void ValidateBagBodySpaceMotion(string label, AppBootstrap app)

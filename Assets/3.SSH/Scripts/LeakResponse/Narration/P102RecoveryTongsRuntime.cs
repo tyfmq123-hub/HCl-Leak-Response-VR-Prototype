@@ -11,7 +11,7 @@ namespace VRProject.LeakResponse.Narration
     [DisallowMultipleComponent]
     public sealed class P102RecoveryTongsRuntime : MonoBehaviour
     {
-        const float PickupRadius = 0.25f;
+        const float PickupRadius = 0.35f;
         const float IdleReminderSeconds = 15f;
 
         GameObject tongsRoot;
@@ -21,6 +21,7 @@ namespace VRProject.LeakResponse.Narration
         Transform authoredHandPoseAttach;
         XRGrabInteractable grabInteractable;
         BoxCollider handleGrabCollider;
+        BoxCollider jawPhysicalCollider;
         Rigidbody tongsRigidbody;
         P102RecoveryRuntime recovery;
         P102WasteContainerRuntime waste;
@@ -101,7 +102,7 @@ namespace VRProject.LeakResponse.Narration
             if (legacyFullBoundsCollider != null)
                 legacyFullBoundsCollider.enabled = false;
             handleGrabCollider = EnsureHandleGrabCollider(tongsRoot, handleTransform);
-            EnsureJawPhysicalCollider(tongsRoot, tipTransform);
+            jawPhysicalCollider = EnsureJawPhysicalCollider(tongsRoot, tipTransform);
             grabInteractable = P102RuntimeUtility.GetOrAdd<XRGrabInteractable>(tongsRoot);
             grabInteractable.enabled = false;
             grabInteractable.colliders.Clear();
@@ -330,6 +331,12 @@ namespace VRProject.LeakResponse.Narration
                     continue;
 
                 float sqrDistance = DistanceSqrToItem(candidate, tipTransform.position);
+                if (jawPhysicalCollider != null)
+                {
+                    sqrDistance = Mathf.Min(
+                        sqrDistance,
+                        DistanceSqrToItem(candidate, jawPhysicalCollider.bounds));
+                }
                 if (candidate.Kind == P102AbsorbentKind.Sock && padsRemain)
                 {
                     if (sqrDistance <= nearestSqrDistance)
@@ -363,9 +370,69 @@ namespace VRProject.LeakResponse.Narration
                     nearestSqrDistance = candidateDistance;
             }
 
+            // Recovery intentionally disables the installed absorbent colliders so they
+            // cannot lift the XR CharacterController. Use the authored visible surfaces
+            // as the pickup target instead of falling back to the object's often-distant
+            // pivot, otherwise touching a large pad or sock with the jaws cannot pick it up.
+            var rendererBindings = item.InstallItem != null
+                ? item.InstallItem.RendererMaterials
+                : null;
+            if (rendererBindings != null)
+            {
+                for (int i = 0; i < rendererBindings.Length; ++i)
+                {
+                    Renderer renderer = rendererBindings[i]?.TargetRenderer;
+                    if (renderer == null || !renderer.enabled ||
+                        !renderer.gameObject.activeInHierarchy)
+                        continue;
+
+                    float candidateDistance = renderer.bounds.SqrDistance(worldPoint);
+                    if (candidateDistance < nearestSqrDistance)
+                        nearestSqrDistance = candidateDistance;
+                }
+            }
+
             return float.IsPositiveInfinity(nearestSqrDistance)
                 ? (item.transform.position - worldPoint).sqrMagnitude
                 : nearestSqrDistance;
+        }
+
+        static float DistanceSqrToItem(P102RecoveryItemState item, Bounds pickupBounds)
+        {
+            float nearestSqrDistance = float.PositiveInfinity;
+            var rendererBindings = item.InstallItem != null
+                ? item.InstallItem.RendererMaterials
+                : null;
+            if (rendererBindings != null)
+            {
+                for (int i = 0; i < rendererBindings.Length; ++i)
+                {
+                    Renderer renderer = rendererBindings[i]?.TargetRenderer;
+                    if (renderer == null || !renderer.enabled ||
+                        !renderer.gameObject.activeInHierarchy)
+                        continue;
+
+                    float candidateDistance = BoundsSqrDistance(
+                        renderer.bounds, pickupBounds);
+                    if (candidateDistance < nearestSqrDistance)
+                        nearestSqrDistance = candidateDistance;
+                }
+            }
+
+            return float.IsPositiveInfinity(nearestSqrDistance)
+                ? pickupBounds.SqrDistance(item.transform.position)
+                : nearestSqrDistance;
+        }
+
+        static float BoundsSqrDistance(Bounds first, Bounds second)
+        {
+            float x = Mathf.Max(0f,
+                Mathf.Max(first.min.x - second.max.x, second.min.x - first.max.x));
+            float y = Mathf.Max(0f,
+                Mathf.Max(first.min.y - second.max.y, second.min.y - first.max.y));
+            float z = Mathf.Max(0f,
+                Mathf.Max(first.min.z - second.max.z, second.min.z - first.max.z));
+            return x * x + y * y + z * z;
         }
 
         void PickUp(P102RecoveryItemState item)

@@ -74,6 +74,10 @@ namespace HClTraining.App
         {
             errorUI?.Hide();
             var isCompletionTransition = stage == TrainingStage.Complete;
+            var shouldRunControllerGuide =
+                stage != TrainingStage.None &&
+                stage != TrainingStage.Complete &&
+                session.CurrentStage == TrainingStage.None;
             yield return fade.FadeOut(isCompletionTransition ? 0.8f : 0.25f);
 
             lifecycle.Unbind();
@@ -81,7 +85,7 @@ namespace HClTraining.App
             yield return null;
             yield return UnloadContentScenes();
 
-            if (stage != TrainingStage.None && stage != TrainingStage.Complete)
+            if (shouldRunControllerGuide)
             {
                 yield return RunControllerGuide();
                 if (transitionRoutine == null)
@@ -205,7 +209,6 @@ namespace HClTraining.App
             // its profile audit has run. Start/Complete have no active Stage audit,
             // so restore the App-owned semantic actions at the transition boundary.
             AppBootstrap.Instance?.SharedInput?.EnsureActionsEnabled();
-            AppBootstrap.Instance?.TrainingMenu?.EnsureInitialWorldPlacement();
 
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);

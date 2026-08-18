@@ -280,12 +280,14 @@ namespace VRProject.LeakResponse.Narration
             recovery.Configure(sockGroup, padGroup, absorption, narration);
 
             P102WasteContainerRuntime waste = ResolveOrCreateHelper<P102WasteContainerRuntime>();
-            waste.Configure(P102RuntimeUtility.FindSceneObject("INT_WasteContainer_01"), narration, absorption);
+            waste.Configure(
+                FindSceneObject(gameObject.scene, "INT_WasteContainer_01"), narration, absorption);
 
             P102RecoveryTongsRuntime tongs = ResolveOrCreateHelper<P102RecoveryTongsRuntime>();
-            GameObject tongsGhostObject = P102RuntimeUtility.FindSceneObject("INT_RecoveryTongs_01_ObjectGhost");
+            GameObject tongsGhostObject = FindSceneObject(
+                gameObject.scene, "INT_RecoveryTongs_01_ObjectGhost");
             tongs.Configure(
-                P102RuntimeUtility.FindSceneObject("INT_RecoveryTongs_01"),
+                FindSceneObject(gameObject.scene, "INT_RecoveryTongs_01"),
                 tongsGhostObject != null ? tongsGhostObject.transform : null,
                 recovery,
                 waste,
@@ -420,7 +422,14 @@ namespace VRProject.LeakResponse.Narration
             sourceGrab.matchAttachPosition = true;
             sourceGrab.matchAttachRotation = false;
             sourceGrab.snapToColliderVolume = true;
-            sourceGrab.selectMode = InteractableSelectMode.Multiple;
+            sourceGrab.selectMode = InteractableSelectMode.Single;
+            sourceGrab.throwOnDetach = false;
+            sourceGrab.movementType = XRGrabInteractable.MovementType.Kinematic;
+            sourceGrab.trackPosition = true;
+            sourceGrab.trackRotation = true;
+            sourceGrab.smoothPosition = false;
+            sourceGrab.smoothRotation = false;
+            P102RuntimeUtility.ConfigureLocomotionStableGrab(sourceGrab);
 
             PreplacedGhostInstallSource source =
                 P102RuntimeUtility.GetOrAdd<PreplacedGhostInstallSource>(sourceObject);

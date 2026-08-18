@@ -51,7 +51,6 @@ namespace HClTraining.App
 
         void Awake()
         {
-            Active = this;
             ConfigureCamera();
             ResolveAndLockLocomotion();
             HideLoadingRayVisuals();
@@ -60,6 +59,7 @@ namespace HClTraining.App
                 continueButton.gameObject.SetActive(false);
                 continueButton.onClick.AddListener(RequestContinue);
             }
+            Active = this;
         }
 
         void ConfigureCamera()
@@ -303,6 +303,9 @@ namespace HClTraining.App
             var list = new System.Collections.Generic.List<Behaviour>();
             foreach (var behaviour in found)
             {
+                if (behaviour == null)
+                    continue;
+
                 var name = behaviour.GetType().Name;
                 if (name.Contains("MoveProvider") || name.Contains("TurnProvider") ||
                     name.Contains("TeleportationProvider") || name.Contains("CharacterControllerDriver"))

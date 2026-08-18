@@ -14,8 +14,15 @@ namespace VRProject.LeakResponse.Narration
         const float IntakeHorizontalMargin = 0.35f;
         const float IntakeHeightAboveRim = 1f;
         const float IntakeDepthBelowRim = 0.28f;
-        const float SideLidCaptureDistance = 0.65f;
-        const float ClosedLidCaptureDistance = 0.55f;
+        const float SideLidCaptureDistance = 0.85f;
+        const float ClosedLidCaptureDistance = 0.75f;
+
+        enum LidSnapOutcome
+        {
+            Restore,
+            Stow,
+            FinalLock,
+        }
 
         readonly UniqueDepositGate depositGate = new UniqueDepositGate(RequiredDepositCount);
 
@@ -391,18 +398,31 @@ namespace VRProject.LeakResponse.Narration
             if (!lidStowed && lidStowEnabled && sideGhost != null &&
                 IsLidNearGhost(sideGhost, SideLidCaptureDistance))
             {
-                StartCoroutine(SnapLid(sideGhost.position, sideGhost.rotation, false));
+                StartCoroutine(SnapLid(
+                    sideGhost.position, sideGhost.rotation, LidSnapOutcome.Stow));
                 yield break;
             }
 
             if (lidStowed && finalCloseEnabled && CanFinalLock &&
                 IsLidNearPose(closedGhost, closedPosition, ClosedLidCaptureDistance))
             {
-                StartCoroutine(SnapLid(closedPosition, closedRotation, true));
+                StartCoroutine(SnapLid(
+                    closedPosition, closedRotation, LidSnapOutcome.FinalLock));
+                yield break;
             }
+
+            // A missed release must never leave the lid frozen inside the container.
+            // Return it to the last valid pose and let the player try again.
+            if (lidStowed && sideGhost != null)
+                StartCoroutine(SnapLid(
+                    sideGhost.position, sideGhost.rotation, LidSnapOutcome.Restore));
+            else
+                StartCoroutine(SnapLid(
+                    closedPosition, closedRotation, LidSnapOutcome.Restore));
         }
 
-        IEnumerator SnapLid(Vector3 targetPosition, Quaternion targetRotation, bool finalLock)
+        IEnumerator SnapLid(
+            Vector3 targetPosition, Quaternion targetRotation, LidSnapOutcome outcome)
         {
             snappingLid = true;
             if (lidGrab != null)
@@ -428,7 +448,7 @@ namespace VRProject.LeakResponse.Narration
             }
 
             lidObject.transform.SetPositionAndRotation(targetPosition, targetRotation);
-            if (finalLock)
+            if (outcome == LidSnapOutcome.FinalLock)
             {
                 if (depositGate.TryLock())
                 {
@@ -439,13 +459,17 @@ namespace VRProject.LeakResponse.Narration
                     Debug.Log("[P102 Flow] Waste lid locked", this);
                 }
             }
-            else
+            else if (outcome == LidSnapOutcome.Stow)
             {
                 lidStowed = true;
                 SetGhostVisible(sideGhost, false);
                 lidGrab.enabled = false;
                 LidStowed?.Invoke();
                 narration?.EnqueueOnce(P102LeakNarrationCue.ContainerLidStowed);
+            }
+            else if (lidGrab != null)
+            {
+                lidGrab.enabled = lidStowed ? finalCloseEnabled : lidStowEnabled;
             }
 
             snappingLid = false;

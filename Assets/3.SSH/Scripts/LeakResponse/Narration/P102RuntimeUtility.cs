@@ -145,6 +145,18 @@ namespace VRProject.LeakResponse.Narration
             return transformer;
         }
 
+        public static P102LocomotionStableGrabRuntime ConfigureLocomotionStableGrab(
+            XRGrabInteractable grab)
+        {
+            if (grab == null)
+                return null;
+
+            P102LocomotionStableGrabRuntime stableGrab =
+                GetOrAdd<P102LocomotionStableGrabRuntime>(grab.gameObject);
+            stableGrab.Configure(grab);
+            return stableGrab;
+        }
+
         /// <summary>
         /// HandSideAwareGrabInteractable creates a dynamic attach during Select. Re-seed that
         /// generated transform from the authored hand-pose attach so the held object converges
@@ -673,6 +685,122 @@ namespace VRProject.LeakResponse.Narration
         static float SafeDivide(float value, float divisor)
         {
             return divisor > 0.000001f ? value / divisor : value;
+        }
+    }
+
+    /// <summary>
+    /// Keeps a carried response item in the controller hierarchy so locomotion and
+    /// snap-turn cannot apply a delayed physics correction that flings or rotates it.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public sealed class P102LocomotionStableGrabRuntime : MonoBehaviour
+    {
+        XRGrabInteractable grab;
+        Rigidbody body;
+        Transform heldAttach;
+        Transform restoreParent;
+        Vector3 heldLocalPosition;
+        Quaternion heldLocalRotation;
+        bool subscribed;
+
+        public void Configure(XRGrabInteractable targetGrab)
+        {
+            if (grab == targetGrab && subscribed)
+                return;
+
+            Unsubscribe();
+            grab = targetGrab;
+            body = grab != null ? grab.GetComponent<Rigidbody>() : null;
+            Subscribe();
+        }
+
+        void OnEnable()
+        {
+            Subscribe();
+        }
+
+        void OnDisable()
+        {
+            RestoreParenting();
+            Unsubscribe();
+        }
+
+        void OnDestroy()
+        {
+            RestoreParenting();
+            Unsubscribe();
+        }
+
+        void LateUpdate()
+        {
+            if (heldAttach == null || grab == null || !grab.isSelected)
+                return;
+
+            transform.SetPositionAndRotation(
+                heldAttach.TransformPoint(heldLocalPosition),
+                heldAttach.rotation * heldLocalRotation);
+            ClearVelocity();
+        }
+
+        void OnSelected(SelectEnterEventArgs args)
+        {
+            heldAttach = args?.interactorObject?.GetAttachTransform(grab);
+            if (heldAttach == null)
+                return;
+
+            restoreParent = transform.parent;
+            heldLocalPosition = heldAttach.InverseTransformPoint(transform.position);
+            heldLocalRotation = Quaternion.Inverse(heldAttach.rotation) * transform.rotation;
+            transform.SetParent(heldAttach, true);
+            grab.trackPosition = false;
+            grab.trackRotation = false;
+            ClearVelocity();
+        }
+
+        void OnReleased(SelectExitEventArgs args)
+        {
+            RestoreParenting();
+            ClearVelocity();
+        }
+
+        void RestoreParenting()
+        {
+            if (heldAttach != null && transform.parent == heldAttach)
+                transform.SetParent(restoreParent, true);
+
+            heldAttach = null;
+            restoreParent = null;
+            if (grab != null)
+            {
+                grab.trackPosition = true;
+                grab.trackRotation = true;
+            }
+        }
+
+        void ClearVelocity()
+        {
+            if (body == null)
+                return;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
+        void Subscribe()
+        {
+            if (subscribed || grab == null)
+                return;
+            grab.selectEntered.AddListener(OnSelected);
+            grab.selectExited.AddListener(OnReleased);
+            subscribed = true;
+        }
+
+        void Unsubscribe()
+        {
+            if (!subscribed || grab == null)
+                return;
+            grab.selectEntered.RemoveListener(OnSelected);
+            grab.selectExited.RemoveListener(OnReleased);
+            subscribed = false;
         }
     }
 }
