@@ -738,7 +738,6 @@ namespace VRProject.LeakResponse.Narration
         void AlignClosedLidToContainerRim()
         {
             if (bodyObject == null || lidObject == null ||
-                !P102RuntimeUtility.TryGetRendererBounds(bodyObject, out Bounds bodyBounds) ||
                 !P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds))
             {
                 Debug.LogWarning(
@@ -747,9 +746,67 @@ namespace VRProject.LeakResponse.Narration
                 return;
             }
 
-            float targetBottom = bodyBounds.max.y + ClosedLidRimClearance;
+            // The Body renderer also contains the tall black pedal frame. Its overall max Y
+            // is above the orange bin rim and previously lifted the lid into the air. Resolve
+            // the SafetyYellow submesh only so the closed pose follows the actual bin opening.
+            if (!TryGetMaterialTopY(bodyObject, "HDPE_SafetyYellow", out float rimHeight))
+            {
+                Debug.LogWarning(
+                    "[P102 Flow] Waste lid kept its authored height because the yellow bin rim was not found.",
+                    this);
+                return;
+            }
+
+            float targetBottom = rimHeight + ClosedLidRimClearance;
             float verticalOffset = targetBottom - lidBounds.min.y;
             lidObject.transform.position += Vector3.up * verticalOffset;
+        }
+
+        static bool TryGetMaterialTopY(GameObject root, string materialName, out float topY)
+        {
+            topY = float.NegativeInfinity;
+            if (root == null || string.IsNullOrEmpty(materialName))
+                return false;
+
+            bool found = false;
+            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; ++rendererIndex)
+            {
+                MeshRenderer renderer = renderers[rendererIndex];
+                MeshFilter filter = renderer != null ? renderer.GetComponent<MeshFilter>() : null;
+                Mesh mesh = filter != null ? filter.sharedMesh : null;
+                if (mesh == null)
+                    continue;
+
+                Material[] materials = renderer.sharedMaterials;
+                int count = Mathf.Min(materials.Length, mesh.subMeshCount);
+                for (int materialIndex = 0; materialIndex < count; ++materialIndex)
+                {
+                    Material material = materials[materialIndex];
+                    if (material == null ||
+                        material.name.IndexOf(materialName, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        continue;
+                    }
+
+                    Bounds localBounds = mesh.GetSubMesh(materialIndex).bounds;
+                    Vector3 min = localBounds.min;
+                    Vector3 max = localBounds.max;
+                    for (int corner = 0; corner < 8; ++corner)
+                    {
+                        Vector3 localPoint = new Vector3(
+                            (corner & 1) == 0 ? min.x : max.x,
+                            (corner & 2) == 0 ? min.y : max.y,
+                            (corner & 4) == 0 ? min.z : max.z);
+                        topY = Mathf.Max(topY,
+                            renderer.transform.TransformPoint(localPoint).y);
+                    }
+
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         static void SetGhostVisible(Transform ghost, bool visible)
