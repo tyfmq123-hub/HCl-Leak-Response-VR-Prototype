@@ -68,8 +68,6 @@ public static class ResponseBagUnityReadyBindSetup
 
         var selection = Object.FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
         router.EditorWire(prepare, selection);
-        if (selection != null)
-            selection.SetEquipConfirmInputOwnedByRouter(true);
         report.AppendLine("Wired XRInteractionConfirmRouter.");
 
         WireChecklist(manager, report);

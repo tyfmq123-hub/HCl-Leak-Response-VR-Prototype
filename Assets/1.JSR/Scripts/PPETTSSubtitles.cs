@@ -18,8 +18,8 @@ public static class PPETTSSubtitles
                 return "컨트롤러 레이로 장비를 가리키세요.";
             case PPETTSCue.OutlineShowsSelectable:
                 return "외곽선이 보이는 장비를 선택할 수 있습니다.";
-            case PPETTSCue.GripSelectThenEquip:
-                return "노란 외곽선으로 표시된 장비는 Grip으로 선택하고, 다시 Grip을 눌러 착용합니다.";
+            case PPETTSCue.LegacyGripButtonEquipInstruction:
+                return string.Empty;
             case PPETTSCue.BButtonCancel:
                 return "B 버튼으로 선택을 취소할 수 있습니다.";
             case PPETTSCue.WearInnerGloves:

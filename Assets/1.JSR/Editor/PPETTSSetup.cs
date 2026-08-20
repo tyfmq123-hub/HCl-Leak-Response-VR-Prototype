@@ -21,6 +21,7 @@ public static class PPETTSSetup
         "03_WearInOrder.wav",
         "04_PointWithRay.wav",
         "05_OutlineShowsSelectable.wav",
+        // Legacy numeric slot retained for stable cue indexing; runtime no longer enqueues it.
         "06_GripSelectThenEquip.wav",
         "07_BButtonCancel.wav",
         "08_WearInnerGloves.wav",

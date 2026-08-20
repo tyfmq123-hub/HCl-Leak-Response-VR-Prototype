@@ -197,6 +197,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5888765399538998960, guid: ad818c36731146e994540a1896ad8f24, type: 3}
   m_PrefabInstance: {fileID: 8801525}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &12622040
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 12622041}
+  m_Layer: 0
+  m_Name: LeftFoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &12622041
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 12622040}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.14, y: 0.06, z: 0.08}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &16952109
 GameObject:
   m_ObjectHideFlags: 0
@@ -649,6 +680,37 @@ Transform:
   - {fileID: 1776825206}
   m_Father: {fileID: 1288434415}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &48256278
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 48256279}
+  m_Layer: 0
+  m_Name: Face
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &48256279
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 48256278}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0.13}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &54339075
 GameObject:
   m_ObjectHideFlags: 0
@@ -1002,6 +1064,68 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2143873146}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &105324198
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 105324199}
+  m_Layer: 0
+  m_Name: GasDetector
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &105324199
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 105324198}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.18, y: 0.986, z: 0.07}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &115481418
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 115481419}
+  m_Layer: 0
+  m_Name: LeftHand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &115481419
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 115481418}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.32, y: 1.02, z: 0.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &127441239
 GameObject:
   m_ObjectHideFlags: 0
@@ -1135,9 +1259,6 @@ PrefabInstance:
       addedObject: {fileID: 131500609}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 131500608}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 131500607}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
       insertIndex: -1
@@ -1145,6 +1266,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
       insertIndex: -1
       addedObject: {fileID: 131500611}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 131500613}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 131500612}
   m_SourcePrefab: {fileID: 100100000, guid: 517a7042614d39d4ca65ff05402c1273, type: 3}
 --- !u!4 &131500605 stripped
 Transform:
@@ -1168,7 +1295,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b24e36cc55d2de4186fc5acda7133c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PPERayInteractionDebug
---- !u!114 &131500608
+--- !u!65 &131500609
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 131500606}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.26, y: 0.51, z: 0.55}
+  m_Center: {x: -0.39000013, y: -0.17999989, z: -0.019999802}
+--- !u!114 &131500610
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1177,11 +1325,60 @@ MonoBehaviour:
   m_GameObject: {fileID: 131500606}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
+  enableHoverOutline: 1
+  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  hoverWidth: 2.5
+  enableSelectedOutline: 1
+  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
+  selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
+  includeChildRenderers: 1
+  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
+--- !u!114 &131500611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 131500606}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: ChemicalFaceShield
+  displayName: "\uC548\uBA74\uBCF4\uD638\uAD6C"
+  ppeType: 2
+  equipSlots: 2
+  equipDistance: 0.18
+  equipAngleTolerance: 35
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!114 &131500612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 131500606}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 131500609}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -1242,65 +1439,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!65 &131500609
-BoxCollider:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &131500613
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 131500606}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.26, y: 0.51, z: 0.55}
-  m_Center: {x: -0.39000013, y: -0.17999989, z: -0.019999802}
---- !u!114 &131500610
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 131500606}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
-  enableHoverOutline: 1
-  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
-  hoverWidth: 2.5
-  enableSelectedOutline: 1
-  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
-  selectedWidth: 4.5
-  includeChildRenderers: 1
-  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &131500611
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 131500606}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: ChemicalFaceShield
-  displayName: "\uC548\uBA74\uBCF4\uD638\uAD6C"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &141532580
 GameObject:
   m_ObjectHideFlags: 0
@@ -1549,6 +1778,7 @@ Transform:
   - {fileID: 1684599434}
   - {fileID: 1264966178}
   - {fileID: 819151755}
+  - {fileID: 284709100}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &165692668
@@ -1624,9 +1854,6 @@ PrefabInstance:
       addedObject: {fileID: 165692673}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 165692672}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 165692671}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
@@ -1634,6 +1861,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 165692675}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 165692677}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 165692676}
   m_SourcePrefab: {fileID: 100100000, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
 --- !u!4 &165692669 stripped
 Transform:
@@ -1657,7 +1890,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b24e36cc55d2de4186fc5acda7133c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PPERayInteractionDebug
---- !u!114 &165692672
+--- !u!65 &165692673
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 165692670}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.41601562, y: 0.9980469, z: 0.15039071}
+  m_Center: {x: 0, y: 0.49902344, z: 0.000000007450581}
+--- !u!114 &165692674
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1666,11 +1920,60 @@ MonoBehaviour:
   m_GameObject: {fileID: 165692670}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
+  enableHoverOutline: 1
+  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  hoverWidth: 2.5
+  enableSelectedOutline: 1
+  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
+  selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
+  includeChildRenderers: 1
+  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
+--- !u!114 &165692675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 165692670}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: ChemicalSuit
+  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5"
+  ppeType: 4
+  equipSlots: 16
+  equipDistance: 0.25
+  equipAngleTolerance: 45
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!114 &165692676
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 165692670}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 165692673}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -1731,65 +2034,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!65 &165692673
-BoxCollider:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &165692677
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 165692670}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.41601562, y: 0.9980469, z: 0.15039071}
-  m_Center: {x: 0, y: 0.49902344, z: 0.000000007450581}
---- !u!114 &165692674
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 165692670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
-  enableHoverOutline: 1
-  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
-  hoverWidth: 2.5
-  enableSelectedOutline: 1
-  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
-  selectedWidth: 4.5
-  includeChildRenderers: 1
-  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &165692675
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 165692670}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: ChemicalSuit
-  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &180908717
 GameObject:
   m_ObjectHideFlags: 0
@@ -2127,6 +2462,80 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!1 &284709099
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 284709100}
+  - component: {fileID: 284709101}
+  - component: {fileID: 284709102}
+  m_Layer: 0
+  m_Name: PPE_PlacementGuideManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &284709100
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 284709099}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 160923668}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &284709101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 284709099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 945b1c659e48467d9c7aeae25710ba55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEPlacementGuideManager
+  anchorSet: {fileID: 681512912}
+  notReadyMaterial: {fileID: 2100000, guid: 421eaabac1a046efbbceb4501cebf7e8, type: 2}
+  readyMaterial: {fileID: 2100000, guid: 38eede7aa6db429d8b2adb4b1ecd3bcc, type: 2}
+  usePpeVisualWhenGuidePrefabMissing: 1
+  autoEquipEnabled: 1
+  readyHoldDuration: 0.15
+  placementSetupVersion: 1
+--- !u!114 &284709102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 284709099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e66b5673df49483da5e43aa6c561f3ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEPlacementDebugGizmo
+  drawDebugGizmos: 1
+  drawWhenNotPlaying: 1
+  showAllAnchors: 1
+  showLabels: 1
+  placementManager: {fileID: 284709101}
+  anchorSet: {fileID: 681512912}
+  anchorRadius: 0.035
+  anchorColor: {r: 0.1, g: 0.8, b: 1, a: 0.9}
+  validColor: {r: 0.15, g: 1, b: 0.25, a: 0.95}
+  invalidColor: {r: 1, g: 0.2, b: 0.1, a: 0.95}
 --- !u!1 &292153716
 GameObject:
   m_ObjectHideFlags: 0
@@ -2912,6 +3321,7 @@ GameObject:
   - component: {fileID: 422052604}
   - component: {fileID: 422052605}
   - component: {fileID: 422052606}
+  - component: {fileID: 422052608}
   - component: {fileID: 422052607}
   m_Layer: 0
   m_Name: PPE_Gloves
@@ -3014,6 +3424,11 @@ MonoBehaviour:
   enableSelectedOutline: 1
   selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
   selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
   includeChildRenderers: 1
   outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
 --- !u!114 &422052606
@@ -3030,6 +3445,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
   itemId: ChemicalGloves
   displayName: "\uB0B4\uD654\uD559 \uBCF4\uD638\uC7A5\uAC11"
+  ppeType: 5
+  equipSlots: 12
+  equipDistance: 0.14
+  equipAngleTolerance: 40
+  guidePrefab: {fileID: 0}
   isEquipped: 0
   deactivateOnEquip: 1
   equippedVisual: {fileID: 1478479106}
@@ -3043,11 +3463,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 422052597}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 454315870}
+  - {fileID: 1202327111}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -3108,6 +3530,159 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &422052608
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 422052597}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
+--- !u!1 &430419541
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 430419542}
+  m_Layer: 0
+  m_Name: Radio
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &430419542
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 430419541}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.18, y: 1.054, z: 0.05}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &440254658
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 440254659}
+  m_Layer: 0
+  m_Name: RightHand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &440254659
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 440254658}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.32, y: 1.02, z: 0.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &440599459
 GameObject:
   m_ObjectHideFlags: 0
@@ -4114,6 +4689,68 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &681512910
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 681512911}
+  - component: {fileID: 681512912}
+  m_Layer: 0
+  m_Name: PlayerEquipmentAnchors
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &681512911
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681512910}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1557196615}
+  - {fileID: 48256279}
+  - {fileID: 115481419}
+  - {fileID: 440254659}
+  - {fileID: 1053557833}
+  - {fileID: 12622041}
+  - {fileID: 1973234629}
+  - {fileID: 430419542}
+  - {fileID: 105324199}
+  m_Father: {fileID: 2100000002}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &681512912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 681512910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a9f316cb2c34cfebca5af1036e56748, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipmentAnchorSet
+  head: {fileID: 1557196615}
+  face: {fileID: 48256279}
+  leftHand: {fileID: 115481419}
+  rightHand: {fileID: 440254659}
+  body: {fileID: 1053557833}
+  leftFoot: {fileID: 12622041}
+  rightFoot: {fileID: 1973234629}
+  radio: {fileID: 430419542}
+  gasDetector: {fileID: 105324199}
 --- !u!1 &684707370
 GameObject:
   m_ObjectHideFlags: 0
@@ -4269,6 +4906,11 @@ MonoBehaviour:
   enableSelectedOutline: 1
   selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
   selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
   includeChildRenderers: 1
   outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
 --- !u!114 &688213865
@@ -4619,9 +5261,6 @@ PrefabInstance:
       addedObject: {fileID: 707863992}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 707863991}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 707863990}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
       insertIndex: -1
@@ -4629,6 +5268,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 707863994}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 707863996}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 707863995}
   m_SourcePrefab: {fileID: 100100000, guid: fef264f4e6b377842a92f5909d39b15b, type: 3}
 --- !u!4 &707863988 stripped
 Transform:
@@ -4652,7 +5297,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b24e36cc55d2de4186fc5acda7133c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PPERayInteractionDebug
---- !u!114 &707863991
+--- !u!65 &707863992
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 707863989}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.979157, y: 0.79620343, z: 0.95639014}
+  m_Center: {x: -0.000000074505806, y: 0.39810166, z: -0.00000031292439}
+--- !u!114 &707863993
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4661,11 +5327,60 @@ MonoBehaviour:
   m_GameObject: {fileID: 707863989}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
+  enableHoverOutline: 1
+  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  hoverWidth: 2.5
+  enableSelectedOutline: 1
+  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
+  selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
+  includeChildRenderers: 1
+  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
+--- !u!114 &707863994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 707863989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: FaceRespirator
+  displayName: "\uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C"
+  ppeType: 3
+  equipSlots: 2
+  equipDistance: 0.16
+  equipAngleTolerance: 30
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!114 &707863995
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 707863989}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 707863992}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -4726,65 +5441,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!65 &707863992
-BoxCollider:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &707863996
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 707863989}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.979157, y: 0.79620343, z: 0.95639014}
-  m_Center: {x: -0.000000074505806, y: 0.39810166, z: -0.00000031292439}
---- !u!114 &707863993
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 707863989}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
-  enableHoverOutline: 1
-  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
-  hoverWidth: 2.5
-  enableSelectedOutline: 1
-  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
-  selectedWidth: 4.5
-  includeChildRenderers: 1
-  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &707863994
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 707863989}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: FaceRespirator
-  displayName: "\uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &717209286
 GameObject:
   m_ObjectHideFlags: 0
@@ -5190,8 +5937,118 @@ Transform:
   - {fileID: 804292494}
   - {fileID: 1478479107}
   - {fileID: 364653767}
+  - {fileID: 2100000002}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2100000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2100000002}
+  - component: {fileID: 2100000003}
+  m_Layer: 0
+  m_Name: PPE_PlayerBodyReference
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2100000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 681512911}
+  m_Father: {fileID: 778519861}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2100000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31857ef3c5fd492486fe7e1ba12ec535, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEPlayerBodyReference
+  xrOrigin: {fileID: 778519860}
+  xrCamera: {fileID: 784798172}
+  anchorSet: {fileID: 681512912}
+  followRoomScalePlanarMovement: 1
+  planarPositionSmoothTime: 0.1
+  heightSmoothTime: 0.08
+  minimumTrackedHeight: 0.75
+  maximumTrackedHeight: 2.2
+  anchorPoses:
+  - slot: 1
+    anchor: {fileID: 1557196615}
+    heightRatio: 1
+    verticalOffset: 0.08
+    horizontalOffset: {x: 0, y: 0.04}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 2
+    anchor: {fileID: 48256279}
+    heightRatio: 1
+    verticalOffset: -0.1
+    horizontalOffset: {x: 0, y: 0.13}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 4
+    anchor: {fileID: 115481419}
+    heightRatio: 0.6
+    verticalOffset: 0
+    horizontalOffset: {x: -0.32, y: 0.1}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 8
+    anchor: {fileID: 440254659}
+    heightRatio: 0.6
+    verticalOffset: 0
+    horizontalOffset: {x: 0.32, y: 0.1}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 16
+    anchor: {fileID: 1053557833}
+    heightRatio: 0.55
+    verticalOffset: 0
+    horizontalOffset: {x: 0, y: 0.02}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 32
+    anchor: {fileID: 12622041}
+    heightRatio: 0
+    verticalOffset: 0.06
+    horizontalOffset: {x: -0.14, y: 0.08}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 64
+    anchor: {fileID: 1973234629}
+    heightRatio: 0
+    verticalOffset: 0.06
+    horizontalOffset: {x: 0.14, y: 0.08}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 128
+    anchor: {fileID: 430419542}
+    heightRatio: 0.62
+    verticalOffset: 0
+    horizontalOffset: {x: -0.18, y: 0.05}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  - slot: 256
+    anchor: {fileID: 105324199}
+    heightRatio: 0.58
+    verticalOffset: 0
+    horizontalOffset: {x: 0.18, y: 0.07}
+    localEulerAngles: {x: 0, y: 0, z: 0}
+  bodyReferenceSetupVersion: 1
 --- !u!143 &778519862
 CharacterController:
   m_ObjectHideFlags: 0
@@ -5516,6 +6373,7 @@ MonoBehaviour:
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 1
+  useStableOriginBodyFrame: 0
   useCameraYawOnly: 0
   snapOnEnable: 1
 --- !u!1 &819151754
@@ -10113,7 +10971,6 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: 0}
-  equipConfirmDelay: 0.3
 --- !u!43 &968663540
 Mesh:
   m_ObjectHideFlags: 0
@@ -10524,6 +11381,37 @@ Transform:
   - {fileID: 321681203}
   - {fileID: 1015081208}
   m_Father: {fileID: 2106278935}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1053557832
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1053557833}
+  m_Layer: 0
+  m_Name: Body
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1053557833
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1053557832}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.935, z: 0.02}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1093522008
 GameObject:
@@ -11591,9 +12479,6 @@ PrefabInstance:
       addedObject: {fileID: 1311159496}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1311159495}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1311159494}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
       insertIndex: -1
@@ -11601,6 +12486,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1311159498}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1311159500}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 36db10b2f632404418b967756736bb1c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1311159499}
   m_SourcePrefab: {fileID: 100100000, guid: 36db10b2f632404418b967756736bb1c, type: 3}
 --- !u!4 &1311159492 stripped
 Transform:
@@ -11624,7 +12515,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b24e36cc55d2de4186fc5acda7133c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PPERayInteractionDebug
---- !u!114 &1311159495
+--- !u!65 &1311159496
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311159493}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.1386678, y: 0.9980469, z: 1.1862353}
+  m_Center: {x: -0.000000059604645, y: 0.000000014901161, z: -0.00000011920929}
+--- !u!114 &1311159497
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -11633,11 +12545,60 @@ MonoBehaviour:
   m_GameObject: {fileID: 1311159493}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
+  enableHoverOutline: 1
+  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  hoverWidth: 2.5
+  enableSelectedOutline: 1
+  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
+  selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
+  includeChildRenderers: 1
+  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
+--- !u!114 &1311159498
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311159493}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: ChemicalSafetyBoots
+  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638 \uC7A5\uD654"
+  ppeType: 6
+  equipSlots: 96
+  equipDistance: 0.2
+  equipAngleTolerance: 40
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!114 &1311159499
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311159493}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 1311159496}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -11698,65 +12659,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!65 &1311159496
-BoxCollider:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &1311159500
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1311159493}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1.1386678, y: 0.9980469, z: 1.1862353}
-  m_Center: {x: -0.000000059604645, y: 0.000000014901161, z: -0.00000011920929}
---- !u!114 &1311159497
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1311159493}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
-  enableHoverOutline: 1
-  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
-  hoverWidth: 2.5
-  enableSelectedOutline: 1
-  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
-  selectedWidth: 4.5
-  includeChildRenderers: 1
-  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &1311159498
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1311159493}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: ChemicalSafetyBoots
-  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638 \uC7A5\uD654"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &1327223075
 GameObject:
   m_ObjectHideFlags: 0
@@ -12993,6 +13986,37 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &1557196614
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1557196615}
+  m_Layer: 0
+  m_Name: Head
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1557196615
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1557196614}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.78, z: 0.04}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1563633037
 GameObject:
   m_ObjectHideFlags: 0
@@ -13755,6 +14779,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
   itemId: ResponseBag
   displayName: "\uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29"
+  ppeType: 5
+  equipSlots: 0
+  equipDistance: 0.2
+  equipAngleTolerance: 35
+  guidePrefab: {fileID: 0}
   isEquipped: 0
   deactivateOnEquip: 1
   equippedVisual: {fileID: 1427366402}
@@ -13798,6 +14827,11 @@ MonoBehaviour:
   enableSelectedOutline: 1
   selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
   selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
   includeChildRenderers: 1
   outlineMaterialSource: {fileID: 0}
 --- !u!114 &1627231520
@@ -14033,9 +15067,6 @@ PrefabInstance:
       addedObject: {fileID: 1656745459}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1656745458}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 1656745457}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
@@ -14043,6 +15074,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1656745461}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1656745463}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1656745462}
   m_SourcePrefab: {fileID: 100100000, guid: 00f520ec705866949a985dd2681e7a1a, type: 3}
 --- !u!4 &1656745455 stripped
 Transform:
@@ -14066,7 +15103,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b24e36cc55d2de4186fc5acda7133c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PPERayInteractionDebug
---- !u!114 &1656745458
+--- !u!65 &1656745459
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656745456}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.41601562, y: 0.9980469, z: 0.15039071}
+  m_Center: {x: 0, y: 0.49902344, z: -0.000000007450581}
+--- !u!114 &1656745460
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -14075,11 +15133,60 @@ MonoBehaviour:
   m_GameObject: {fileID: 1656745456}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
+  enableHoverOutline: 1
+  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  hoverWidth: 2.5
+  enableSelectedOutline: 1
+  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
+  selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
+  includeChildRenderers: 1
+  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
+--- !u!114 &1656745461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656745456}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: ChemicalSuit
+  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5"
+  ppeType: 4
+  equipSlots: 16
+  equipDistance: 0.25
+  equipAngleTolerance: 45
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!114 &1656745462
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1656745456}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 1656745459}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -14140,65 +15247,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!65 &1656745459
-BoxCollider:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &1656745463
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1656745456}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.41601562, y: 0.9980469, z: 0.15039071}
-  m_Center: {x: 0, y: 0.49902344, z: -0.000000007450581}
---- !u!114 &1656745460
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1656745456}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e5f60718293a4b5c6d7e8f901a2b3c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEOutlineHighlight
-  enableHoverOutline: 1
-  hoverColor: {r: 0.4, g: 0.78, b: 1, a: 1}
-  hoverWidth: 2.5
-  enableSelectedOutline: 1
-  selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
-  selectedWidth: 4.5
-  includeChildRenderers: 1
-  outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &1656745461
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1656745456}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: ChemicalSuit
-  displayName: "\uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &1677715968
 GameObject:
   m_ObjectHideFlags: 0
@@ -14523,11 +15662,12 @@ GameObject:
   - component: {fileID: 1776825206}
   - component: {fileID: 1776825211}
   - component: {fileID: 1776825210}
-  - component: {fileID: 1776825209}
   - component: {fileID: 1776825208}
   - component: {fileID: 1776825207}
   - component: {fileID: 1776825213}
   - component: {fileID: 1776825212}
+  - component: {fileID: 1776825215}
+  - component: {fileID: 1776825214}
   m_Layer: 0
   m_Name: PPE_InnerGloves
   m_TagString: Untagged
@@ -14581,9 +15721,14 @@ MonoBehaviour:
   enableSelectedOutline: 1
   selectedColor: {r: 0.2, g: 1, b: 0.25, a: 1}
   selectedWidth: 4.5
+  requiredCyan: {r: 0.05, g: 0.95, b: 1, a: 1}
+  requiredYellow: {r: 1, g: 0.88, b: 0.05, a: 1}
+  requiredMinWidth: 5.5
+  requiredMaxWidth: 8
+  requiredPulseSpeed: 1.25
   includeChildRenderers: 1
   outlineMaterialSource: {fileID: 2100000, guid: 49f12cb9b7312054aac4687e11f2ac34, type: 2}
---- !u!114 &1776825209
+--- !u!114 &1776825210
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -14592,11 +15737,83 @@ MonoBehaviour:
   m_GameObject: {fileID: 1776825205}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a35f6cfbfba9b548aaa00d52cfe8a50, type: 3}
+  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable
+  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
+  itemId: InnerGloves
+  displayName: "\uB0B4\uD654\uD559 \uBCF4\uD638 \uC7A5\uAC11"
+  ppeType: 5
+  equipSlots: 12
+  equipDistance: 0.14
+  equipAngleTolerance: 40
+  guidePrefab: {fileID: 0}
+  isEquipped: 0
+  deactivateOnEquip: 1
+  equippedVisual: {fileID: 0}
+  equippedAudio: {fileID: 0}
+--- !u!65 &1776825211
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776825205}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.19227184, y: 0.0824022, z: 0.21593603}
+  m_Center: {x: -0.000000089406974, y: 0.045346677, z: 0.000000052154057}
+--- !u!114 &1776825212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776825205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4d5e6f708192a3b4c5d6e7f8091a2b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEItem
+  type: 5
+  highlight: {fileID: 0}
+--- !u!114 &1776825213
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776825205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3c4d5e6f708192a3b4c5d6e7f8091a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHighlight
+  highlightObject: {fileID: 0}
+--- !u!114 &1776825214
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1776825205}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08769b9addcd46cbbf3db38afe48c9f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PPEHandGrabbable
   m_InteractionManager: {fileID: 0}
-  m_Colliders: []
+  m_Colliders:
+  - {fileID: 1776825211}
   m_InteractionLayers:
     m_Bits: 1
   m_DistanceCalculationMode: 1
@@ -14657,72 +15874,97 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!114 &1776825210
-MonoBehaviour:
+  m_AttachTransform: {fileID: 0}
+  m_SecondaryAttachTransform: {fileID: 0}
+  m_UseDynamicAttach: 1
+  m_MatchAttachPosition: 1
+  m_MatchAttachRotation: 1
+  m_SnapToColliderVolume: 1
+  m_ReinitializeDynamicAttachEverySingleGrab: 1
+  m_AttachEaseInTime: 0.08
+  m_MovementType: 1
+  m_PredictedVisualsTransform: {fileID: 0}
+  m_VelocityDamping: 1
+  m_VelocityScale: 1
+  m_AngularVelocityDamping: 1
+  m_AngularVelocityScale: 1
+  m_TrackPosition: 1
+  m_SmoothPosition: 1
+  m_SmoothPositionAmount: 8
+  m_TightenPosition: 0.1
+  m_TrackRotation: 1
+  m_SmoothRotation: 1
+  m_SmoothRotationAmount: 8
+  m_TightenRotation: 0.1
+  m_TrackScale: 1
+  m_SmoothScale: 0
+  m_SmoothScaleAmount: 8
+  m_TightenScale: 0.1
+  m_ThrowOnDetach: 1
+  m_ThrowSmoothingDuration: 0.25
+  m_ThrowSmoothingCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  m_ThrowVelocityScale: 1.5
+  m_ThrowAngularVelocityScale: 1
+  m_ForceGravityOnDetach: 1
+  m_RetainTransformParent: 1
+  m_StartingSingleGrabTransformers: []
+  m_StartingMultipleGrabTransformers: []
+  m_AddDefaultGrabTransformers: 1
+  m_FarAttachMode: 0
+  m_LimitLinearVelocity: 0
+  m_LimitAngularVelocity: 0
+  m_MaxLinearVelocityDelta: 10
+  m_MaxAngularVelocityDelta: 20
+  grabStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  grabbed:
+    m_PersistentCalls:
+      m_Calls: []
+  released:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!54 &1776825215
+Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1776825205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1f2a3b4c5d60718293a4b5c6d7e8f01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEEquipable
-  itemId: InnerGloves
-  displayName: "\uB0B4\uD654\uD559 \uBCF4\uD638 \uC7A5\uAC11"
-  isEquipped: 0
-  deactivateOnEquip: 1
-  equippedVisual: {fileID: 0}
-  equippedAudio: {fileID: 0}
---- !u!65 &1776825211
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1776825205}
-  m_Material: {fileID: 0}
+  serializedVersion: 5
+  m_Mass: 0.35
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.19227184, y: 0.0824022, z: 0.21593603}
-  m_Center: {x: -0.000000089406974, y: 0.045346677, z: 0.000000052154057}
---- !u!114 &1776825212
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1776825205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4d5e6f708192a3b4c5d6e7f8091a2b3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEItem
-  type: 5
-  highlight: {fileID: 0}
---- !u!114 &1776825213
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1776825205}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3c4d5e6f708192a3b4c5d6e7f8091a2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PPEHighlight
-  highlightObject: {fileID: 0}
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 0
+  m_CollisionDetection: 2
 --- !u!1 &1790546220
 GameObject:
   m_ObjectHideFlags: 0
@@ -15369,20 +16611,6 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: 0}
-  equipConfirmAction:
-    m_UseReference: 0
-    m_Action:
-      m_Name: 
-      m_Type: 0
-      m_ExpectedControlType: 
-      m_Id: d274036e-eb57-4c16-b212-501e6cb6a879
-      m_Processors: 
-      m_Interactions: 
-      m_SingletonActionBindings: []
-      m_Flags: 0
-    m_Reference: {fileID: 0}
-  equipConfirmDelay: 0.3
-  equipConfirmInputOwnedByRouter: 1
 --- !u!114 &1928374653
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15689,6 +16917,37 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 4283425761326543017, guid: 9f3369e30fbd31f4bb596b1a99babe83, type: 3}
   m_PrefabInstance: {fileID: 1968365314}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1973234628
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1973234629}
+  m_Layer: 0
+  m_Name: RightFoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1973234629
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1973234628}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.14, y: 0.06, z: 0.08}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 681512911}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1978346345
 PrefabInstance:
   m_ObjectHideFlags: 0

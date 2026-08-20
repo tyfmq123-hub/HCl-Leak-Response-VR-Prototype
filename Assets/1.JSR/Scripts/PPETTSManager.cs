@@ -283,12 +283,11 @@ public class PPETTSManager : MonoBehaviour
         if (introStartDelay > 0f)
             yield return new WaitForSeconds(introStartDelay);
 
-        // 2026-08-14 authored opening: incident, preparation goal, interaction,
-        // then the current-step prompt. Keep each sentence as its own subtitle cue.
+        // The legacy Grip-button equip instruction is intentionally omitted.
+        // Placement guides now teach the interaction while the current-step prompt names the PPE.
         Enqueue(
             PPETTSCue.EmergencyIntro,
-            PPETTSCue.WearEssentialPPE,
-            PPETTSCue.GripSelectThenEquip);
+            PPETTSCue.WearEssentialPPE);
 
         var sequence = PPESequenceManager.Resolve();
         EnqueuePromptForStep(sequence != null ? sequence.CurrentRequiredStep : null);

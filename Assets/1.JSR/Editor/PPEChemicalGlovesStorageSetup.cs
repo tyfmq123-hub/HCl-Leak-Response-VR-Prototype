@@ -136,7 +136,7 @@ public static class PPEChemicalGlovesStorageSetup
         }
 
         Selection.activeGameObject = glovesRoot;
-        report.AppendLine("Done. Shelf shows VR hands. Ray-select → Grip equip (no physics grab).");
+        report.AppendLine("Done. Shelf shows VR hands. Ray-select remains; wearable PPE equips by Grip placement only.");
         Debug.Log(report.ToString(), glovesRoot);
     }
 
@@ -499,6 +499,14 @@ public static class PPEChemicalGlovesStorageSetup
 
     static void RemoveGrabInteractable(GameObject glovesRoot, StringBuilder report)
     {
+        // STEP 2 hand grabbing supersedes the old shelf-only workaround. Keep the
+        // common PPE grab component and its physics setup when this legacy tool is rerun.
+        if (glovesRoot.GetComponent<PPEHandGrabbable>() != null)
+        {
+            report.AppendLine("Kept PPEHandGrabbable (STEP 2 hand/ray grab is active).");
+            return;
+        }
+
         // Add Simple FIRST so RequireComponent(XRBaseInteractable) on PPEItem /
         // PPEOutlineHighlight stays satisfied while GloveGrabPose is removed.
         if (glovesRoot.GetComponent<XRSimpleInteractable>() == null)

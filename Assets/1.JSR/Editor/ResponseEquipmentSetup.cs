@@ -437,11 +437,9 @@ public static class ResponseEquipmentSetup
         var prepare = bag.GetComponent<ResponseBagPrepareInteractable>();
         var selection = Object.FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
         router.EditorWire(prepare, selection);
-        if (selection != null)
-            selection.SetEquipConfirmInputOwnedByRouter(true);
 
         EditorUtility.SetDirty(router);
-        report.AppendLine("Wired XRInteractionConfirmRouter (bag prepare > PPE equip).");
+        report.AppendLine("Wired XRInteractionConfirmRouter (ray selection + bag prepare; wearable PPE is placement-only).");
     }
 
     static void DisableLegacyContentsOpener(GameObject bag, StringBuilder report)

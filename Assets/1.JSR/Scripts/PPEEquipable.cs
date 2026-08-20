@@ -3,8 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// Per-item equipment metadata on a top-level PPE root.
-/// Stores equip state only — does not deactivate objects, change transforms,
-/// or drive XR interaction.
+/// Stores equip state and placement definition, but does not move objects,
+/// evaluate placement, or drive XR interaction.
 /// </summary>
 [DisallowMultipleComponent]
 public class PPEEquipable : MonoBehaviour
@@ -14,6 +14,28 @@ public class PPEEquipable : MonoBehaviour
 
     [SerializeField]
     string displayName = "";
+
+    [Header("Equipment Placement")]
+    [SerializeField]
+    PPEType ppeType = PPEType.Gloves;
+
+    [SerializeField]
+    [Tooltip("One or more player equipment destinations used by this PPE.")]
+    PPEEquipSlot equipSlots = PPEEquipSlot.None;
+
+    [SerializeField]
+    [Min(0.01f)]
+    [Tooltip("Maximum distance in meters for a future placement/equip check.")]
+    float equipDistance = 0.2f;
+
+    [SerializeField]
+    [Range(0f, 180f)]
+    [Tooltip("Maximum orientation difference in degrees for a future equip check.")]
+    float equipAngleTolerance = 35f;
+
+    [SerializeField]
+    [Tooltip("Optional ghost/guide visual. STEP 3 stores the reference but does not instantiate it.")]
+    GameObject guidePrefab;
 
     [SerializeField]
     bool isEquipped;
@@ -33,8 +55,18 @@ public class PPEEquipable : MonoBehaviour
 
     public string ItemId => itemId;
     public string DisplayName => displayName;
+    public PPEType Type => ppeType;
+    public PPEEquipSlot EquipSlots => equipSlots;
+    public float EquipDistance => equipDistance;
+    public float EquipAngleTolerance => equipAngleTolerance;
+    public GameObject GuidePrefab => guidePrefab;
     public bool IsEquipped => isEquipped;
     public bool DeactivateOnEquip => deactivateOnEquip;
+
+    public bool UsesSlot(PPEEquipSlot slot)
+    {
+        return slot != PPEEquipSlot.None && (equipSlots & slot) == slot;
+    }
 
     /// <summary>
     /// Returns true when this item can be equipped (not already equipped,
@@ -99,6 +131,27 @@ public class PPEEquipable : MonoBehaviour
     public void EditorApplyEquippedVisual(GameObject visual)
     {
         equippedVisual = visual;
+    }
+
+    /// <summary>Editor helper for STEP 3 placement metadata.</summary>
+    public void EditorApplyPlacementDefinition(
+        PPEType type,
+        PPEEquipSlot slots,
+        float distance,
+        float angleTolerance,
+        GameObject guide)
+    {
+        ppeType = type;
+        equipSlots = slots;
+        equipDistance = Mathf.Max(0.01f, distance);
+        equipAngleTolerance = Mathf.Clamp(angleTolerance, 0f, 180f);
+        guidePrefab = guide;
+    }
+
+    /// <summary>Editor helper for an item that remains visible on its anchor after equip.</summary>
+    public void EditorSetDeactivateOnEquip(bool deactivate)
+    {
+        deactivateOnEquip = deactivate;
     }
 #endif
 }
