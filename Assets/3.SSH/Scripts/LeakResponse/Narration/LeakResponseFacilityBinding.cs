@@ -1,5 +1,4 @@
 using System;
-using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -14,12 +13,13 @@ namespace VRProject.LeakResponse.Narration
     {
         const string FunctionalRigName = "INT";
         const string P102PumpRootName = "Pump_102";
+        const string ResponseBagRootName = "LeakResponse_ResponseBag";
 
         bool configured;
 
         public Transform FunctionalRig { get; private set; }
         public Transform P102PumpRoot { get; private set; }
-        public Transform StageBagAnchor { get; private set; }
+        public Transform ResponseBagRoot { get; private set; }
         public int AddedColliderCount { get; private set; }
 
         public bool Configure(Scene scene)
@@ -38,28 +38,19 @@ namespace VRProject.LeakResponse.Narration
                 return false;
             }
 
-            StageBagAnchor = EnsureStageBagAnchor(scene, FunctionalRig);
+            ResponseBagRoot = FindSceneTransform(scene, ResponseBagRootName);
+            if (ResponseBagRoot == null)
+            {
+                Debug.LogError(
+                    $"[P102 Environment] Stage-owned bag root '{ResponseBagRootName}' is missing.",
+                    this);
+                return false;
+            }
             AddedColliderCount = EnsureP102Colliders(P102PumpRoot);
             Debug.Log(
                 $"[P102 Environment] Fixed rig ready. addedColliders={AddedColliderCount}, " +
-                $"bagAnchor={StageBagAnchor != null}.", this);
-            return StageBagAnchor != null;
-        }
-
-        Transform EnsureStageBagAnchor(Scene scene, Transform functionalRig)
-        {
-            Transform existing = FindSceneTransform(scene, SharedPlayerEquipment.StageBagAnchorName);
-            if (existing != null)
-                return existing;
-
-            var anchorObject = new GameObject(SharedPlayerEquipment.StageBagAnchorName);
-            SceneManager.MoveGameObjectToScene(anchorObject, scene);
-            Transform anchor = anchorObject.transform;
-            anchor.SetParent(functionalRig, false);
-            anchor.SetLocalPositionAndRotation(
-                new Vector3(-0.45f, 0.05f, -4.8f),
-                Quaternion.Euler(0f, 180f, 0f));
-            return anchor;
+                $"responseBag={ResponseBagRoot != null}.", this);
+            return true;
         }
 
         static int EnsureP102Colliders(Transform pumpRoot)

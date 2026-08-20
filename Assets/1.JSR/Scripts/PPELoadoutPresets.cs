@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 
 /// <summary>
 /// Official PPE loadout snapshots for cross-scene / standalone field start.
@@ -43,6 +44,10 @@ public static class PPELoadoutPresets
             return null;
 
         data.ApplySnapshot(snapshot); // ApplySnapshot clears first
+        if (snapshot != null && snapshot.source == PPELoadoutSource.FieldReadyPreset)
+            SessionEquipmentInventory.Ensure()?.ApplyFieldReadyPreset();
+        else if (snapshot != null && snapshot.source == PPELoadoutSource.PpeSceneResult)
+            PPELoadoutData.SyncSessionInventoryFromPpe(data);
         return data;
     }
 
@@ -65,6 +70,7 @@ public static class PPELoadoutPresets
     /// </summary>
     public static void BeginNewFullTrainingClear()
     {
+        SessionEquipmentInventory.Ensure()?.BeginNewSession();
         if (PPELoadoutData.Instance != null)
             PPELoadoutData.Instance.Clear();
         else

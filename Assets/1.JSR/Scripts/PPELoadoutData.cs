@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 
 /// <summary>
@@ -261,7 +262,37 @@ public class PPELoadoutData : MonoBehaviour
             return null;
 
         data.ReplaceWithSnapshot(snapshot);
+        SyncSessionInventoryFromPpe(data);
         return data;
+    }
+
+    /// <summary>
+    /// Compatibility bridge for the current PPE-room completion rules. New Grip-to-bag
+    /// interactions should call SessionEquipmentInventory.Store directly per item.
+    /// </summary>
+    public static void SyncSessionInventoryFromPpe(PPELoadoutData data)
+    {
+        var inventory = SessionEquipmentInventory.Ensure();
+        if (inventory == null)
+            return;
+
+        var equipmentIds = new List<string>();
+        var responseBagReady = data != null && data.BagContentsChecked &&
+                               data.IsEquipped(PPEEquipmentManager.IdResponseBag);
+        if (responseBagReady)
+        {
+            equipmentIds.Add(SharedEquipmentIds.GasDetector);
+            equipmentIds.Add(SharedEquipmentIds.AbsorbentSock);
+            equipmentIds.Add(SharedEquipmentIds.AbsorbentPad);
+        }
+
+        if (data != null && data.IsPrepared(PPEEquipmentManager.IdWasteContainer))
+        {
+            equipmentIds.Add(SharedEquipmentIds.WasteContainer);
+            equipmentIds.Add(SharedEquipmentIds.RecoveryTongs);
+        }
+
+        inventory.ReplaceFromPpe(equipmentIds);
     }
 
     /// <summary>Builds canonical snapshot from current PPE room managers (Source left as None).</summary>

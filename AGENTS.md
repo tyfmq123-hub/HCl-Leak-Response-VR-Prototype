@@ -38,11 +38,10 @@ Integration 작업이라고 명시되지 않은 경우 다음을 수정하지 �
 - `Assets/Editor/AppIntegrationBuilder.cs`
 - `Assets/Editor/AppPlayModeSmokeRunner.cs`
 - `Assets/Editor/IntegrationSceneValidator.cs`
-- `Assets/*/Resources/SharedXR/`
 - `ProjectSettings/`, `Packages/`, `.github/`, `scripts/ci/`
 - 모든 `*.asmdef`, `*.asmref`와 그 `.meta`
 - 공용 XR Origin, Main Camera, Controller Tracking, EventSystem, Input Actions
-- `SharedPlayerEquipment`, 공용 가방, `StageBagAnchor`, Retrieval Zone/Anchor 계약
+- `SessionEquipmentInventory` 구현과 공용 장비 ID/API 계약
 - `SharedIncidentState`, `SharedTrainingTelemetry`, SceneFlow, Stage 완료 Adapter
 
 공용 API나 설정이 부족하면 보호 파일을 고치지 말고 자기 인수인계 문서의 `Integration 요청`에 필요한 계약과 이유를 적는다.
@@ -53,6 +52,8 @@ Integration 작업이라고 명시되지 않은 경우 다음을 수정하지 �
 - PreEntry: `Assets/2.YJH/`와 `Assets/Scenes/05_PreEntry.unity`
 - LeakResponse: `Assets/3.SSH/`와 `Assets/Scenes/06_LeakResponse.unity`
 - 위 범위 안에서도 3절의 Integration 보호 영역은 수정 금지다.
+- 각 Stage 담당자는 자기 폴더의 `Resources/SharedXR/` 프로필을 수정할 수 있다. 이 프로필은 자기 Stage의 시작 위치·포인터·이동·회전 요구사항만 선언하며, 공용 XR 코드나 Input Action을 수정할 권한은 포함하지 않는다.
+- 각 Stage 담당자는 자기 Scene의 로컬 가방 Root·Visual·수납/회수 Zone·Anchor와 그 Stage 전용 동작을 수정할 수 있다.
 - 자기 Stage가 아닌 Scene, Script, Prefab, Material, Audio, Resource를 수정하지 않는다.
 - `Assets/VRHandPoseToolOutput/`에 새 Pose/스크립트 의존성을 만들지 않는다.
 - 여러 Stage가 함께 참조하는 자산은 공용 자산으로 보고 Integration 관리자에게 요청한다.
@@ -65,7 +66,7 @@ Integration 작업이라고 명시되지 않은 경우 다음을 수정하지 �
 - Standard Ray와 Near/Far 포인터를 한 손에서 동시에 활성화하지 않는다.
 - Stage에서 `SceneManager`를 이용한 별도 Scene 전환을 구현하지 않는다.
 - Stage 완료 이벤트의 이름·형식·발생 조건과 App 완료 Adapter를 수정하지 않는다.
-- 공용 가방에 Stage 이름이나 아이템 선택 로직을 하드코딩하지 않는다.
+- 공용 Inventory에 Stage 이름, GameObject, Transform, Collider나 진행 로직을 넣지 않는다.
 - Stage별 장비 선택과 버튼 동작은 해당 Stage handler에 둔다.
 - Stage가 DB, HTTP, 파일 저장을 직접 구현하지 않는다. 텔레메트리는 공용 계약으로만 전달한다.
 

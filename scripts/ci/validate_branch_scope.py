@@ -73,12 +73,6 @@ PROTECTED_EXACT_FILES = (
     "Assets/Scenes/07_Complete.unity.meta",
 )
 
-PROTECTED_STAGE_PROFILE_ROOTS = (
-    "Assets/1.JSR/Resources/SharedXR/",
-    "Assets/2.YJH/Resources/SharedXR/",
-    "Assets/3.SSH/Resources/SharedXR/",
-)
-
 PROTECTED_SUFFIXES = (
     ".asmdef",
     ".asmdef.meta",
@@ -131,7 +125,7 @@ def is_protected(path: str) -> bool:
         return True
     if path in PROTECTED_EXACT_FILES:
         return True
-    return path.startswith(PROTECTED_ROOTS + PROTECTED_STAGE_PROFILE_ROOTS)
+    return path.startswith(PROTECTED_ROOTS)
 
 
 def validate(base: str, head: str, files: list[str]) -> list[str]:

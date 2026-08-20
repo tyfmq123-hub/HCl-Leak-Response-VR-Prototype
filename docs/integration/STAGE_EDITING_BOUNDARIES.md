@@ -71,7 +71,7 @@ Stage 작업 중 `develop`이 변경되면 통합 직전에 최신 상태와 자
 - App의 `Common XR Origin`, XR Main Camera, Controller Tracking
 - 공용 Input Action 기반과 `SharedXRInputContract`
 - 공용 Ray/Near-Far/Grab/Haptic 기반
-- `SharedPlayerEquipment`, 단일 공용 가방, `StageBagAnchor`, Retrieval Zone/Anchor 계약
+- `SessionEquipmentInventory`의 데이터 API와 공용 장비 ID 계약
 - `SharedIncidentState`, `SharedTrainingTelemetry` 공용 계약
 - 세션/Stage 이력과 로컬 텔레메트리 저장 기반
 - App의 Scene 전환, Stage 완료 Adapter, 공용 EventSystem
@@ -87,9 +87,7 @@ Stage 담당자는 위 기반을 직접 수정하지 않는다. 공용 입력 �
 App / Common XR Origin
 ├─ Main Camera
 ├─ Left Controller
-├─ Right Controller
-└─ PlayerBodyAnchor
-   └─ ResponseBag_Wearable
+└─ Right Controller
 ```
 
 - PPE, PreEntry, LeakResponse는 통합 실행에서 App의 동일한 XR Main Camera와 Controller Tracking을 사용한다.
@@ -97,6 +95,7 @@ App / Common XR Origin
 - Stage는 Camera FOV, stereo projection, projection matrix를 임의로 변경하지 않는다.
 - Stage별 시작 위치와 방향은 `StageXRRequirements`로 선언할 수 있다.
 - Ray, Near/Far, UI, Grab, Haptic의 필요 여부도 Stage 요구사항으로 선언할 수 있다.
+- 각 Stage 담당자는 자기 `Assets/<Stage>/Resources/SharedXR/` 프로필의 선언값을 수정할 수 있다. 프로필의 스크립트·스키마와 `Assets/Common/XR/` 런타임은 Integration 소유다.
 - Controller Visual 보정은 Visual 계층에만 둔다. Tracking Transform이나 Ray Origin을 시각 보정값으로 회전시키지 않는다.
 - 한 손의 활성 포인터는 선택된 방식 하나만 사용한다. Standard Ray와 Near/Far를 동시에 활성화하지 않는다.
 
@@ -127,20 +126,18 @@ SharedXRInputContract
 - 비활성 Stage handler가 같은 입력에 반응하면 안 된다.
 - 일반적인 버튼 동작 추가는 Stage 담당자가 자기 영역에서 수행할 수 있다.
 
-## 6. 공용 플레이어 가방
+## 6. Session Inventory와 Stage별 가방
 
-가방 Visual은 App가 한 개만 소유한다.
+공용 계층은 장비 ID와 수량만 보관한다. 가방 Visual과 상호작용은 각 Stage가 소유한다.
 
-- Stage Scene은 가방을 복제하지 않고 위치만 나타내는 `StageBagAnchor`를 배치한다.
-- `StageBagAnchor`가 있으면 공용 가방은 해당 고정 위치를 사용한다.
-- 아직 앵커가 없는 기존 Scene은 이행 기간 동안 `PlayerBodyAnchor` 위치를 fallback으로 사용한다.
-- Stage 전환 전에 공용 가방은 App 소유 계층으로 복귀하므로 Stage Scene unload에 함께 파괴되지 않는다.
-- `SharedPlayerEquipment`은 Bag Transform, Retrieval Zone, Retrieval Anchor만 제공한다.
-- 공용 가방은 Stage 이름이나 가방 내용물을 알지 않는다.
-- 어떤 아이템을 꺼낼지, 언제 허용할지는 해당 Stage handler가 결정한다.
-- Stage별 가방 Visual을 추가로 복제하지 않는다.
+- PPE는 자기 가방의 수납 Zone과 `Store(itemId)` 호출을 관리한다.
+- PreEntry는 `PreEntry_ResponseBag`과 측정기 `TryCheckOut/ReturnCheckedOut`을 관리한다.
+- LeakResponse는 `LeakResponse_ResponseBag`과 Sock/Pad/Tongs `TryCheckOut/ConsumeCheckedOut`을 관리한다.
+- 가방 Root를 이동·회전·스케일하면 Visual, Retrieval Zone, Retrieval Anchor가 함께 움직인다.
+- App은 Stage 가방 Transform을 이동하거나 크기를 덮어쓰지 않는다.
+- Inventory에 GameObject, Transform, Collider, Stage 이름, 진행 단계를 저장하지 않는다.
 
-PPE에서 장비를 Grip으로 수납하면 획득/수납 상태를 공용 Inventory에 반영한다. PreEntry와 LeakResponse는 자기 `StageBagAnchor`에 놓인 같은 공용 가방에서 허용된 장비를 호출한다. Stage 단독 테스트는 기존 Stage fallback 또는 명시적인 개발 초기화만 사용하며, 실제 통합 진행 상태를 덮어쓰지 않는다.
+단독 Scene은 Inventory Source가 `None`일 때만 개발용 장비를 시드한다. PPE 결과나 FieldReady preset이 있으면 시드는 기존 상태를 덮어쓰지 않는다. 상세 API는 `docs/integration/SESSION_INVENTORY_CONTRACT.md`를 따른다.
 
 공용 설비 상태와 이벤트 수집 원칙:
 
@@ -167,7 +164,7 @@ PPE 담당자가 관리할 수 있는 예:
 
 - `PPESequenceManager.OnPPESequenceCompleted`
 - App의 `StageLifecycleAdapter` 구독 및 Scene 전환
-- 공용 XR/Camera/Input/가방 기반
+- 공용 XR/Camera/Input과 Session Inventory API
 
 ## 8. PreEntry 허용 범위
 
@@ -183,13 +180,13 @@ PreEntry 담당자가 관리할 수 있는 예:
 - PreEntry 전용 입력, UI, TTS, 진행 상태
 - 설비/펜스 Collider 범위 안의 자유 이동과 회전
 
-통합 실행에서는 `SharedPlayerEquipment.IsLeftHandInRetrievalZone()`을 우선 사용하고, 단독 Scene 테스트에서는 기존 Stage zone을 fallback으로 사용할 수 있다.
+통합·단독 실행 모두 `PreEntry_BagRetrievalZone`을 사용한다. App 공용 가방 Collider로 fallback하지 않는다.
 
 보호 계약:
 
 - `EntrySafetyStateMachine.SectionCompleted`
 - App의 완료 Adapter와 Scene 전환
-- 공용 XR/Camera/Input/가방 기반
+- 공용 XR/Camera/Input과 Session Inventory API
 
 ## 9. LeakResponse 허용 범위
 
@@ -212,7 +209,7 @@ Sock/Pad 회수는 기존 `INT_AbsorbentSock_Straight_01`, `INT_AbsorbentPad_01`
 
 - `P102LeakNarrationCue.ContainerClosedTaskCompleted`
 - App의 완료 Adapter와 Scene 전환
-- 공용 XR/Camera/Input/가방 기반
+- 공용 XR/Camera/Input과 Session Inventory API
 
 ## 10. Unity Scene과 파일 소유권
 
@@ -255,8 +252,8 @@ Integration 검증:
 3. 활성 EventSystem, XR Interaction Manager, Input Action Manager 각 1개
 4. Stage별 projection/FOV override 없음
 5. 양손 포인터 중복 없음
-6. `SharedPlayerEquipment` 1개, Bag Visual 1개, Retrieval Zone/Anchor 1개
-7. PPE → PreEntry → LeakResponse에서 가방 착용 상태 유지
+6. App 공용 가방 Visual 비활성, 활성 Stage의 로컬 가방만 표시
+7. PPE → PreEntry → LeakResponse에서 Session Inventory 상태 유지
 8. PreEntry Y는 측정기만, LeakResponse Y는 해당 단계의 Sock/Pad만 처리
 9. 비활성 Stage handler의 중복 반응 없음
 10. 기존 TTS, 행동 순서, 완료 이벤트, Scene 전환 흐름 유지

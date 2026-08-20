@@ -35,16 +35,6 @@ namespace JH.EntrySafety
         public void UpdateZone(bool isActive, float deltaTime)
         {
             ResolveRuntimeBindings();
-            var sharedEquipment = SharedPlayerEquipment.Instance;
-            if (sharedEquipment != null && sharedEquipment.RetrievalZone != null)
-            {
-                IsLeftHandInside = isActive && sharedEquipment.IsLeftHandInRetrievalZone();
-                _timer.Update(IsLeftHandInside, deltaTime);
-                if (!isActive)
-                    _timer.Reset();
-                return;
-            }
-
             if (_leftHand == null || _zoneCollider == null)
             {
                 IsLeftHandInside = false;
@@ -73,14 +63,6 @@ namespace JH.EntrySafety
         public bool EvaluateEquipAttempt()
         {
             ResolveRuntimeBindings();
-            var sharedEquipment = SharedPlayerEquipment.Instance;
-            if (sharedEquipment != null && sharedEquipment.RetrievalZone != null)
-            {
-                IsLeftHandInside = sharedEquipment.IsLeftHandInRetrievalZone();
-                _timer.Update(IsLeftHandInside, IsLeftHandInside ? _requiredDwellSeconds : 0f);
-                return IsReadyForEquip;
-            }
-
             if (_leftHand == null || _zoneCollider == null)
             {
                 IsLeftHandInside = false;
@@ -96,7 +78,9 @@ namespace JH.EntrySafety
         private void ResolveRuntimeBindings()
         {
             _leftHand = EntrySafetyAppXrResolve.PreferLive(_leftHand, "Left Controller");
-            _zoneCollider = EntrySafetyAppXrResolve.PreferLiveCollider(_zoneCollider, "Bag_Body_Static");
+            _zoneCollider = EntrySafetyAppXrResolve.PreferLiveCollider(
+                _zoneCollider,
+                "PreEntry_BagRetrievalZone");
 
             // Last resort: local box on this object (solo-play / missing bag collider).
             if (_zoneCollider == null || !_zoneCollider.gameObject.activeInHierarchy)
