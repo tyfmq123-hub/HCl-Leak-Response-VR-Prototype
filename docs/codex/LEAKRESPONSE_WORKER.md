@@ -16,7 +16,9 @@
 - `Assets/Scenes/06_LeakResponse.unity.meta`
 - `docs/handoffs/leakresponse/LATEST.md`
 
-단, `Assets/3.SSH/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.
+작업 전 `docs/integration/SESSION_INVENTORY_CONTRACT.md`도 읽는다.
+
+`Assets/3.SSH/Resources/SharedXR/`의 LeakResponse 프로필은 LeakResponse 시작 위치·포인터·이동·회전 요구사항에 한해 수정할 수 있다. `*.asmdef`, `*.asmref`와 공용 XR 구현은 Integration 보호 영역이다.
 
 ## 담당 기능
 
@@ -31,12 +33,19 @@
 
 - 다른 Stage Scene과 폴더
 - App SceneFlow, Common XR, Camera, Controller, Near/Far 기반
-- 공용 가방, Inventory, `SharedIncidentState`, 텔레메트리 저장 구현
+- 공용 `SessionEquipmentInventory` 구현/API, `SharedIncidentState`, 텔레메트리 저장 구현
 - `P102LeakNarrationCue.ContainerClosedTaskCompleted` 계약과 App 완료 Adapter
 - ProjectSettings, Packages, Build Settings, GitHub 설정
 - VR Hand Pose Tool 스크립트/컴포넌트/새 Pose 자산
 
 공용 P-102 설비 상태나 장비 계약이 부족하면 App 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 상태와 호출 시점을 적는다.
+
+## Inventory 병렬 작업
+
+- 단독 Scene 실행은 Sock/Pad/Tongs를 개발용 Inventory에 자동 등록한다.
+- 통합 실행에서는 PPE 결과가 우선하며 개발용 시드는 기존 결과를 덮어쓰지 않는다.
+- 꺼낼 때 `TryCheckOut`, 설치 완료 시 `ConsumeCheckedOut`, 취소 시 `ReturnCheckedOut`을 사용한다.
+- 가방 위치·크기·Collider·Anchor는 `06_LeakResponse`의 `LeakResponse_ResponseBag` 계층에서 직접 수정한다.
 
 ## 종료 조건
 

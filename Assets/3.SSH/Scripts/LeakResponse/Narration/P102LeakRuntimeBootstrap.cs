@@ -427,7 +427,7 @@ namespace VRProject.LeakResponse.Narration
 
             // This authored object is the deployable item stored in the response bag,
             // not a loose supply that should be visible in the LeakResponse Scene.
-            // PersistentEquipmentInventory activates it only when the trainee retrieves it.
+            // The LeakResponse Stage bag handler activates it only when the trainee retrieves it.
             sourceObject.SetActive(false);
             XRGrabInteractable sourceGrab = sourceObject.GetComponent<XRGrabInteractable>();
             if (sourceGrab == null)

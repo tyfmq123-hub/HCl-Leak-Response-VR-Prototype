@@ -8,7 +8,6 @@ namespace HClTraining.App
         TrainingSessionState session;
         PersistentEquipmentInventory inventory;
         ChemicalGlovesWearableVisual wearable;
-        ResponseBagWearableVisual responseBagWearable;
         PPEEquipmentManager boundEquipmentManager;
 
         public void Initialize(
@@ -20,9 +19,6 @@ namespace HClTraining.App
             inventory = equipmentInventory;
             wearable = commonXrRoot != null
                 ? commonXrRoot.GetComponentInChildren<ChemicalGlovesWearableVisual>(true)
-                : null;
-            responseBagWearable = commonXrRoot != null
-                ? commonXrRoot.GetComponentInChildren<ResponseBagWearableVisual>(true)
                 : null;
         }
 
@@ -53,21 +49,6 @@ namespace HClTraining.App
                     session.LeftChemicalGloveWorn,
                     session.RightChemicalGloveWorn);
 
-            if (responseBagWearable == null)
-                responseBagWearable = FindAnyObjectByType<ResponseBagWearableVisual>(FindObjectsInactive.Include);
-            var loadout = PPELoadoutData.Instance;
-            var fieldStage = session != null &&
-                             (session.CurrentStage == TrainingStage.PreEntry ||
-                              session.CurrentStage == TrainingStage.LeakResponse);
-            var bagEquipped = fieldStage ||
-                              (loadout != null && loadout.IsEquipped(PPEEquipmentManager.IdResponseBag));
-            if (responseBagWearable != null)
-            {
-                if (bagEquipped && !responseBagWearable.IsVisible)
-                    responseBagWearable.ShowWearable();
-                else if (!bagEquipped && responseBagWearable.IsVisible)
-                    responseBagWearable.HideWearable();
-            }
         }
 
         public void CommitPpeResult()
@@ -84,15 +65,6 @@ namespace HClTraining.App
             if (wearable != null)
                 ApplyGloveVisualState(glovesEquipped, glovesEquipped);
 
-            var bagEquipped = boundEquipmentManager != null &&
-                              boundEquipmentManager.IsEquipped(PPEEquipmentManager.IdResponseBag);
-            if (responseBagWearable != null)
-            {
-                if (bagEquipped && !responseBagWearable.IsVisible)
-                    responseBagWearable.ShowWearable();
-                else if (!bagEquipped && responseBagWearable.IsVisible)
-                    responseBagWearable.HideWearable();
-            }
         }
 
         void ApplyGloveVisualState(bool leftWorn, bool rightWorn)

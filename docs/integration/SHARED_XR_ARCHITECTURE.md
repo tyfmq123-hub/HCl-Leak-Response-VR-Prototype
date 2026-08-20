@@ -17,7 +17,7 @@ App
 ├─ Input Action Manager
 ├─ SharedXRInputContract
 ├─ StageXRProfileController
-├─ SharedPlayerEquipment
+├─ SessionEquipmentInventory (data only)
 └─ TrainingTelemetryService
 ```
 
@@ -118,24 +118,20 @@ assembly and can use the same API directly.
 Simulator actions remain available in Editor. Standalone execution without the App
 retains the existing direct-input fallbacks.
 
-## Shared player equipment
+## Session equipment and Stage bags
 
-The App owns one bag visual. A Stage provides a transform named `StageBagAnchor`
-when the bag must sit at an authored world location. The App bag copies that pose
-without becoming owned by the Stage Scene, so unloading the Stage cannot destroy it.
-Scenes without the anchor temporarily retain the body-relative compatibility pose.
+`SessionEquipmentInventory` persists only equipment IDs and stored/checked-out counts.
+It never owns a bag Transform, Collider, prefab instance, or Stage progression.
 
-`SharedPlayerEquipment` exposes only:
+- PPE stores equipment IDs after successful Grip-to-bag interactions.
+- PreEntry owns `PreEntry_ResponseBag`, its local access zone/anchor, and the detector object.
+- LeakResponse owns `LeakResponse_ResponseBag`, its local access zone/anchor, and its absorbent objects.
+- Standalone Stage play seeds only that Stage's development items when no resolved Inventory exists.
+- PPE or field-ready results always take priority over standalone seeds.
 
-- the shared bag transform and visible/equipped state;
-- the left-hand retrieval zone;
-- the item retrieval anchor.
-
-`SharedEquipmentInventory` is a generic provider for existing equipment instances.
-It does not select an item from a Stage name. PreEntry keeps its detector decision in
-`EntrySafetyScenarioController`; LeakResponse keeps Sock/Pad selection in
-`P102SharedBagItemHandler` and uses its actual narration/install state. LeakResponse
-deploys the existing Sock/Pad scene objects and never creates replacement copies.
+The App does not move or scale a Stage bag. Existing App-owned bag services remain only
+as a temporary compatibility layer while all Stage branches migrate; Stage gameplay uses
+the new data contract. See `docs/integration/SESSION_INVENTORY_CONTRACT.md`.
 
 ## Shared incident state and telemetry
 
@@ -170,7 +166,7 @@ flow for:
 
 - one active XR Origin, Main Camera, AudioListener, EventSystem,
   XR Interaction Manager, and Input Action Manager;
-- one shared player equipment contract with one bag retrieval zone and anchor;
+- one data-only session inventory and no active App-owned bag visual;
 - camera plus exactly two active controller tracking drivers;
 - active pointers only below the common rig;
 - exactly two standard rays, two Near/Far pointers, or no pointer according to the

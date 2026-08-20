@@ -52,6 +52,8 @@ namespace JH.EntrySafety
         private bool _preEntryTelemetryStarted;
         private int _panelAttemptCount;
         private int _panelRejectedCount;
+        private SessionEquipmentInventory _sessionInventory;
+        private bool _detectorCheckedOut;
 
         public EntrySafetyStateMachine StateMachine => _stateMachine;
         public bool LeakResponseHandoffAllowed => _allowLeakResponseHandoff;
@@ -59,6 +61,8 @@ namespace JH.EntrySafety
 
         private void Awake()
         {
+            _sessionInventory = SessionEquipmentInventory.Ensure();
+            _sessionInventory?.SeedStandalone(SessionEquipmentPresets.PreEntryStandaloneEquipment);
             EnsureLocalSupportComponents();
             _isConfigured = _gazeAdapter != null && _inputAdapter != null && _guidanceView != null &&
                             _equipmentTransferZone != null && _detectorController != null &&
@@ -87,6 +91,8 @@ namespace JH.EntrySafety
 
         private void OnDestroy()
         {
+            if (_detectorCheckedOut)
+                _sessionInventory?.ReturnCheckedOut(SharedEquipmentIds.GasDetector);
             StopNarration();
             if (_stateMachine != null)
             {
@@ -292,10 +298,30 @@ namespace JH.EntrySafety
                 return;
             }
 
+            var checkedOutNow = false;
+            if (!_detectorCheckedOut)
+            {
+                checkedOutNow = _sessionInventory != null &&
+                                _sessionInventory.TryCheckOut(SharedEquipmentIds.GasDetector);
+                if (!checkedOutNow)
+                {
+                    SharedTrainingTelemetry.Current.BagItemRequested(
+                        SharedEquipmentIds.GasDetector,
+                        false);
+                    return;
+                }
+                _detectorCheckedOut = true;
+            }
+
             if (_detectorController.TryEquip())
             {
                 SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, true);
                 Advance(EntrySafetyStep.EquipDetector);
+            }
+            else if (checkedOutNow)
+            {
+                _sessionInventory.ReturnCheckedOut(SharedEquipmentIds.GasDetector);
+                _detectorCheckedOut = false;
             }
         }
 
@@ -308,6 +334,11 @@ namespace JH.EntrySafety
 
             if (_detectorController.TryStore())
             {
+                if (_detectorCheckedOut)
+                {
+                    _sessionInventory?.ReturnCheckedOut(SharedEquipmentIds.GasDetector);
+                    _detectorCheckedOut = false;
+                }
                 SharedTrainingTelemetry.Current.EquipmentUsed(SharedEquipmentIds.GasDetector);
                 Advance(EntrySafetyStep.StoreDetector);
             }

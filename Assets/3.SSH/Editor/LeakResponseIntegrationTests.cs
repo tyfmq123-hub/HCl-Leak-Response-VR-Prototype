@@ -25,7 +25,7 @@ namespace VRProject.LeakResponse.EditorTests
             {
                 Assert.That(scene.IsValid() && scene.isLoaded, Is.True);
                 Assert.That(Find(scene, "INT"), Is.Not.Null);
-                Transform bagAnchor = Find(scene, SharedPlayerEquipment.StageBagAnchorName);
+                Transform bagAnchor = Find(scene, "LeakResponse_ResponseBag");
                 Assert.That(bagAnchor, Is.Not.Null);
                 Assert.That(bagAnchor.IsChildOf(Find(scene, "INT")), Is.True);
                 Assert.That(Find(scene, "ENV_LeakPipeGateValveWheel_suc")
@@ -61,7 +61,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void P102EnvironmentSetup_KeepsAuthoredRigFixedAndCreatesBagAnchor()
+        public void P102EnvironmentSetup_KeepsAuthoredRigAndStageOwnedBagFixed()
         {
             Scene scene = EditorSceneManager.NewPreviewScene();
 
@@ -69,6 +69,8 @@ namespace VRProject.LeakResponse.EditorTests
             {
                 Transform functionalRig = CreateRoot(scene, "INT", new Vector3(1f, 0f, 2f));
                 Transform p102Pump = CreateRoot(scene, "Pump_102", new Vector3(4f, 0f, 0f));
+                Transform responseBag = CreateRoot(scene, "LeakResponse_ResponseBag", Vector3.zero);
+                responseBag.SetParent(functionalRig, false);
                 Transform runtimeRoot = CreateRoot(scene, "LeakResponse Runtime", Vector3.zero);
                 P102LeakEnvironmentSetup setup =
                     runtimeRoot.gameObject.AddComponent<P102LeakEnvironmentSetup>();
@@ -78,8 +80,8 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(setup.P102PumpRoot, Is.SameAs(p102Pump));
                 Assert.That(functionalRig.position, Is.EqualTo(new Vector3(1f, 0f, 2f)));
                 Assert.That(p102Pump.position, Is.EqualTo(new Vector3(4f, 0f, 0f)));
-                Assert.That(setup.StageBagAnchor, Is.Not.Null);
-                Assert.That(setup.StageBagAnchor.IsChildOf(functionalRig), Is.True);
+                Assert.That(setup.ResponseBagRoot, Is.Not.Null);
+                Assert.That(setup.ResponseBagRoot.IsChildOf(functionalRig), Is.True);
             }
             finally
             {
