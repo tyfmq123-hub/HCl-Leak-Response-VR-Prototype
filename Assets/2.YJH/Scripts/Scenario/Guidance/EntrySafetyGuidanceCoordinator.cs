@@ -21,8 +21,7 @@ namespace JH.EntrySafety
         {
             get
             {
-                var instruction = EntrySafetyInstructionCatalog.GetInstruction(_sm.CurrentStep);
-                return instruction?.ForFacility(EntrySafetyFacilityCatalog.ResolveSelectedFacility());
+                return EntrySafetyInstructionCatalog.GetInstruction(_sm.CurrentStep);
             }
         }
 

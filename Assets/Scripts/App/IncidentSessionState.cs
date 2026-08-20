@@ -10,27 +10,13 @@ namespace HClTraining.App
     [Serializable]
     public sealed class IncidentSessionState : ISharedIncidentState
     {
-        public FacilityId SelectedFacility { get; private set; } = FacilityId.P102;
         public FacilityRunState FacilityRunState { get; private set; } = FacilityRunState.Running;
         public LeakState LeakState { get; private set; } = LeakState.Active;
 
-        public void Reset(FacilityId facility)
+        public void Reset()
         {
-            SelectedFacility = NormalizeFacility(facility);
             FacilityRunState = FacilityRunState.Running;
             LeakState = LeakState.Active;
-        }
-
-        public bool SelectFacility(FacilityId facility)
-        {
-            facility = NormalizeFacility(facility);
-            if (SelectedFacility == facility)
-                return false;
-
-            SelectedFacility = facility;
-            FacilityRunState = FacilityRunState.Running;
-            LeakState = LeakState.Active;
-            return true;
         }
 
         public bool SetFacilityRunState(FacilityRunState state)
@@ -47,20 +33,6 @@ namespace HClTraining.App
                 return false;
             LeakState = state;
             return true;
-        }
-
-        static FacilityId NormalizeFacility(FacilityId facility)
-        {
-            switch (facility)
-            {
-                case FacilityId.P101:
-                case FacilityId.P102:
-                case FacilityId.P103:
-                case FacilityId.P104:
-                    return facility;
-                default:
-                    return FacilityId.P102;
-            }
         }
     }
 }

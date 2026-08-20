@@ -367,13 +367,12 @@ namespace JH.EntrySafety
             {
                 _panelAttemptCount++;
                 SharedTrainingTelemetry.Current.ContentViewed(
-                    "PreEntry.FacilityStop." + EntrySafetyFacilityCatalog.ToDisplayName(_goal2PtPanel.BoundFacility));
+                    "PreEntry.FacilityStop.P-102");
                 Advance(EntrySafetyStep.StopPump);
                 return;
             }
 
-            if (result == EntrySafetyStopAttemptResult.Missed ||
-                result == EntrySafetyStopAttemptResult.WrongFacility)
+            if (result == EntrySafetyStopAttemptResult.Missed)
             {
                 _panelRejectedCount++;
                 SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Panel.StopFailed");
@@ -477,7 +476,7 @@ namespace JH.EntrySafety
             yield return PlayTemporaryGoal2Line(
                 string.Format(
                     Goal2SafetyCheckCompleteText,
-                    EntrySafetyFacilityCatalog.ToDisplayName(EntrySafetyFacilityCatalog.ResolveSelectedFacility())),
+                    "P-102"),
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlaySafetyCheckComplete() : 0f);
 
             if (!_allowLeakResponseHandoff)
@@ -607,7 +606,7 @@ namespace JH.EntrySafety
             if (!wasInsideStopZone && _goal2PtPanel.IsRightHandInsideStopZone)
             {
                 _inputAdapter.PulseRightHand(0.45f, 0.08f);
-                Debug.Log("Selected facility STOP zone entered; right-hand haptic requested.");
+                Debug.Log("P-102 STOP zone entered; right-hand haptic requested.");
             }
 
             if (step == EntrySafetyStep.WaitPressureDecrease)
@@ -706,9 +705,8 @@ namespace JH.EntrySafety
             if (next != EntrySafetyStep.StopPump)
                 return;
 
-            var facility = EntrySafetyFacilityCatalog.ToDisplayName(EntrySafetyFacilityCatalog.ResolveSelectedFacility());
             SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Panel.Start");
-            SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Facility." + facility);
+            SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Facility.P-102");
         }
 
         private void OnSectionCompleted()

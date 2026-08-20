@@ -139,8 +139,8 @@ deploys the existing Sock/Pad scene objects and never creates replacement copies
 
 ## Shared incident state and telemetry
 
-`SharedIncidentState` exposes only neutral runtime facts: selected `FacilityId`,
-facility run/stop state, and leak active/isolated state. PreEntry writes those facts;
+`SharedIncidentState` exposes only the fixed P-102 run/stop state and leak
+active/isolated state. PreEntry writes the stop fact;
 LeakResponse maps them to its own Scene-local valves, effects, sound, and colliders.
 
 `SharedTrainingTelemetry` is the Stage-facing, server-independent event contract.

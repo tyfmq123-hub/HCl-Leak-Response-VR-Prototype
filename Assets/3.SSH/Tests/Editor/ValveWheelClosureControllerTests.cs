@@ -519,7 +519,7 @@ namespace VRProject.Valves.Tests
         }
 
         static string ReadSampleScene() => File.ReadAllText(
-            Path.Combine(Application.dataPath, "Scenes", "SSH_VR_Project.unity"));
+            Path.Combine(Application.dataPath, "Scenes", "06_LeakResponse.unity"));
 
         static string FindWheelComponentBlock(string scene, string identifier, string header = "--- !u!114")
         {

@@ -19,7 +19,7 @@ using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 
 public static class AppIntegrationBuilder
 {
-    const string AppFolder = "Assets/Scenes/App";
+    const string AppFolder = "Assets/Scenes";
     const string ProfileFolder = "Assets/Resources/App/StageXRProfiles";
     const string ReportPath = "Logs/AppIntegrationBuild.log";
     static readonly Vector3 CommonBagBodyOffset = new Vector3(-0.52f, 0.65f, 0.14f);
@@ -488,7 +488,6 @@ public static class AppIntegrationBuilder
             new EditorBuildSettingsScene(SceneFlowController.AppScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.TitleScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.StartScenePath, true),
-            new EditorBuildSettingsScene(SceneFlowController.LoadingScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.PpeScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.PreEntryScenePath, true),
             new EditorBuildSettingsScene(SceneFlowController.LeakResponseScenePath, true),

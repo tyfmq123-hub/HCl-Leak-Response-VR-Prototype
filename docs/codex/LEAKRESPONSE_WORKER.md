@@ -12,15 +12,15 @@
 ## 수정 허용
 
 - `Assets/3.SSH/`
-- `Assets/Scenes/SSH_VR_Project.unity`
-- `Assets/Scenes/SSH_VR_Project.unity.meta`
+- `Assets/Scenes/06_LeakResponse.unity`
+- `Assets/Scenes/06_LeakResponse.unity.meta`
 - `docs/handoffs/leakresponse/LATEST.md`
 
 단, `Assets/3.SSH/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.
 
 ## 담당 기능
 
-- 선택된 P-101~P-104 설비의 로컬 밸브·VFX·Sound·Interaction binding
+- 고정 P-102 설비의 로컬 밸브·VFX·Sound·Interaction binding
 - Valve 양손 조작과 설비 Collider
 - 필요한 Highlight와 Ghost 안내
 - 가방에서 기존 흡착삭·패드·집게를 꺼내 사용하는 Stage handler
@@ -36,7 +36,7 @@
 - ProjectSettings, Packages, Build Settings, GitHub 설정
 - VR Hand Pose Tool 스크립트/컴포넌트/새 Pose 자산
 
-공용 설비 상태나 장비 계약이 부족하면 App에 P102 전용 조건을 추가하지 말고 인수인계의 `Integration 요청`에 설비 ID, 필요한 상태, 호출 시점을 적는다.
+공용 P-102 설비 상태나 장비 계약이 부족하면 App 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 상태와 호출 시점을 적는다.
 
 ## 종료 조건
 

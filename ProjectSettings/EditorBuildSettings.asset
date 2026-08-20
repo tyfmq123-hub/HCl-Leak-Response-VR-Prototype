@@ -6,28 +6,25 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/App/App.unity
+    path: Assets/Scenes/01_App.unity
     guid: 1f476d899ddb97942a29b2b7767fc665
   - enabled: 1
-    path: Assets/3.JH/Scenes/Prototype/TitleScene.unity
+    path: Assets/Scenes/02_Title.unity
     guid: 0ca09ba654eefe649a72844c545a8351
   - enabled: 1
-    path: Assets/Scenes/App/Start.unity
+    path: Assets/Scenes/03_Start.unity
     guid: 67fddc2a7b4acb0488942ca7c39c47fd
   - enabled: 1
-    path: Assets/Scenes/App/Loading.unity
-    guid: 7a707b226485c0340be001f5c63e1e1b
-  - enabled: 1
-    path: Assets/Scenes/PPE_PreparationRoom.unity
+    path: Assets/Scenes/04_PPE.unity
     guid: 87a3203d21380de46b7ec9c353781419
   - enabled: 1
-    path: Assets/Scenes/JH_Test_Scene.unity
+    path: Assets/Scenes/05_PreEntry.unity
     guid: fe230134fef5b8a438806396473c6686
   - enabled: 1
-    path: Assets/Scenes/SSH_VR_Project.unity
+    path: Assets/Scenes/06_LeakResponse.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Scenes/App/Complete.unity
+    path: Assets/Scenes/07_Complete.unity
     guid: a4cd82b4959b0ef468c422b25cd39a51
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ad32b387f060dcc48938a8a699c4da9c, type: 2}

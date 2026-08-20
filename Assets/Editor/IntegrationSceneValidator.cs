@@ -29,7 +29,6 @@ public static class IntegrationSceneValidator
         (SceneFlowController.AppScenePath, 1),
         (SceneFlowController.TitleScenePath, 1),
         (SceneFlowController.StartScenePath, 0),
-        (SceneFlowController.LoadingScenePath, 0),
         (SceneFlowController.PpeScenePath, 1),
         (SceneFlowController.PreEntryScenePath, 1),
         (SceneFlowController.LeakResponseScenePath, 1),
@@ -72,7 +71,7 @@ public static class IntegrationSceneValidator
         if (failures.Count != 0)
             throw new InvalidOperationException("Integration scene validation failed:\n" + string.Join("\n", failures));
 
-        Debug.Log("[Integration Scene Validation] All eight Scenes, XR profiles, serialization, and Build Settings passed.");
+        Debug.Log("[Integration Scene Validation] All seven Scenes, XR profiles, serialization, and Build Settings passed.");
     }
 
     [MenuItem("Tools/HCl Training/Remove Missing Scripts From Integrated Scenes")]
@@ -311,13 +310,6 @@ public static class IntegrationSceneValidator
                     .SelectMany(root => root.GetComponentsInChildren<TitleMenuController>(true)).ToArray();
                 if (titleMenus.Length != 1)
                     failures.Add($"TitleScene must contain exactly one TitleMenuController, found {titleMenus.Length}.");
-            }
-            if (scenePath == SceneFlowController.LoadingScenePath)
-            {
-                var guides = scene.GetRootGameObjects()
-                    .SelectMany(root => root.GetComponentsInChildren<ControllerTutorialManager>(true)).ToArray();
-                if (guides.Length != 1)
-                    failures.Add($"Loading Scene must contain exactly one ControllerTutorialManager, found {guides.Length}.");
             }
             if (scenePath == SceneFlowController.PreEntryScenePath)
                 ValidatePreEntryLocomotion(firstOrigin, failures);

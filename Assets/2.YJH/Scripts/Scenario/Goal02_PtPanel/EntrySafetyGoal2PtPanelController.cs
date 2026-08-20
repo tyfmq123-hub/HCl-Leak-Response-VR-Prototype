@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using HClTraining.SharedXR;
 using TMPro;
@@ -10,37 +9,24 @@ namespace JH.EntrySafety
     {
         Ignored = 0,
         Missed = 1,
-        WrongFacility = 2,
-        Stopped = 3,
+        Stopped = 2,
     }
 
     /// <summary>
-    /// Owns the four-row P/T panel. The active row follows SharedIncidentState's
-    /// selected FacilityId instead of a P-102-only path.
+    /// Owns the fixed P-102 training row on the authored four-row P/T panel.
+    /// The other facility rows remain environment-only readouts.
     /// </summary>
     public sealed class EntrySafetyGoal2PtPanelController : MonoBehaviour
     {
-        [Serializable]
-        public sealed class FacilityRow
-        {
-            public FacilityId Facility = FacilityId.P102;
-            public TMP_Text PressureReadout;
-            public TMP_Text TemperatureReadout;
-            public TMP_Text RunStopReadout;
-            public Transform StopPress;
-            public string AuthoredTemperature;
-            public float InitialPressureBar;
-        }
-
         private static readonly Color RunNeonColor = new Color(0.15f, 1f, 0.35f, 1f);
         private static readonly Color StopNeonColor = new Color(1f, 0.12f, 0.25f, 1f);
-        private static readonly Color InactiveReadoutColor = new Color(0.55f, 0.62f, 0.7f, 0.55f);
         private static readonly Color StopZoneOutsideColor = new Color(0.20f, 0.50f, 1.00f, 0.28f);
         private static readonly Color StopZoneInsideColor = new Color(0.35f, 0.70f, 1.00f, 0.42f);
-        private static readonly FacilityId[] AllFacilities =
-        {
-            FacilityId.P101, FacilityId.P102, FacilityId.P103, FacilityId.P104,
-        };
+        private const string P102PressureName = "PressureMesh_P-102";
+        private const string P102TemperatureName = "TemperatureMesh_P-102";
+        private const string P102StatusName = "StatusMesh_P-102";
+        private const string P102StopPressName = "StopButton_P102_Press";
+        private const string P102Temperature = "72.3 °C";
 
         [Header("Existing scene objects")]
         [SerializeField] private Transform _xrOrigin;
@@ -66,7 +52,6 @@ namespace JH.EntrySafety
         [SerializeField] private TMP_Text _p102RunStopReadout;
         [SerializeField] private CanvasGroup _fadeCanvasGroup;
         [SerializeField, Min(0.1f)] private float _arrivalContextSeconds = 3f;
-        [SerializeField] private FacilityRow[] _facilityRows;
 
         [Header("Process tuning")]
         [SerializeField, Min(0f)] private float _initialPressureMpa = 4.12f;
@@ -98,11 +83,9 @@ namespace JH.EntrySafety
         private Material _stopProximityMaterial;
         private EntrySafetyStep _lastStep;
         private float _stepElapsed;
-        private FacilityId _boundFacility = FacilityId.P102;
 
         public bool IsPressureDecreaseComplete => _pumpStopped && _pressureElapsed >= _pressureDecreaseSeconds;
         public bool IsRightHandInsideStopZone => _isRightHandInsideStopZone;
-        public FacilityId BoundFacility => _boundFacility;
 
         public Transform ActiveGazeTargetTransform
         {
@@ -118,12 +101,10 @@ namespace JH.EntrySafety
         private void Awake()
         {
             ResolveLiveXrRefs();
-            EnsureFacilityRows();
-            BindSelectedFacility();
-            var selected = GetSelectedRow();
-            _p102PressFallbackWorldPosition = selected?.StopPress == null
+            ResolveP102References();
+            _p102PressFallbackWorldPosition = _p102Press == null
                 ? Vector3.zero
-                : selected.StopPress.position;
+                : _p102Press.position;
             CacheSelectedRunningFontSize();
             ResetPresentation();
         }
@@ -135,9 +116,7 @@ namespace JH.EntrySafety
 
             _pressureElapsed = Mathf.Min(_pressureDecreaseSeconds, _pressureElapsed + Time.deltaTime);
             var progress = _pressureElapsed / _pressureDecreaseSeconds;
-            var row = GetSelectedRow();
-            var startPressure = row != null ? row.InitialPressureBar : _initialPressureMpa;
-            _pressureMpa = Mathf.Lerp(startPressure, _reducedPressureMpa, progress);
+            _pressureMpa = Mathf.Lerp(_initialPressureMpa, _reducedPressureMpa, progress);
             RefreshReadouts();
         }
 
@@ -165,10 +144,8 @@ namespace JH.EntrySafety
         public void ResetPresentation()
         {
             ResolveLiveXrRefs();
-            EnsureFacilityRows();
-            BindSelectedFacility();
-            var row = GetSelectedRow();
-            _pressureMpa = row != null ? row.InitialPressureBar : _initialPressureMpa;
+            ResolveP102References();
+            _pressureMpa = _initialPressureMpa;
             _pressureElapsed = 0f;
             _pumpStopped = false;
             _pressureDecreaseStarted = false;
@@ -218,8 +195,6 @@ namespace JH.EntrySafety
                 ResetPresentation();
 
             _ = isGazing;
-            BindSelectedFacility();
-
             if (step != _lastStep)
             {
                 _lastStep = step;
@@ -247,8 +222,8 @@ namespace JH.EntrySafety
         public void UpdateStopProximity(bool isStopStep, Vector3 rightHandTrackingPosition, bool hasRightHandPose)
         {
             ResolveLiveXrRefs();
-            var row = GetSelectedRow();
-            if (!isStopStep || _pumpStopped || _xrOrigin == null || row == null || row.StopPress == null)
+            ResolveP102References();
+            if (!isStopStep || _pumpStopped || _xrOrigin == null || _p102Press == null)
             {
                 _isRightHandInsideStopZone = false;
                 SetStopProximityVisible(false);
@@ -259,7 +234,7 @@ namespace JH.EntrySafety
                                              rightHandTrackingPosition,
                                              hasRightHandPose,
                                              out var rightHandWorldPosition) &&
-                                         IsInsideSelectedStop(rightHandWorldPosition, row);
+                                         IsInsideP102Stop(rightHandWorldPosition);
             SetStopProximityVisible(true);
             SetStopProximityColor(_isRightHandInsideStopZone ? StopZoneInsideColor : StopZoneOutsideColor);
         }
@@ -269,29 +244,24 @@ namespace JH.EntrySafety
             if (_pumpStopped)
                 return EntrySafetyStopAttemptResult.Ignored;
 
-            BindSelectedFacility();
-            var selected = GetSelectedRow();
-            if (selected == null || selected.StopPress == null ||
+            ResolveP102References();
+            if (_p102Press == null ||
                 !TryGetRightHandWorldPosition(rightHandTrackingPosition, hasRightHandPose, out var rightHandWorldPosition))
             {
                 return EntrySafetyStopAttemptResult.Ignored;
             }
 
-            var overlapping = FindOverlappingRow(rightHandWorldPosition);
-            if (overlapping != null && overlapping.Facility != selected.Facility)
-                return EntrySafetyStopAttemptResult.WrongFacility;
-
-            if (!IsInsideSelectedStop(rightHandWorldPosition, selected))
+            if (!IsInsideP102Stop(rightHandWorldPosition))
                 return EntrySafetyStopAttemptResult.Missed;
 
             _pumpStopped = true;
             _pressureElapsed = 0f;
             _pressureDecreaseStarted = true;
-            _pressureMpa = selected.InitialPressureBar;
+            _pressureMpa = _initialPressureMpa;
             _isRightHandInsideStopZone = false;
             SetStopProximityVisible(false);
             SharedIncidentState.Current.SetFacilityRunState(FacilityRunState.Stopped);
-            StartCoroutine(AnimateStopPress(selected));
+            StartCoroutine(AnimateStopPress());
             RefreshReadouts();
             return EntrySafetyStopAttemptResult.Stopped;
         }
@@ -305,8 +275,7 @@ namespace JH.EntrySafety
                 _pressureDecreaseSeconds = durationSeconds;
 
             _pressureElapsed = 0f;
-            var row = GetSelectedRow();
-            _pressureMpa = row != null ? row.InitialPressureBar : _initialPressureMpa;
+            _pressureMpa = _initialPressureMpa;
             _pressureDecreaseStarted = true;
             RefreshReadouts();
         }
@@ -381,7 +350,6 @@ namespace JH.EntrySafety
             if (_gazeHighlight == null)
                 return;
 
-            var row = GetSelectedRow();
             if (activeTarget == EntrySafetyGazeTargetId.None &&
                 _lastStep != EntrySafetyStep.StopPump)
             {
@@ -389,7 +357,7 @@ namespace JH.EntrySafety
                 return;
             }
 
-            var anchor = GetHighlightAnchor(activeTarget, row);
+            var anchor = GetHighlightAnchor(activeTarget);
             if (anchor == null)
             {
                 _gazeHighlight.ClearFollow();
@@ -401,21 +369,8 @@ namespace JH.EntrySafety
             _gazeHighlight.SetProgress(_lastStep == EntrySafetyStep.StopPump ? 1f : gazeProgress01);
         }
 
-        private Transform GetHighlightAnchor(EntrySafetyGazeTargetId targetId, FacilityRow row)
+        private Transform GetHighlightAnchor(EntrySafetyGazeTargetId targetId)
         {
-            if (row != null)
-            {
-                if (_lastStep == EntrySafetyStep.StopPump ||
-                    targetId == EntrySafetyGazeTargetId.RunIndicator ||
-                    targetId == EntrySafetyGazeTargetId.StopIndicator)
-                    return row.RunStopReadout != null ? row.RunStopReadout.transform : row.StopPress;
-                if (targetId == EntrySafetyGazeTargetId.PressureDisplay ||
-                    targetId == EntrySafetyGazeTargetId.ReducedPressureDisplay)
-                    return row.PressureReadout != null ? row.PressureReadout.transform : null;
-                if (targetId == EntrySafetyGazeTargetId.TemperatureDisplay)
-                    return row.TemperatureReadout != null ? row.TemperatureReadout.transform : null;
-            }
-
             switch (targetId)
             {
                 case EntrySafetyGazeTargetId.PressureDisplay:
@@ -489,13 +444,13 @@ namespace JH.EntrySafety
             }
         }
 
-        private bool IsInsideSelectedStop(Vector3 rightHandWorldPosition, FacilityRow row)
+        private bool IsInsideP102Stop(Vector3 rightHandWorldPosition)
         {
-            if (row == null || row.StopPress == null)
+            if (_p102Press == null)
                 return false;
 
-            EnsureStopCollider(row.StopPress);
-            var collider = row.StopPress.GetComponent<Collider>();
+            EnsureStopCollider(_p102Press);
+            var collider = _p102Press.GetComponent<Collider>();
             if (collider != null)
             {
                 var closest = collider.ClosestPoint(rightHandWorldPosition);
@@ -503,24 +458,7 @@ namespace JH.EntrySafety
                     return true;
             }
 
-            return Vector3.Distance(rightHandWorldPosition, GetStopZoneCenter(row)) <= GetStopZoneRadius(row);
-        }
-
-        private FacilityRow FindOverlappingRow(Vector3 rightHandWorldPosition)
-        {
-            if (_facilityRows == null)
-                return null;
-
-            for (var i = 0; i < _facilityRows.Length; i++)
-            {
-                var row = _facilityRows[i];
-                if (row == null || row.StopPress == null)
-                    continue;
-                if (IsInsideSelectedStop(rightHandWorldPosition, row))
-                    return row;
-            }
-
-            return null;
+            return Vector3.Distance(rightHandWorldPosition, GetStopZoneCenter()) <= GetStopZoneRadius();
         }
 
         private bool TryGetRightHandWorldPosition(
@@ -544,22 +482,22 @@ namespace JH.EntrySafety
             return false;
         }
 
-        private IEnumerator AnimateStopPress(FacilityRow row)
+        private IEnumerator AnimateStopPress()
         {
-            if (row == null || row.StopPress == null)
+            if (_p102Press == null)
                 yield break;
 
-            var releasedPosition = GetReleasedPressPosition(row);
+            var releasedPosition = GetReleasedPressPosition();
             var pressedPosition = releasedPosition + GetPanelForward() * 0.012f;
-            yield return MovePress(row.StopPress, releasedPosition, pressedPosition, 0.12f);
+            yield return MovePress(_p102Press, releasedPosition, pressedPosition, 0.12f);
             yield return new WaitForSeconds(0.08f);
-            yield return MovePress(row.StopPress, pressedPosition, releasedPosition, 0.12f);
+            yield return MovePress(_p102Press, pressedPosition, releasedPosition, 0.12f);
         }
 
-        private Vector3 GetStopZoneCenter(FacilityRow row)
+        private Vector3 GetStopZoneCenter()
         {
-            if (row != null && row.StopPress != null)
-                return row.StopPress.position + GetPanelForward() * _stopZoneForwardOffsetMeters;
+            if (_p102Press != null)
+                return _p102Press.position + GetPanelForward() * _stopZoneForwardOffsetMeters;
 
             if (_stopZoneAnchor != null)
                 return _stopZoneAnchor.position;
@@ -567,20 +505,20 @@ namespace JH.EntrySafety
             if (_p102Press == null)
                 return transform.position;
 
-            return GetReleasedPressPosition(GetSelectedRow()) + GetPanelForward() * _stopZoneForwardOffsetMeters;
+            return GetReleasedPressPosition() + GetPanelForward() * _stopZoneForwardOffsetMeters;
         }
 
-        private float GetStopZoneRadius(FacilityRow row)
+        private float GetStopZoneRadius()
         {
-            if (_useAnchorScaleAsRadius && row != null && row.StopPress != null)
-                return Mathf.Max(0.12f, row.StopPress.lossyScale.x * 0.5f);
+            if (_useAnchorScaleAsRadius && _p102Press != null)
+                return Mathf.Max(0.12f, _p102Press.lossyScale.x * 0.5f);
 
             return Mathf.Max(0.12f, _stopZoneRadiusMeters);
         }
 
-        private Vector3 GetReleasedPressPosition(FacilityRow row)
+        private Vector3 GetReleasedPressPosition()
         {
-            var press = row != null ? row.StopPress : _p102Press;
+            var press = _p102Press;
             if (press == null)
                 return _p102PressFallbackWorldPosition;
             if (press.parent == null)
@@ -623,9 +561,8 @@ namespace JH.EntrySafety
             if (_stopProximityVisual == null)
                 return;
 
-            var row = GetSelectedRow();
-            var center = GetStopZoneCenter(row);
-            var diameter = GetStopZoneRadius(row) * 2f;
+            var center = GetStopZoneCenter();
+            var diameter = GetStopZoneRadius() * 2f;
             _stopProximityVisual.transform.position = center;
             _stopProximityVisual.transform.localScale = Vector3.one * diameter;
             _stopProximityVisual.SetActive(true);
@@ -633,8 +570,7 @@ namespace JH.EntrySafety
 
         private void EnsureStopProximityVisual()
         {
-            var row = GetSelectedRow();
-            if (_stopProximityVisual != null || row == null || row.StopPress == null)
+            if (_stopProximityVisual != null || _p102Press == null)
                 return;
 
             _stopProximityVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -663,7 +599,7 @@ namespace JH.EntrySafety
                 _stopProximityRenderer.receiveShadows = false;
             }
 
-            _stopProximityVisual.transform.localScale = Vector3.one * (GetStopZoneRadius(row) * 2f);
+            _stopProximityVisual.transform.localScale = Vector3.one * (GetStopZoneRadius() * 2f);
             _stopProximityVisual.SetActive(false);
         }
 
@@ -687,10 +623,9 @@ namespace JH.EntrySafety
 #if UNITY_EDITOR
         private void OnDrawGizmos()
         {
-            EnsureFacilityRows();
-            var row = GetSelectedRow();
-            var center = GetStopZoneCenter(row);
-            var radius = GetStopZoneRadius(row);
+            ResolveP102References();
+            var center = GetStopZoneCenter();
+            var radius = GetStopZoneRadius();
             Gizmos.color = new Color(0.20f, 0.50f, 1.00f, 0.35f);
             Gizmos.DrawWireSphere(center, radius);
             Gizmos.color = new Color(0.20f, 0.50f, 1.00f, 0.08f);
@@ -700,50 +635,22 @@ namespace JH.EntrySafety
 
         private void RefreshReadouts()
         {
-            EnsureFacilityRows();
-            if (_facilityRows == null)
+            ResolveP102References();
+            SetText(_p102PressureReadout, $"{_pressureMpa:0.00} bar");
+            SetText(_p102TemperatureReadout, P102Temperature);
+            SetText(_p102RunStopReadout, _pumpStopped ? "STOP" : "RUN");
+            if (_p102PressureReadout != null)
+                _p102PressureReadout.color = Color.white;
+            if (_p102TemperatureReadout != null)
+                _p102TemperatureReadout.color = Color.white;
+            if (_p102RunStopReadout == null)
                 return;
-
-            for (var i = 0; i < _facilityRows.Length; i++)
-            {
-                var row = _facilityRows[i];
-                if (row == null)
-                    continue;
-
-                var isSelected = row.Facility == _boundFacility;
-                var pressure = isSelected ? $"{_pressureMpa:0.00} bar" : $"{row.InitialPressureBar:0.00} bar";
-                SetText(row.PressureReadout, pressure);
-                SetText(row.TemperatureReadout, row.AuthoredTemperature);
-                SetText(row.RunStopReadout, isSelected && _pumpStopped ? "STOP" : "RUN");
-                ApplyRowStyle(row, isSelected);
-            }
-        }
-
-        private void ApplyRowStyle(FacilityRow row, bool isSelected)
-        {
-            if (row == null)
-                return;
-
-            var pressureColor = isSelected ? Color.white : InactiveReadoutColor;
-            var temperatureColor = isSelected ? Color.white : InactiveReadoutColor;
-            if (row.PressureReadout != null)
-                row.PressureReadout.color = pressureColor;
-            if (row.TemperatureReadout != null)
-                row.TemperatureReadout.color = temperatureColor;
-            if (row.RunStopReadout == null)
-                return;
-
-            if (!isSelected)
-            {
-                row.RunStopReadout.color = InactiveReadoutColor;
-                return;
-            }
 
             CacheSelectedRunningFontSize();
-            row.RunStopReadout.color = _pumpStopped ? StopNeonColor : RunNeonColor;
+            _p102RunStopReadout.color = _pumpStopped ? StopNeonColor : RunNeonColor;
             if (_hasSelectedRunningFontSize)
             {
-                row.RunStopReadout.fontSize = _pumpStopped
+                _p102RunStopReadout.fontSize = _pumpStopped
                     ? Mathf.Max(1f, _selectedRunningFontSize - 4f)
                     : _selectedRunningFontSize;
             }
@@ -751,118 +658,30 @@ namespace JH.EntrySafety
 
         private void CacheSelectedRunningFontSize()
         {
-            var row = GetSelectedRow();
-            if (_hasSelectedRunningFontSize || row == null || row.RunStopReadout == null)
+            if (_hasSelectedRunningFontSize || _p102RunStopReadout == null)
                 return;
 
-            _selectedRunningFontSize = row.RunStopReadout.fontSize;
+            _selectedRunningFontSize = _p102RunStopReadout.fontSize;
             _hasSelectedRunningFontSize = true;
         }
 
-        private void BindSelectedFacility()
+        private void ResolveP102References()
         {
-            _boundFacility = EntrySafetyFacilityCatalog.ResolveSelectedFacility();
-        }
-
-        private FacilityRow GetSelectedRow()
-        {
-            EnsureFacilityRows();
-            if (_facilityRows == null)
-                return null;
-
-            for (var i = 0; i < _facilityRows.Length; i++)
-            {
-                var row = _facilityRows[i];
-                if (row != null && row.Facility == _boundFacility)
-                    return row;
-            }
-
-            return _facilityRows.Length > 0 ? _facilityRows[0] : null;
-        }
-
-        private void EnsureFacilityRows()
-        {
-            if (_facilityRows == null || _facilityRows.Length != AllFacilities.Length)
-                _facilityRows = new FacilityRow[AllFacilities.Length];
-
-            for (var i = 0; i < AllFacilities.Length; i++)
-            {
-                var facility = AllFacilities[i];
-                var row = _facilityRows[i] ?? new FacilityRow();
-                row.Facility = facility;
-                if (row.PressureReadout == null)
-                    row.PressureReadout = FindNamed<TMP_Text>(EntrySafetyFacilityCatalog.PressureMeshName(facility));
-                if (row.TemperatureReadout == null)
-                    row.TemperatureReadout = FindNamed<TMP_Text>(EntrySafetyFacilityCatalog.TemperatureMeshName(facility));
-                if (row.RunStopReadout == null)
-                    row.RunStopReadout = FindNamed<TMP_Text>(EntrySafetyFacilityCatalog.StatusMeshName(facility));
-                if (row.StopPress == null)
-                    row.StopPress = FindNamedTransform(EntrySafetyFacilityCatalog.StopPressName(facility));
-
-                if (facility == FacilityId.P102)
-                {
-                    if (row.PressureReadout == null)
-                        row.PressureReadout = _p102PressureReadout;
-                    if (row.TemperatureReadout == null)
-                        row.TemperatureReadout = _p102TemperatureReadout;
-                    if (row.RunStopReadout == null)
-                        row.RunStopReadout = _p102RunStopReadout;
-                    if (row.StopPress == null)
-                        row.StopPress = _p102Press;
-                    if (row.InitialPressureBar <= 0.01f)
-                        row.InitialPressureBar = _initialPressureMpa;
-                }
-
-                ApplyAuthoredDefaults(row);
-                if (row.StopPress != null)
-                    EnsureStopCollider(row.StopPress);
-                _facilityRows[i] = row;
-            }
-        }
-
-        private static void ApplyAuthoredDefaults(FacilityRow row)
-        {
-            if (row == null)
-                return;
-
-            if (string.IsNullOrEmpty(row.AuthoredTemperature) || row.InitialPressureBar <= 0.01f)
-            {
-                switch (row.Facility)
-                {
-                    case FacilityId.P101:
-                        row.AuthoredTemperature = "68.7 °C";
-                        row.InitialPressureBar = 3.45f;
-                        break;
-                    case FacilityId.P103:
-                        row.AuthoredTemperature = "61.2 °C";
-                        row.InitialPressureBar = 2.87f;
-                        break;
-                    case FacilityId.P104:
-                        row.AuthoredTemperature = "59.8 °C";
-                        row.InitialPressureBar = 3.02f;
-                        break;
-                    default:
-                        if (string.IsNullOrEmpty(row.AuthoredTemperature))
-                            row.AuthoredTemperature = "72.3 °C";
-                        if (row.InitialPressureBar <= 0.01f)
-                            row.InitialPressureBar = 4.12f;
-                        break;
-                }
-            }
+            if (_p102PressureReadout == null)
+                _p102PressureReadout = FindNamed<TMP_Text>(P102PressureName);
+            if (_p102TemperatureReadout == null)
+                _p102TemperatureReadout = FindNamed<TMP_Text>(P102TemperatureName);
+            if (_p102RunStopReadout == null)
+                _p102RunStopReadout = FindNamed<TMP_Text>(P102StatusName);
+            if (_p102Press == null)
+                _p102Press = FindNamedTransform(P102StopPressName);
+            EnsureStopCollider(_p102Press);
         }
 
         private void RestorePressPositions()
         {
-            if (_facilityRows == null)
-                return;
-
-            for (var i = 0; i < _facilityRows.Length; i++)
-            {
-                var row = _facilityRows[i];
-                if (row?.StopPress == null)
-                    continue;
-                row.StopPress.position = GetReleasedPressPosition(row);
-            }
+            if (_p102Press != null)
+                _p102Press.position = GetReleasedPressPosition();
         }
 
         private static void EnsureStopCollider(Transform press)

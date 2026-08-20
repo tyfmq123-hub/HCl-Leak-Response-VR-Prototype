@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LeakResponse
   m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
   stage: 3
-  sourceScenePath: Assets/Scenes/SSH_VR_Project.unity
+  sourceScenePath: Assets/Scenes/06_LeakResponse.unity
   spawnPosition: {x: 0, y: 0, z: -11.13}
   spawnEulerAngles: {x: -0, y: 0, z: 0}
   componentStates:

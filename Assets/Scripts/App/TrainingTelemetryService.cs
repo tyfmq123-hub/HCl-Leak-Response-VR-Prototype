@@ -64,13 +64,13 @@ namespace HClTraining.App
     {
         const int SchemaVersion = 1;
         const string DefaultContentVersion = "integration-v1";
+        const string FixedFacilityId = "P102";
 
         [SerializeField] string contentVersion = DefaultContentVersion;
 
         TrainingSessionState session;
         ITrainingTelemetrySink sink;
         TrainingMode mode;
-        FacilityId facility = FacilityId.P102;
         int sequence;
         bool sinkFailureReported;
 
@@ -80,21 +80,13 @@ namespace HClTraining.App
 
         public void Initialize(TrainingSessionState state, ITrainingTelemetrySink eventSink = null)
         {
-            if (session != null)
-                session.FacilityChanged -= OnFacilityChanged;
-
             session = state;
             sink = eventSink ?? new JsonLinesTrainingTelemetrySink(Application.persistentDataPath);
-            if (session != null)
-            {
-                facility = session.Incident.SelectedFacility;
-                session.FacilityChanged += OnFacilityChanged;
-            }
             TrainingTelemetry.Register(this);
             SharedTrainingTelemetry.Register(this);
         }
 
-        public void StartSession(TrainingMode trainingMode, FacilityId selectedFacility)
+        public void StartSession(TrainingMode trainingMode)
         {
             if (trainingMode == TrainingMode.None)
                 return;
@@ -108,7 +100,6 @@ namespace HClTraining.App
             }
 
             mode = trainingMode;
-            facility = selectedFacility == FacilityId.None ? FacilityId.P102 : selectedFacility;
             SessionId = Guid.NewGuid().ToString("N");
             Status = TrainingSessionStatus.Running;
             sequence = 0;
@@ -202,18 +193,6 @@ namespace HClTraining.App
             Status = status;
         }
 
-        void OnFacilityChanged(FacilityId selectedFacility)
-        {
-            facility = selectedFacility == FacilityId.None ? FacilityId.P102 : selectedFacility;
-            if (IsSessionActive)
-            {
-                Emit(
-                    TrainingEventType.FacilitySelected,
-                    targetId: facility.ToString(),
-                    result: TelemetryResult.Success);
-            }
-        }
-
         void Emit(
             TrainingEventType eventType,
             TrainingStage stage = TrainingStage.None,
@@ -241,7 +220,7 @@ namespace HClTraining.App
                 mode = mode.ToString(),
                 stage_id = effectiveStage == TrainingStage.None ? string.Empty : effectiveStage.ToString(),
                 step_id = step == TrainingStepId.None ? string.Empty : step.ToString(),
-                facility_id = facility.ToString(),
+                facility_id = FixedFacilityId,
                 target_id = targetId ?? string.Empty,
                 result = result == TelemetryResult.None ? string.Empty : result.ToString(),
                 attempt_count = attemptCount,
@@ -279,8 +258,6 @@ namespace HClTraining.App
 
         void OnDestroy()
         {
-            if (session != null)
-                session.FacilityChanged -= OnFacilityChanged;
             SharedTrainingTelemetry.Unregister(this);
             TrainingTelemetry.Unregister(this);
         }

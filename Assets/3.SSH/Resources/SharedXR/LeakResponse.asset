@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ed6867ced254676a96a629c5bca2e6f, type: 3}
   m_Name: LeakResponse
   m_EditorClassIdentifier: HClTraining.SharedXR.Runtime::HClTraining.SharedXR.StageXRRequirements
-  scenePath: Assets/Scenes/SSH_VR_Project.unity
+  scenePath: Assets/Scenes/06_LeakResponse.unity
   spawnPosition: {x: 0, y: 0, z: -11.13}
   spawnEulerAngles: {x: 0, y: 0, z: 0}
   farInteraction: 0
@@ -23,3 +23,4 @@ MonoBehaviour:
   movement: 1
   turning: 1
   comfortVignette: 1
+  handVisualMode: 0

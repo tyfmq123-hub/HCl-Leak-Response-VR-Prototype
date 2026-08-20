@@ -13,14 +13,13 @@ namespace HClTraining.App
     [DisallowMultipleComponent]
     public sealed class SceneFlowController : MonoBehaviour
     {
-        public const string AppScenePath = "Assets/Scenes/App/App.unity";
-        public const string TitleScenePath = "Assets/3.JH/Scenes/Prototype/TitleScene.unity";
-        public const string StartScenePath = "Assets/Scenes/App/Start.unity";
-        public const string LoadingScenePath = "Assets/Scenes/App/Loading.unity";
-        public const string PpeScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
-        public const string PreEntryScenePath = "Assets/Scenes/JH_Test_Scene.unity";
-        public const string LeakResponseScenePath = "Assets/Scenes/SSH_VR_Project.unity";
-        public const string CompleteScenePath = "Assets/Scenes/App/Complete.unity";
+        public const string AppScenePath = "Assets/Scenes/01_App.unity";
+        public const string TitleScenePath = "Assets/Scenes/02_Title.unity";
+        public const string StartScenePath = "Assets/Scenes/03_Start.unity";
+        public const string PpeScenePath = "Assets/Scenes/04_PPE.unity";
+        public const string PreEntryScenePath = "Assets/Scenes/05_PreEntry.unity";
+        public const string LeakResponseScenePath = "Assets/Scenes/06_LeakResponse.unity";
+        public const string CompleteScenePath = "Assets/Scenes/07_Complete.unity";
 
         TransitionInputLock inputLock;
         ScreenFadeController fade;
@@ -81,10 +80,6 @@ namespace HClTraining.App
         {
             errorUI?.Hide();
             var isCompletionTransition = stage == TrainingStage.Complete;
-            var shouldRunControllerGuide =
-                stage != TrainingStage.None &&
-                stage != TrainingStage.Complete &&
-                session.CurrentStage == TrainingStage.None;
             yield return fade.FadeOut(isCompletionTransition ? 0.8f : 0.25f);
 
             lifecycle.Unbind();
@@ -92,13 +87,6 @@ namespace HClTraining.App
             sharedEquipment?.RestoreBodyRelativePlacement();
             yield return null;
             yield return UnloadContentScenes();
-
-            if (shouldRunControllerGuide)
-            {
-                yield return RunControllerGuide();
-                if (transitionRoutine == null)
-                    yield break;
-            }
 
             var plan = BuildLoadPlan(scenePath, stage);
             var loadOrder = plan.BuildLoadOrder();
@@ -224,84 +212,6 @@ namespace HClTraining.App
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);
             transitionRoutine = null;
-        }
-
-        IEnumerator RunControllerGuide()
-        {
-            if (!Application.CanStreamedLevelBeLoaded(LoadingScenePath))
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene is not in Build Settings; continuing without it.", this);
-                yield break;
-            }
-
-            Scene titleBackgroundScene = default;
-            if (Application.CanStreamedLevelBeLoaded(TitleScenePath))
-            {
-                var backgroundLoad = SceneManager.LoadSceneAsync(TitleScenePath, LoadSceneMode.Additive);
-                if (backgroundLoad != null)
-                {
-                    while (!backgroundLoad.isDone)
-                        yield return null;
-                    titleBackgroundScene = SceneManager.GetSceneByPath(TitleScenePath);
-                    if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
-                    {
-                        ConfigureTitleAsBackground(titleBackgroundScene);
-                        if (!xrProfiles.PrepareDependencyScene(titleBackgroundScene, out var backgroundError))
-                            Debug.LogWarning($"[Scene Flow] Title background XR cleanup failed: {backgroundError}", this);
-                    }
-                }
-            }
-
-            var load = SceneManager.LoadSceneAsync(LoadingScenePath, LoadSceneMode.Additive);
-            if (load == null)
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene load could not be started; continuing to the Stage.", this);
-                yield break;
-            }
-            while (!load.isDone)
-                yield return null;
-
-            var loadingScene = SceneManager.GetSceneByPath(LoadingScenePath);
-            if (!loadingScene.IsValid() || !loadingScene.isLoaded)
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene was not found after load; continuing to the Stage.", this);
-                yield break;
-            }
-
-            SceneManager.SetActiveScene(loadingScene);
-            inputLock.Unlock(true);
-            yield return fade.FadeIn();
-
-            var waitUntil = Time.realtimeSinceStartup + 5f;
-            while (ControllerTutorialManager.Active == null && Time.realtimeSinceStartup < waitUntil)
-                yield return null;
-
-            if (ControllerTutorialManager.Active == null)
-            {
-                Debug.LogError("[Scene Flow] Controller Guide manager was not created; skipping the guide to preserve Stage flow.", this);
-            }
-            else
-            {
-                while (!ControllerTutorialManager.Active.ContinueRequested)
-                    yield return null;
-            }
-
-            if (!inputLock.TryLock())
-                Debug.LogWarning("[Scene Flow] Could not reacquire the transition input lock after Controller Guide.", this);
-            yield return fade.FadeOut();
-
-            var unload = SceneManager.UnloadSceneAsync(loadingScene);
-            if (unload != null)
-                while (!unload.isDone)
-                    yield return null;
-
-            if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
-            {
-                var backgroundUnload = SceneManager.UnloadSceneAsync(titleBackgroundScene);
-                if (backgroundUnload != null)
-                    while (!backgroundUnload.isDone)
-                        yield return null;
-            }
         }
 
         static void ConfigureTitleAsBackground(Scene titleScene)
@@ -586,16 +496,13 @@ namespace HClTraining.App
             telemetry = trainingTelemetry ?? TrainingTelemetry.Current;
         }
 
-        public bool StartTraining(TrainingMode mode) =>
-            StartTraining(mode, session != null ? session.Incident.SelectedFacility : FacilityId.P102);
-
-        public bool StartTraining(TrainingMode mode, FacilityId facility)
+        public bool StartTraining(TrainingMode mode)
         {
             if (scenes.IsTransitioning || mode == TrainingMode.None)
                 return false;
 
-            session.Begin(mode, facility);
-            telemetry?.StartSession(mode, session.Incident.SelectedFacility);
+            session.Begin(mode);
+            telemetry?.StartSession(mode);
             completionQueued = false;
             if (mode == TrainingMode.Full || mode == TrainingMode.PPEOnly)
                 PPELoadoutPresets.BeginNewFullTrainingClear();
@@ -611,9 +518,6 @@ namespace HClTraining.App
                 "initial_stage_transition_rejected");
             return false;
         }
-
-        public bool SelectFacility(FacilityId facility) =>
-            !scenes.IsTransitioning && session.SelectFacility(facility);
 
         public void CompleteCurrentStage()
         {

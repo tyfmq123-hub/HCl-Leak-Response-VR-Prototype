@@ -51,11 +51,8 @@ namespace HClTraining.App
         public bool HasPpeResult { get; private set; }
 
         public event Action Changed;
-        public event Action<FacilityId> FacilityChanged;
 
-        public void Begin(TrainingMode mode) => Begin(mode, Incident.SelectedFacility);
-
-        public void Begin(TrainingMode mode, FacilityId facility)
+        public void Begin(TrainingMode mode)
         {
             if (mode == TrainingMode.None)
                 throw new ArgumentOutOfRangeException(nameof(mode));
@@ -70,7 +67,7 @@ namespace HClTraining.App
             LeftChemicalGloveWorn = false;
             RightChemicalGloveWorn = false;
             HasPpeResult = false;
-            Incident.Reset(facility);
+            Incident.Reset();
 
             if (mode == TrainingMode.Full)
                 stageSequence.AddRange(FullSequence);
@@ -78,16 +75,6 @@ namespace HClTraining.App
                 stageSequence.Add(FirstStageFor(mode));
 
             Changed?.Invoke();
-        }
-
-        public bool SelectFacility(FacilityId facility)
-        {
-            if (!Incident.SelectFacility(facility))
-                return false;
-
-            FacilityChanged?.Invoke(Incident.SelectedFacility);
-            Changed?.Invoke();
-            return true;
         }
 
         public bool SetFacilityRunState(FacilityRunState state)

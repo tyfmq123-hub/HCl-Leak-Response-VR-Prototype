@@ -28,7 +28,7 @@ public static class PPEChemicalGlovesStorageSetup
     /// <summary>World-space distance between left/right hand centers after fit.</summary>
     const float PairSpacingWorld = 0.14f;
 
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
     [MenuItem("Tools/PPE/Install Chemical Gloves Into Storage", false, 26)]
     public static void InstallChemicalGlovesIntoStorage()
@@ -136,7 +136,7 @@ public static class PPEChemicalGlovesStorageSetup
         }
 
         Selection.activeGameObject = glovesRoot;
-        report.AppendLine("Done. Shelf shows VR hands. Ray-select → Grip equip (no physics grab).");
+        report.AppendLine("Done. Shelf shows VR hands. Ray-select remains; wearable PPE equips by Grip placement only.");
         Debug.Log(report.ToString(), glovesRoot);
     }
 
@@ -151,7 +151,7 @@ public static class PPEChemicalGlovesStorageSetup
 
         // Don't interrupt an unrelated dirty scene silently — only auto-open if current isn't the PPE room.
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
 
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);
@@ -499,6 +499,14 @@ public static class PPEChemicalGlovesStorageSetup
 
     static void RemoveGrabInteractable(GameObject glovesRoot, StringBuilder report)
     {
+        // STEP 2 hand grabbing supersedes the old shelf-only workaround. Keep the
+        // common PPE grab component and its physics setup when this legacy tool is rerun.
+        if (glovesRoot.GetComponent<PPEHandGrabbable>() != null)
+        {
+            report.AppendLine("Kept PPEHandGrabbable (STEP 2 hand/ray grab is active).");
+            return;
+        }
+
         // Add Simple FIRST so RequireComponent(XRBaseInteractable) on PPEItem /
         // PPEOutlineHighlight stays satisfied while GloveGrabPose is removed.
         if (glovesRoot.GetComponent<XRSimpleInteractable>() == null)

@@ -8,7 +8,9 @@ public enum PPETTSCue
     WearInOrder = 3,
     PointWithRay = 4,
     OutlineShowsSelectable = 5,
-    GripSelectThenEquip = 6,
+    // Numeric slot retained so the existing 36-clip mapping does not shift.
+    // This legacy button-equip instruction is no longer enqueued.
+    LegacyGripButtonEquipInstruction = 6,
     BButtonCancel = 7,
     WearInnerGloves = 8,
     InnerGlovesEquipped = 9,

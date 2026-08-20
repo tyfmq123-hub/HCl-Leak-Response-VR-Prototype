@@ -30,7 +30,7 @@ public class PPESequenceManager : MonoBehaviour
     List<PPESequenceStep> sequenceOrder = new List<PPESequenceStep>();
 
     [SerializeField]
-    [Tooltip("Show a toast when Grip/equip is blocked by sequence (or bag not checked).")]
+    [Tooltip("Show a toast when placement/equip is blocked by sequence (or bag not checked).")]
     bool showBlockedFeedback = true;
 
     [SerializeField]
@@ -167,6 +167,19 @@ public class PPESequenceManager : MonoBehaviour
     {
         EnsureDefaultOrder();
         return sequenceOrder;
+    }
+
+    /// <summary>True when the Inspector-configured sequence contains this step.</summary>
+    public bool ContainsStep(PPESequenceStep step)
+    {
+        var order = GetOrder();
+        for (var i = 0; i < order.Count; i++)
+        {
+            if (order[i] == step)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>True only when this step is the current required equip target.</summary>
@@ -316,6 +329,8 @@ public class PPESequenceManager : MonoBehaviour
     {
         switch (step)
         {
+            case PPESequenceStep.Helmet:
+                return PPEEquipmentManager.IdHelmet;
             case PPESequenceStep.InnerGloves:
                 return IdInnerGloves;
             case PPESequenceStep.ProtectiveSuit:
@@ -398,6 +413,12 @@ public class PPESequenceManager : MonoBehaviour
         step = default;
         if (string.IsNullOrWhiteSpace(itemId))
             return false;
+
+        if (string.Equals(itemId, PPEEquipmentManager.IdHelmet, StringComparison.Ordinal))
+        {
+            step = PPESequenceStep.Helmet;
+            return true;
+        }
 
         if (string.Equals(itemId, IdInnerGloves, StringComparison.Ordinal))
         {
