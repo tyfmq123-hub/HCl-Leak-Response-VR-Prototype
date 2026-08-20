@@ -127,8 +127,14 @@ namespace VRProject.LeakResponse.Narration
                 equipmentId = SharedEquipmentIds.AbsorbentPad;
             }
 
-            if (equipmentId == null || !inventory.TryDeployAt(equipmentId, equipment.RetrievalAnchor))
+            if (equipmentId == null)
                 return;
+
+            bool deployed = inventory.TryDeployAt(equipmentId, equipment.RetrievalAnchor);
+            SharedTrainingTelemetry.Current.BagItemRequested(equipmentId, deployed);
+            if (!deployed)
+                return;
+            SharedTrainingTelemetry.Current.EquipmentUsed(equipmentId);
 
             XRGrabInteractable source = equipmentId == SharedEquipmentIds.AbsorbentSock
                 ? sockSource

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PPE
   m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
   stage: 1
-  sourceScenePath: Assets/Scenes/PPE_PreparationRoom.unity
+  sourceScenePath: Assets/Scenes/04_PPE.unity
   spawnPosition: {x: 0, y: 0, z: 0}
   spawnEulerAngles: {x: -0, y: 0, z: 0}
   componentStates:
@@ -81,6 +81,13 @@ MonoBehaviour:
     typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.ControllerAnimator,
       Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
       PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Left Controller/Visuals/PPE_DefaultHand_Left
+    typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Left Controller/Visuals/PPE_DefaultHand_Left
+    typeName: Hand, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     enabled: 1
   - relativePath: Camera Offset/Left Controller/Visuals/PPE_VrHand_Left_Wearable
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
@@ -92,19 +99,19 @@ MonoBehaviour:
   - relativePath: Camera Offset/Left Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor, Unity.XR.Interaction.Toolkit,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Left Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual,
       Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Left Controller/Ray Interactor
     typeName: UnityEngine.Rendering.SortingGroup, UnityEngine.CoreModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Left Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Feedback.SimpleHapticFeedback, Unity.XR.Interaction.Toolkit,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Right Controller
     typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
       Culture=neutral, PublicKeyToken=null
@@ -113,6 +120,13 @@ MonoBehaviour:
     typeName: UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets.ControllerAnimator,
       Unity.XR.Interaction.Toolkit.Samples.StarterAssets, Version=0.0.0.0, Culture=neutral,
       PublicKeyToken=null
+    enabled: 0
+  - relativePath: Camera Offset/Right Controller/Visuals/PPE_DefaultHand_Right
+    typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    enabled: 1
+  - relativePath: Camera Offset/Right Controller/Visuals/PPE_DefaultHand_Right
+    typeName: Hand, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     enabled: 1
   - relativePath: Camera Offset/Right Controller/Visuals/PPE_VrHand_Right_Wearable
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
@@ -124,19 +138,19 @@ MonoBehaviour:
   - relativePath: Camera Offset/Right Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor, Unity.XR.Interaction.Toolkit,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Right Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual,
       Unity.XR.Interaction.Toolkit, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Right Controller/Ray Interactor
     typeName: UnityEngine.Rendering.SortingGroup, UnityEngine.CoreModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: Camera Offset/Right Controller/Ray Interactor
     typeName: UnityEngine.XR.Interaction.Toolkit.Feedback.SimpleHapticFeedback, Unity.XR.Interaction.Toolkit,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
+    enabled: 0
   - relativePath: PlayerBodyAnchor
     typeName: PlayerBodyAnchorFollower, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
       PublicKeyToken=null

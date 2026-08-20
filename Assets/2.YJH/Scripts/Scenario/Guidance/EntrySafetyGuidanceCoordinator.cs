@@ -17,8 +17,13 @@ namespace JH.EntrySafety
         /// 현재 단계의 안내입니다.
         /// StateMachine.CurrentStep이 변경될 때마다 자동으로 갱신됩니다.
         /// </summary>
-        public EntrySafetyInstruction CurrentInstruction =>
-            EntrySafetyInstructionCatalog.GetInstruction(_sm.CurrentStep);
+        public EntrySafetyInstruction CurrentInstruction
+        {
+            get
+            {
+                return EntrySafetyInstructionCatalog.GetInstruction(_sm.CurrentStep);
+            }
+        }
 
         /// <summary>
         /// 현재 단계에서 TTS 반복이 가능하면 true입니다.

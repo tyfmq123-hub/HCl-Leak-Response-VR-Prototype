@@ -2,7 +2,7 @@
 
 작성 역할: **PreEntry 담당자**  
 기준 문서: `AGENTS.md`, `docs/integration/STAGE_EDITING_BOUNDARIES.md`  
-증상 요약: `JH_Test_Scene` 단독 Play는 동작하는데, **App 씬부터** PreEntry Stage로 들어오면 장비 꺼내기·감지·XR 연동이 깨지거나 달라짐.
+증상 요약: `05_PreEntry` 단독 Play는 동작하는데, **App 씬부터** PreEntry Stage로 들어오면 장비 꺼내기·감지·XR 연동이 깨지거나 달라짐.
 
 PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detector reparent 등)은 `Assets/2.YJH`에 반영함.  
 아래는 **PreEntry가 수정할 수 없는 공용/App 영역**이라 Integration 작업이 필요함.
@@ -11,7 +11,7 @@ PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detec
 
 ## 1. Common XR에 비어 있는 HCl Detector 셸
 
-- 경로: `Assets/Scenes/App/App.unity`
+- 경로: `Assets/Scenes/01_App.unity`
 - 오브젝트: `Common XR Origin/Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype`
 - 증상: Transform만 있고 mesh/view 컴포넌트가 없음. App rebind가 이 빈 셸을 가리키면 장비 장착 시 모델/디스플레이가 안 보임.
 - 요청:
@@ -20,7 +20,7 @@ PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detec
 
 ## 2. Common XR의 EntrySafetyEquipmentTransferZone 셸 불완전
 
-- 경로: `Assets/Scenes/App/App.unity`
+- 경로: `Assets/Scenes/01_App.unity`
 - 오브젝트: `Common XR Origin/EntrySafetyEquipmentTransferZone`
 - 증상: Transform만 있고 `EntrySafetyEquipmentTransferZone` 컴포넌트/콜라이더 없음, `m_IsActive: 0`.
 - 요청:
@@ -34,7 +34,7 @@ PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detec
   - `spawnPosition`이 구버전 `(0, 0.84, -18.76)` (JH XR Origin은 `(0.407, 0.84, -16.27)`)
   - `EntrySafetyEquipmentTransferZone` / `Right Controller` componentStates가 현재 JH 계층과 어긋남
   - Detector componentStates가 Common XR의 빈 셸을 전제로 함
-- 요청: JH `JH_Test_Scene`의 현재 XR Origin / 장비 구성에 맞게 profile rebuild (`AppIntegrationBuilder` 등)
+- 요청: JH `05_PreEntry`의 현재 XR Origin / 장비 구성에 맞게 profile rebuild (`AppIntegrationBuilder` 등)
 
 ## 4. Right Controller 경로 불일치 + 이중 오브젝트
 
@@ -56,7 +56,7 @@ PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detec
 
 ## 6. (참고) Scene 공동 로드
 
-- PreEntry 단독으로는 `SSH_VR_Project`를 Additive로 올리지 않음 (규칙: Stage에서 `SceneManager` 전환 금지)
+- PreEntry 단독으로는 `06_LeakResponse`를 Additive로 올리지 않음 (규칙: Stage에서 `SceneManager` 전환 금지)
 - App에서 PreEntry와 LeakResponse 환경을 같이 띄워야 하면 **Integration의 `SceneFlowController`** 쪽에서 처리 필요
 
 ---
@@ -65,7 +65,7 @@ PreEntry 쪽에서 가능한 런타임 보정(존 분리, live XR resolve, detec
 
 | 항목 | 위치 |
 |------|------|
-| EquipmentTransferZone을 XR Origin 밖으로 분리 | `JH_Test_Scene.unity` |
+| EquipmentTransferZone을 XR Origin 밖으로 분리 | `05_PreEntry.unity` |
 | 왼손/가방 콜라이더 live resolve + local BoxCollider fallback | `EntrySafetyEquipmentTransferZone.cs` |
 | Detector를 live Left Controller/Visual로 reparent | `EntrySafetyHclDetectorController.cs` |
 | Main Camera live resolve | `EntrySafetyCameraGazeAdapter.cs` |

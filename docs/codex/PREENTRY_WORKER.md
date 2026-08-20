@@ -12,8 +12,8 @@
 ## 수정 허용
 
 - `Assets/2.YJH/`
-- `Assets/Scenes/JH_Test_Scene.unity`
-- `Assets/Scenes/JH_Test_Scene.unity.meta`
+- `Assets/Scenes/05_PreEntry.unity`
+- `Assets/Scenes/05_PreEntry.unity.meta`
 - `docs/handoffs/preentry/LATEST.md`
 
 단, `Assets/2.YJH/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.
@@ -22,7 +22,7 @@
 
 - 자유 이동·회전과 설비·펜스 Collider 이동 범위
 - 간소화된 패널 절차와 버튼 조작
-- 선택된 P-101~P-104 설비의 PreEntry 로컬 패널 연동
+- 고정 P-102 설비의 PreEntry 로컬 패널 연동
 - 진입 전 누출 Sound
 - PreEntry 전용 측정기 꺼내기·측정·보관
 - PreEntry UI·Highlight·TTS·진행 상태
@@ -32,12 +32,12 @@
 
 - 다른 Stage Scene과 폴더
 - App SceneFlow, Common XR, Camera, Controller, 공용 이동·회전 기반
-- 공용 `FacilityId`, `SharedIncidentState`, 가방, Inventory, 텔레메트리 저장 구현
+- 공용 `SharedIncidentState`, 가방, Inventory, 텔레메트리 저장 구현
 - `EntrySafetyStateMachine.SectionCompleted` 계약과 App 완료 Adapter
 - ProjectSettings, Packages, Build Settings, GitHub 설정
 - VR Hand Pose Tool 스크립트/컴포넌트/새 Pose 자산
 
-P-101~P-104 상태 계약이나 공용 입력이 부족하면 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 값, 기록 시점, 소비 Stage를 적는다.
+P-102 상태 계약이나 공용 입력이 부족하면 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 값, 기록 시점, 소비 Stage를 적는다.
 
 ## 종료 조건
 

@@ -12,8 +12,8 @@
 ## 수정 허용
 
 - `Assets/1.JSR/`
-- `Assets/Scenes/PPE_PreparationRoom.unity`
-- `Assets/Scenes/PPE_PreparationRoom.unity.meta`
+- `Assets/Scenes/04_PPE.unity`
+- `Assets/Scenes/04_PPE.unity.meta`
 - `docs/handoffs/ppe/LATEST.md`
 
 단, `Assets/1.JSR/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.

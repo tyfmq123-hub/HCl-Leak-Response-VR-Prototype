@@ -6,17 +6,16 @@ namespace HClTraining.App
     public enum TrainingEventType
     {
         SessionStarted = 0,
-        FacilitySelected = 1,
-        StageEntered = 2,
-        StageCompleted = 3,
-        StepEntered = 4,
-        StepCompleted = 5,
-        ContentViewed = 6,
-        BagItemRequested = 7,
-        EquipmentUsed = 8,
-        SessionCompleted = 9,
-        SessionAbandoned = 10,
-        SessionInterrupted = 11,
+        StageEntered = 1,
+        StageCompleted = 2,
+        StepEntered = 3,
+        StepCompleted = 4,
+        ContentViewed = 5,
+        BagItemRequested = 6,
+        EquipmentUsed = 7,
+        SessionCompleted = 8,
+        SessionAbandoned = 9,
+        SessionInterrupted = 10,
     }
 
     public enum TrainingSessionStatus
@@ -83,7 +82,7 @@ namespace HClTraining.App
         TrainingSessionStatus Status { get; }
         bool IsSessionActive { get; }
 
-        void StartSession(TrainingMode mode, FacilityId facility);
+        void StartSession(TrainingMode mode);
         void StageEntered(TrainingStage stage);
         void StageCompleted(TrainingStage stage);
         void EndSession(
@@ -120,7 +119,7 @@ namespace HClTraining.App
             public TrainingSessionStatus Status => TrainingSessionStatus.None;
             public bool IsSessionActive => false;
 
-            public void StartSession(TrainingMode mode, FacilityId facility) { }
+            public void StartSession(TrainingMode mode) { }
             public void StageEntered(TrainingStage stage) { }
             public void StageCompleted(TrainingStage stage) { }
             public void StepEntered(TrainingStepId step) { }

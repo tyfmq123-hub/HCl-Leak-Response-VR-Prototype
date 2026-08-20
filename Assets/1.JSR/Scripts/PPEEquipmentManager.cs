@@ -10,6 +10,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 /// </summary>
 public class PPEEquipmentManager : MonoBehaviour
 {
+    public const string IdHelmet = "Helmet";
     public const string IdFaceShield = "ChemicalFaceShield";
     public const string IdFaceRespirator = "FaceRespirator";
     public const string IdChemicalSuit = "ChemicalSuit";

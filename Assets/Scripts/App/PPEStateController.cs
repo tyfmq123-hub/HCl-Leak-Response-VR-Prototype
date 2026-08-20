@@ -49,7 +49,7 @@ namespace HClTraining.App
             if (wearable == null)
                 wearable = FindAnyObjectByType<ChemicalGlovesWearableVisual>(FindObjectsInactive.Include);
             if (wearable != null && session != null)
-                wearable.ApplyPersistentState(
+                ApplyGloveVisualState(
                     session.LeftChemicalGloveWorn,
                     session.RightChemicalGloveWorn);
 
@@ -82,7 +82,7 @@ namespace HClTraining.App
             var glovesEquipped = boundEquipmentManager != null &&
                                  boundEquipmentManager.IsEquipped(PPEEquipmentManager.IdChemicalGloves);
             if (wearable != null)
-                wearable.ApplyPersistentState(glovesEquipped, glovesEquipped);
+                ApplyGloveVisualState(glovesEquipped, glovesEquipped);
 
             var bagEquipped = boundEquipmentManager != null &&
                               boundEquipmentManager.IsEquipped(PPEEquipmentManager.IdResponseBag);
@@ -93,6 +93,20 @@ namespace HClTraining.App
                 else if (!bagEquipped && responseBagWearable.IsVisible)
                     responseBagWearable.HideWearable();
             }
+        }
+
+        void ApplyGloveVisualState(bool leftWorn, bool rightWorn)
+        {
+            if (wearable == null)
+                return;
+
+            if (session != null && session.CurrentStage == TrainingStage.PPE)
+            {
+                wearable.ApplyPpeRoomState(leftWorn, rightWorn);
+                return;
+            }
+
+            wearable.ApplyPersistentState(leftWorn, rightWorn);
         }
 
         void OnDestroy() => UnbindPpeStage();

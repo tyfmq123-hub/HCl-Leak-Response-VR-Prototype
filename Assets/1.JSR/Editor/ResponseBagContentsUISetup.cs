@@ -67,7 +67,7 @@ public static class ResponseBagContentsUISetup
 
         if (bag.GetComponentInParent<ResponseBagWearableVisual>(true) != null)
         {
-            Debug.LogError("[Bag Contents UI] World bag points at wearable — assign ResponseBag_UnityReady instead.");
+            Debug.LogError("[Bag Contents UI] World bag points at wearable — assign ResponseBag_HardShell instead.");
             return;
         }
 

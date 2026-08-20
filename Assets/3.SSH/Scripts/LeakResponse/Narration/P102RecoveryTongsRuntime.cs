@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -46,6 +47,7 @@ namespace VRProject.LeakResponse.Narration
         Transform tongsOriginalParent;
         Vector3 heldLocalPosition;
         Quaternion heldLocalRotation;
+        bool equipmentUseReported;
 
         public bool IsConfigured => tongsRoot != null && grabInteractable != null && tipTransform != null;
         public P102RecoveryItemState HeldItem => heldItem;
@@ -67,6 +69,7 @@ namespace VRProject.LeakResponse.Narration
             returned = false;
             pickupGuidanceStarted = false;
             sockGuidanceCompleted = false;
+            equipmentUseReported = false;
 
             if (tongsRoot == null)
             {
@@ -200,6 +203,12 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            if (!equipmentUseReported)
+            {
+                equipmentUseReported = true;
+                SharedTrainingTelemetry.Current.EquipmentUsed(SharedEquipmentIds.RecoveryTongs);
+            }
+
             if (args?.interactorObject is XRBaseInputInteractor inputInteractor)
             {
                 if (!originalSelectTriggers.ContainsKey(inputInteractor))

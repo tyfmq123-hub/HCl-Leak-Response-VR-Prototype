@@ -103,19 +103,6 @@ public static class AppPlayModeSmokeRunner
         try
         {
             var app = AppBootstrap.Instance;
-            var guide = ControllerTutorialManager.Active;
-            if (guide != null && !guide.ContinueRequested)
-            {
-                if (!guide.OrientationCompleted)
-                {
-                    var completeGuide = typeof(ControllerTutorialManager).GetMethod(
-                        "CompleteGuide", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                    Require(completeGuide != null, "Controller Guide completion method missing.");
-                    completeGuide.Invoke(guide, null);
-                }
-                guide.RequestContinue();
-            }
-
             if (app == null || app.SceneFlow == null || app.SceneFlow.IsTransitioning)
                 return;
 
@@ -696,6 +683,8 @@ public static class AppPlayModeSmokeRunner
         Require(narration != null && sockGroup != null && sockSource != null && padSource != null &&
                 cueCallback != null && inputCallback != null,
             $"{label}: Leak Y input/state references are incomplete.");
+        Require(!sockSource.gameObject.activeInHierarchy && !padSource.gameObject.activeInHierarchy,
+            $"{label}: Authored Sock/Pad supplies are visible before response-bag retrieval.");
 
         var leftHand = app.SharedEquipment.LeftController;
         Require(leftHand != null && app.SharedEquipment.RetrievalZone != null,

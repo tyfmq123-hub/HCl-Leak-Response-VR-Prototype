@@ -30,10 +30,11 @@ Stage 작업자는 파일을 수정하기 전에 아래 문서를 모두 읽는�
 
 Integration 작업이라고 명시되지 않은 경우 다음을 수정하지 않는다.
 
-- `Assets/Scenes/App/`
+- `Assets/Scenes/01_App.unity`, `02_Title.unity`, `03_Start.unity`, `07_Complete.unity`
 - `Assets/Scripts/App/`
 - `Assets/Resources/App/`
 - `Assets/Common/XR/`
+- `Assets/Common/InteractionGhosts/`
 - `Assets/Editor/AppIntegrationBuilder.cs`
 - `Assets/Editor/AppPlayModeSmokeRunner.cs`
 - `Assets/Editor/IntegrationSceneValidator.cs`
@@ -48,9 +49,9 @@ Integration 작업이라고 명시되지 않은 경우 다음을 수정하지 �
 
 ## 4. Stage 소유 경계
 
-- PPE: `Assets/1.JSR/`와 `Assets/Scenes/PPE_PreparationRoom.unity`
-- PreEntry: `Assets/2.YJH/`와 `Assets/Scenes/JH_Test_Scene.unity`
-- LeakResponse: `Assets/3.SSH/`와 `Assets/Scenes/SSH_VR_Project.unity`
+- PPE: `Assets/1.JSR/`와 `Assets/Scenes/04_PPE.unity`
+- PreEntry: `Assets/2.YJH/`와 `Assets/Scenes/05_PreEntry.unity`
+- LeakResponse: `Assets/3.SSH/`와 `Assets/Scenes/06_LeakResponse.unity`
 - 위 범위 안에서도 3절의 Integration 보호 영역은 수정 금지다.
 - 자기 Stage가 아닌 Scene, Script, Prefab, Material, Audio, Resource를 수정하지 않는다.
 - `Assets/VRHandPoseToolOutput/`에 새 Pose/스크립트 의존성을 만들지 않는다.

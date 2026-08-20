@@ -12,7 +12,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 /// </summary>
 public static class PPEInnerGlovesStorageSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string StorageName = "PPE_Storage";
     const string SlotName = "InnerGlovesSlot";
     const string RootName = "PPE_InnerGloves";

@@ -85,6 +85,8 @@ public class PPEChecklistPanel : MonoBehaviour
         public string Label;
         public string ItemId;
         public ChecklistSource Source;
+        public bool RequireConfiguredSequenceStep;
+        public PPESequenceStep SequenceStep;
     }
 
     /// <summary>
@@ -93,6 +95,15 @@ public class PPEChecklistPanel : MonoBehaviour
     /// </summary>
     static readonly WearOrderSpec[] WearOrderSpecs =
     {
+        new WearOrderSpec
+        {
+            ObjectName = "HelmetRow",
+            Label = "안전모",
+            ItemId = PPEEquipmentManager.IdHelmet,
+            Source = ChecklistSource.Equipped,
+            RequireConfiguredSequenceStep = true,
+            SequenceStep = PPESequenceStep.Helmet,
+        },
         new WearOrderSpec
         {
             ObjectName = "InnerGlovesRow",
@@ -284,15 +295,32 @@ public class PPEChecklistPanel : MonoBehaviour
 
         var built = new List<ChecklistRow>(WearOrderSpecs.Length);
         var ordered = new List<Transform>(WearOrderSpecs.Length);
+        var sequence = PPESequenceManager.Resolve();
 
         for (var i = 0; i < WearOrderSpecs.Length; i++)
         {
             var spec = WearOrderSpecs[i];
+            var mapsToSequence = PPESequenceManager.TryGetStep(spec.ItemId, out var mappedStep);
+            var excludeOptional = spec.RequireConfiguredSequenceStep &&
+                                  (sequence == null || !sequence.ContainsStep(spec.SequenceStep));
+            var excludeFromConfiguredOrder = !spec.RequireConfiguredSequenceStep &&
+                                             mapsToSequence && sequence != null &&
+                                             !sequence.ContainsStep(mappedStep);
+            if (excludeOptional || excludeFromConfiguredOrder)
+            {
+                var unusedRow = FindDeep(root, spec.ObjectName);
+                if (unusedRow != null)
+                    unusedRow.gameObject.SetActive(false);
+                continue;
+            }
+
             var rowRoot = FindDeep(root, spec.ObjectName);
             if (rowRoot == null)
                 rowRoot = CreateRuntimeRow(listParent, spec);
             if (rowRoot == null)
                 continue;
+
+            rowRoot.gameObject.SetActive(true);
 
             ordered.Add(rowRoot);
 

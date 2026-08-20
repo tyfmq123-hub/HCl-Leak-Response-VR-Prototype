@@ -60,10 +60,11 @@ Stage 작업 중 `develop`이 변경되면 통합 직전에 최신 상태와 자
 
 다음 기반은 Integration 관리자가 소유한다.
 
-- `Assets/Scenes/App/`
+- `Assets/Scenes/01_App.unity`, `02_Title.unity`, `03_Start.unity`, `07_Complete.unity`
 - `Assets/Scripts/App/`
 - `Assets/Resources/App/`
 - `Assets/Common/XR/`
+- `Assets/Common/InteractionGhosts/`
 - `Assets/Editor/AppIntegrationBuilder.cs`
 - `Assets/Editor/AppPlayModeSmokeRunner.cs`
 - `Assets/Editor/IntegrationSceneValidator.cs`
@@ -71,7 +72,7 @@ Stage 작업 중 `develop`이 변경되면 통합 직전에 최신 상태와 자
 - 공용 Input Action 기반과 `SharedXRInputContract`
 - 공용 Ray/Near-Far/Grab/Haptic 기반
 - `SharedPlayerEquipment`, 단일 공용 가방, `StageBagAnchor`, Retrieval Zone/Anchor 계약
-- `SharedIncidentState`, `FacilityId`, `SharedTrainingTelemetry` 공용 계약
+- `SharedIncidentState`, `SharedTrainingTelemetry` 공용 계약
 - 세션/Stage 이력과 로컬 텔레메트리 저장 기반
 - App의 Scene 전환, Stage 완료 Adapter, 공용 EventSystem
 - `ProjectSettings/`, `Packages/`
@@ -143,15 +144,15 @@ PPE에서 장비를 Grip으로 수납하면 획득/수납 상태를 공용 Inven
 
 공용 설비 상태와 이벤트 수집 원칙:
 
-- `FacilityId`는 `P101`, `P102`, `P103`, `P104`를 공통으로 표현한다.
-- PreEntry는 `SharedIncidentState`에 선택 설비/정지 결과를 기록하고 LeakResponse는 그 값만 읽는다.
+- 1차 교육 시나리오의 누출 설비는 P-102로 고정하며 교육생 설비 선택 기능을 만들지 않는다.
+- PreEntry는 `SharedIncidentState`에 P-102 정지 결과를 기록하고 LeakResponse는 누출 격리 상태만 기록한다.
 - Scene Object, Valve, VFX, AudioSource 참조는 각 Stage의 로컬 binding에 둔다.
 - Stage는 `SharedTrainingTelemetry.Current`에 큰 단계 진입/완료, 콘텐츠 확인, 장비 사용 이벤트만 전달한다.
 - Stage는 DB, HTTP, 파일 저장을 직접 구현하지 않는다. App 저장 실패는 gameplay를 중단시키지 않는다.
 
 ## 7. PPE 허용 범위
 
-- Scene: `Assets/Scenes/PPE_PreparationRoom.unity`
+- Scene: `Assets/Scenes/04_PPE.unity`
 - 로직/UI/자막: `Assets/1.JSR/Scripts/`
 - Prefab/Resource/Audio/Art: `Assets/1.JSR/`의 해당 하위 폴더
 
@@ -170,7 +171,7 @@ PPE 담당자가 관리할 수 있는 예:
 
 ## 8. PreEntry 허용 범위
 
-- Scene: `Assets/Scenes/JH_Test_Scene.unity`
+- Scene: `Assets/Scenes/05_PreEntry.unity`
 - 로직/UI/자막: `Assets/2.YJH/Scripts/Scenario/`
 - Prefab/Data/Audio/Art/UI: `Assets/2.YJH/`의 해당 하위 폴더
 
@@ -192,7 +193,7 @@ PreEntry 담당자가 관리할 수 있는 예:
 
 ## 9. LeakResponse 허용 범위
 
-- Scene: `Assets/Scenes/SSH_VR_Project.unity`
+- Scene: `Assets/Scenes/06_LeakResponse.unity`
 - 누출 대응 로직: `Assets/3.SSH/Scripts/LeakResponse/`, `Assets/3.SSH/Scripts/LeakResponseLogic/`
 - 밸브/설치 로직: `Assets/3.SSH/Scripts/ValveSystem/`, `Assets/3.SSH/Scripts/ObjectInstallation/`
 - TTS/Resource/Material/Effect: `Assets/3.SSH/`의 해당 하위 폴더
@@ -218,10 +219,11 @@ Sock/Pad 회수는 기존 `INT_AbsorbentSock_Straight_01`, `INT_AbsorbentPad_01`
 Unity `.unity` Scene은 충돌 해결이 어렵기 때문에 다음 소유권을 지킨다.
 
 ```text
-Assets/Scenes/PPE_PreparationRoom.unity → feature/ppe
-Assets/Scenes/JH_Test_Scene.unity       → feature/preentry
-Assets/Scenes/SSH_VR_Project.unity      → feature/leakresponse
-Assets/Scenes/App/                      → develop의 Integration 관리자
+Assets/Scenes/04_PPE.unity → feature/ppe
+Assets/Scenes/05_PreEntry.unity       → feature/preentry
+Assets/Scenes/06_LeakResponse.unity      → feature/leakresponse
+Assets/Scenes/01_App.unity, 02_Title.unity, 03_Start.unity, 07_Complete.unity
+                                      → develop의 Integration 관리자
 ```
 
 - 자기 Stage가 아닌 Scene을 임의로 수정하지 않는다.

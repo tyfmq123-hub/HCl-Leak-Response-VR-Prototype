@@ -17,12 +17,12 @@ public static class ResponseEquipmentSetup
     const string RouterName = "XR_InteractionConfirmRouter";
     const string PanelCanvasName = "ResponseBag_ContentsCanvas";
     const string UnityReadyModelPath =
-        "Assets/Common/Equipment/ResponseBag_UnityReady_basecolor/ResponseBag_UnityReady.fbx";
-    const string UnityReadyName = "ResponseBag_UnityReady";
+        "Assets/Common/Equipment/ResponseBag_HardShell/ResponseBag_HardShell.fbx";
+    const string UnityReadyName = "ResponseBag_HardShell";
 
     static readonly string[] ExactPreferredNames =
     {
-        "ResponseBag_UnityReady",
+        "ResponseBag_HardShell",
         "ResponseBag_World",
         "ResponseBag",
         "PPE_ResponseBag",
@@ -299,11 +299,11 @@ public static class ResponseEquipmentSetup
         if (model != null)
         {
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
-            Undo.RegisterCreatedObjectUndo(instance, "Instantiate ResponseBag_UnityReady");
+            Undo.RegisterCreatedObjectUndo(instance, "Instantiate ResponseBag_HardShell");
             instance.name = UnityReadyName;
             instance.transform.position = new Vector3(1.94f, 0.35f, 2.14f);
             EnsureBagComponents(instance);
-            report.AppendLine("Instantiated ResponseBag_UnityReady from FBX.");
+            report.AppendLine("Instantiated ResponseBag_HardShell from FBX.");
             return instance;
         }
 
@@ -437,11 +437,9 @@ public static class ResponseEquipmentSetup
         var prepare = bag.GetComponent<ResponseBagPrepareInteractable>();
         var selection = Object.FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
         router.EditorWire(prepare, selection);
-        if (selection != null)
-            selection.SetEquipConfirmInputOwnedByRouter(true);
 
         EditorUtility.SetDirty(router);
-        report.AppendLine("Wired XRInteractionConfirmRouter (bag prepare > PPE equip).");
+        report.AppendLine("Wired XRInteractionConfirmRouter (ray selection + bag prepare; wearable PPE is placement-only).");
     }
 
     static void DisableLegacyContentsOpener(GameObject bag, StringBuilder report)
