@@ -148,7 +148,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void HeadRay_RequiresActiveStage_TargetFirstAndContinuousThreeSeconds()
+        public void HeadDirection_RequiresActiveStage_AndContinuousThreeSeconds_IgnoresIncidentalColliders()
         {
             CreateFlangeRig(out GameObject cameraObject, out GameObject flangeRoot,
                 out Transform leakPoint, out BoxCollider flangeCollider, out P102FlangeGazeRuntime gaze);
@@ -159,6 +159,7 @@ namespace VRProject.LeakResponse.EditorTests
             narration.ConfigureRuntime(
                 narrationObject.GetComponent<AudioSource>(), null, null, null,
                 cameraObject.transform, null, null, null, null, null, null);
+            narration.SetStageActivated(true);
             gaze.Configure(narration, flangeRoot.transform, leakPoint, cameraObject.transform);
             GameObject blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
             blocker.name = "Different Collider";
@@ -177,8 +178,14 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(text.text, Is.EqualTo("3초"));
                 Assert.That(gaze.GaugeFillAmount, Is.EqualTo(1f));
                 Invoke(gaze, "TickGaze", 1f);
-                Assert.That(gaze.ElapsedGazeSeconds, Is.Zero,
-                    "A nearer non-flange collider must block progress.");
+                Assert.That(gaze.ElapsedGazeSeconds, Is.EqualTo(1f).Within(0.0001f),
+                    "Incidental environment and hand colliders must not block a visible marker.");
+
+                cameraObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+                Physics.SyncTransforms();
+                Invoke(gaze, "TickGaze", 0.01f);
+                Assert.That(gaze.ElapsedGazeSeconds, Is.Zero);
+                cameraObject.transform.rotation = Quaternion.identity;
 
                 blocker.SetActive(false);
                 Physics.SyncTransforms();
@@ -354,7 +361,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void RecoveryTongs_PrefersAuthoredRightHandPoseAttach()
+        public void RecoveryTongs_UsesStableDynamicAttach_AndHidesLegacyPoseGhosts()
         {
             GameObject tongs = new GameObject("INT_RecoveryTongs_01");
             GameObject tongsMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -383,10 +390,10 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(runtime.Configure(tongs, ghost.transform, null, null, null), Is.True);
                 XRGrabInteractable grab = tongs.GetComponent<XRGrabInteractable>();
                 Assert.That(grab.attachTransform, Is.SameAs(attachObject.transform));
-                Assert.That(grab.useDynamicAttach, Is.False);
+                Assert.That(grab.useDynamicAttach, Is.True);
                 Assert.That(grab.matchAttachPosition, Is.True);
-                Assert.That(grab.matchAttachRotation, Is.True);
-                Assert.That(grab.snapToColliderVolume, Is.False);
+                Assert.That(grab.matchAttachRotation, Is.False);
+                Assert.That(grab.snapToColliderVolume, Is.True);
                 Assert.That(grab.addDefaultGrabTransformers, Is.False);
                 Assert.That(grab.trackScale, Is.False);
                 Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
@@ -404,7 +411,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void WasteContainerLid_PrefersAuthoredRightHandPoseAttach()
+        public void WasteContainerLid_UsesStableDynamicAttach_AndHidesLegacyPoseGhosts()
         {
             GameObject container = new GameObject("INT_WasteContainer_01");
             GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -439,10 +446,10 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(runtime.Configure(container, null, absorption), Is.True);
                 XRGrabInteractable grab = lid.GetComponent<XRGrabInteractable>();
                 Assert.That(grab.attachTransform, Is.SameAs(attachObject.transform));
-                Assert.That(grab.useDynamicAttach, Is.False);
+                Assert.That(grab.useDynamicAttach, Is.True);
                 Assert.That(grab.matchAttachPosition, Is.True);
-                Assert.That(grab.matchAttachRotation, Is.True);
-                Assert.That(grab.snapToColliderVolume, Is.False);
+                Assert.That(grab.matchAttachRotation, Is.False);
+                Assert.That(grab.snapToColliderVolume, Is.True);
                 Assert.That(grab.addDefaultGrabTransformers, Is.False);
                 Assert.That(grab.trackScale, Is.False);
                 Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));

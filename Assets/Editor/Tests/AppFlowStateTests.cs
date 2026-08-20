@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using HClTraining.App;
@@ -81,10 +82,84 @@ public sealed class AppFlowStateTests
     }
 
     [Test]
+    public void IncidentState_UsesGenericFacilityAndKeepsP102CompatibilityDefault()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        state.Begin(TrainingMode.Full);
+
+        Assert.AreEqual(FacilityId.P102, state.Incident.SelectedFacility);
+        Assert.IsTrue(state.SelectFacility(FacilityId.P103));
+        Assert.AreEqual(FacilityId.P103, state.Incident.SelectedFacility);
+        Assert.AreEqual(FacilityRunState.Running, state.Incident.FacilityRunState);
+        Assert.AreEqual(LeakState.Active, state.Incident.LeakState);
+
+        Assert.IsTrue(state.SetFacilityRunState(FacilityRunState.Stopped));
+        Assert.AreEqual(FacilityRunState.Stopped, state.Incident.FacilityRunState);
+        Assert.IsTrue(state.SelectFacility(FacilityId.P104));
+        Assert.AreEqual(FacilityRunState.Running, state.Incident.FacilityRunState);
+    }
+
+    [Test]
+    public void Telemetry_RecordsMeaningfulEventsWithoutServerDependency()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.Full, FacilityId.P103);
+
+        telemetry.StartSession(TrainingMode.Full, state.Incident.SelectedFacility);
+        state.EnterStage(TrainingStage.PreEntry);
+        telemetry.StageEntered(TrainingStage.PreEntry);
+        telemetry.StepEntered(TrainingStepId.PreEntry);
+        telemetry.StepCompleted(TrainingStepId.PreEntry, attemptCount: 2, rejectedCount: 1);
+        telemetry.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sink.SessionId));
+        Assert.AreEqual(5, sink.Records.Count);
+        Assert.AreEqual("SessionStarted", sink.Records[0].event_type);
+        Assert.AreEqual("P103", sink.Records[0].facility_id);
+        Assert.AreEqual("StepCompleted", sink.Records[3].event_type);
+        Assert.AreEqual(2, sink.Records[3].attempt_count);
+        Assert.AreEqual(1, sink.Records[3].rejected_count);
+        Assert.AreEqual("SessionCompleted", sink.Records[4].event_type);
+    }
+
+    [Test]
+    public void SharedBag_UsesFixedStageAnchorAndRestoresLegacyPlacement()
+    {
+        var xrRoot = CreatePath(root.transform, "Common XR Origin");
+        var bodyAnchor = CreatePath(xrRoot, "PlayerBodyAnchor");
+        var bag = CreatePath(bodyAnchor, "ResponseBag_Wearable");
+        CreatePath(xrRoot, "Camera Offset/Left Controller");
+        bag.localPosition = new Vector3(0.1f, 0.2f, 0.3f);
+
+        var stageAnchor = CreatePath(root.transform, SharedPlayerEquipment.StageBagAnchorName);
+        stageAnchor.SetPositionAndRotation(new Vector3(4f, 1f, -2f), Quaternion.Euler(0f, 90f, 0f));
+
+        var equipment = root.AddComponent<SharedPlayerEquipment>();
+        equipment.Initialize(xrRoot);
+
+        Assert.IsTrue(equipment.TryPlaceAtStageAnchor(root.scene));
+        Assert.IsTrue(equipment.IsUsingStageAnchor);
+        Assert.Less(Vector3.Distance(stageAnchor.position, bag.position), 0.001f);
+        Assert.Less(Quaternion.Angle(stageAnchor.rotation, bag.rotation), 0.01f);
+
+        equipment.RestoreBodyRelativePlacement();
+        Assert.IsFalse(equipment.IsUsingStageAnchor);
+        Assert.AreSame(bodyAnchor, bag.parent);
+        Assert.AreEqual(new Vector3(0.1f, 0.2f, 0.3f), bag.localPosition);
+    }
+
+    [Test]
     public void StandaloneFieldPreset_SeedsGlovesAndResponseEquipment()
     {
         var state = root.AddComponent<TrainingSessionState>();
         state.Begin(TrainingMode.LeakResponseOnly);
+        var loadout = new GameObject(nameof(PPELoadoutData)).AddComponent<PPELoadoutData>();
+        typeof(PPELoadoutData).GetProperty(
+            nameof(PPELoadoutData.Instance),
+            BindingFlags.Static | BindingFlags.Public)?.SetValue(null, loadout);
         PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
 
         var inventory = root.AddComponent<PersistentEquipmentInventory>();
@@ -269,6 +344,27 @@ public sealed class AppFlowStateTests
         Assert.AreEqual(expectedRay, ray.gameObject.activeSelf);
         Assert.Less(Quaternion.Angle(Quaternion.Euler(70f, 0f, 0f), ray.localRotation), 0.01f);
         Assert.AreEqual(expectedNearFar, nearFar.gameObject.activeSelf);
+    }
+
+    sealed class RecordingTelemetrySink : ITrainingTelemetrySink
+    {
+        public string SessionId { get; private set; }
+        public List<TrainingTelemetryRecord> Records { get; } =
+            new List<TrainingTelemetryRecord>();
+
+        public bool TryBeginSession(string sessionId, out string error)
+        {
+            SessionId = sessionId;
+            error = null;
+            return true;
+        }
+
+        public bool TryWrite(TrainingTelemetryRecord record, out string error)
+        {
+            Records.Add(record);
+            error = null;
+            return true;
+        }
     }
 }
 #endif

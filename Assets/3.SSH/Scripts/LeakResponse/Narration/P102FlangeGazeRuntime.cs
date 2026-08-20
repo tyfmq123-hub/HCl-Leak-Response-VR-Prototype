@@ -633,9 +633,12 @@ namespace VRProject.LeakResponse.Narration
             Transform countdownTransform = countdownRoot.transform;
             countdownTransform.localPosition = localPosition;
             countdownTransform.localScale = Vector3.one * CanvasScale;
+            Vector3 viewerPosition = viewerCamera != null
+                ? viewerCamera.position
+                : countdownTransform.position + fixedViewerDirection;
             countdownTransform.rotation = P102RuntimeUtility.ResolveYawOnlyCanvasRotation(
                 countdownTransform.position,
-                countdownTransform.position + fixedViewerDirection,
+                viewerPosition,
                 flangeRoot.rotation);
 
             Debug.Log(

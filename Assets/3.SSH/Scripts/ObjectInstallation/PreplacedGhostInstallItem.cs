@@ -197,8 +197,11 @@ namespace VRProject.ObjectInstallation
 
             ApplyMaterials(useInstalledMaterials: false);
 
-            targetRigidbody.linearVelocity = Vector3.zero;
-            targetRigidbody.angularVelocity = Vector3.zero;
+            if (!targetRigidbody.isKinematic)
+            {
+                targetRigidbody.linearVelocity = Vector3.zero;
+                targetRigidbody.angularVelocity = Vector3.zero;
+            }
             targetRigidbody.useGravity = false;
             targetRigidbody.isKinematic = true;
             isInstalled = false;

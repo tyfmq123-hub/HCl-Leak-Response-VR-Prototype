@@ -20,6 +20,6 @@ MonoBehaviour:
   uiInteraction: 0
   grabInteraction: 0
   haptics: 1
-  movement: 0
-  turning: 0
+  movement: 1
+  turning: 1
   comfortVignette: 0

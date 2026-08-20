@@ -16,7 +16,9 @@ App
 ├─ XR Interaction Manager
 ├─ Input Action Manager
 ├─ SharedXRInputContract
-└─ StageXRProfileController
+├─ StageXRProfileController
+├─ SharedPlayerEquipment
+└─ TrainingTelemetryService
 ```
 
 Stage scenes own gameplay, interactables, handlers, UI, and completion logic. Their
@@ -42,8 +44,8 @@ Each Stage owns one `StageXRRequirements` asset under its own Resources folder:
 | Stage | Asset | Pointer policy |
 |---|---|---|
 | PPE | `Assets/1.JSR/Resources/SharedXR/PPE.asset` | Standard Ray |
-| PreEntry | `Assets/2.YJH/Resources/SharedXR/PreEntry.asset` | None (existing policy) |
-| LeakResponse | `Assets/3.SSH/Resources/SharedXR/LeakResponse.asset` | Near/Far |
+| PreEntry | `Assets/2.YJH/Resources/SharedXR/PreEntry.asset` | No pointer; movement/turning enabled |
+| LeakResponse | `Assets/3.SSH/Resources/SharedXR/LeakResponse.asset` | Near only; far ray hidden |
 
 The App selects the declaration by Scene path. It does not compare a Stage name to
 choose Ray/Near-Far behavior. A future Stage supplies its own asset and does not
@@ -118,9 +120,10 @@ retains the existing direct-input fallbacks.
 
 ## Shared player equipment
 
-The App owns one body-relative bag under `Common XR Origin/PlayerBodyAnchor`.
-`PlayerBodyAnchorFollower` follows HMD position and horizontal yaw only, so the bag
-stays at the left waist without becoming head-locked or world-fixed.
+The App owns one bag visual. A Stage provides a transform named `StageBagAnchor`
+when the bag must sit at an authored world location. The App bag copies that pose
+without becoming owned by the Stage Scene, so unloading the Stage cannot destroy it.
+Scenes without the anchor temporarily retain the body-relative compatibility pose.
 
 `SharedPlayerEquipment` exposes only:
 
@@ -133,6 +136,19 @@ It does not select an item from a Stage name. PreEntry keeps its detector decisi
 `EntrySafetyScenarioController`; LeakResponse keeps Sock/Pad selection in
 `P102SharedBagItemHandler` and uses its actual narration/install state. LeakResponse
 deploys the existing Sock/Pad scene objects and never creates replacement copies.
+
+## Shared incident state and telemetry
+
+`SharedIncidentState` exposes only neutral runtime facts: selected `FacilityId`,
+facility run/stop state, and leak active/isolated state. PreEntry writes those facts;
+LeakResponse maps them to its own Scene-local valves, effects, sound, and colliders.
+
+`SharedTrainingTelemetry` is the Stage-facing, server-independent event contract.
+Stage assemblies report only meaningful steps and content/equipment usage. The App's
+`TrainingTelemetryService` adds session metadata and writes JSON Lines below
+`Application.persistentDataPath/TrainingTelemetry`. Missing storage is a warning and
+never blocks training. A future HTTP/DB sink can replace local storage without
+changing Stage gameplay code.
 
 ### LeakResponse
 

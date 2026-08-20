@@ -3122,7 +3122,6 @@ GameObject:
   m_Component:
   - component: {fileID: 427661532}
   - component: {fileID: 427661534}
-  - component: {fileID: 427661533}
   m_Layer: 0
   m_Name: Right Controller
   m_TagString: Untagged
@@ -3149,19 +3148,6 @@ Transform:
   - {fileID: 1826997158}
   m_Father: {fileID: 19960304}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &427661533
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 427661531}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 24688a8ea008719419ae6e97372dabaf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandInteractorSide
-  m_HandSide: 1
 --- !u!114 &427661534
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10357,7 +10343,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_DefaultParameters:
-    m_ApertureSize: 1
+    m_ApertureSize: 0.82
     m_FeatheringEffect: 0.25
     m_EaseInTime: 0.04
     m_EaseOutTime: 0.1
@@ -16397,7 +16383,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBodyAnchorFollower
   xrCamera: {fileID: 453007392}
-  localPositionOffset: {x: -0.38, y: 0.65, z: 0.1}
+  localPositionOffset: {x: -0.52, y: 0.65, z: 0.14}
   positionSmoothTime: 0.08
   rotationSmoothSpeed: 12
   followCameraHeight: 0

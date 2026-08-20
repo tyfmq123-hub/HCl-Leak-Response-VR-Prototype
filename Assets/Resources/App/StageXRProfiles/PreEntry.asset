@@ -49,10 +49,6 @@ MonoBehaviour:
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
     enabled: 1
-  - relativePath: Camera Offset/Left Controller/Visual/VRHandPoseTool_VisualOffset_Left/LeftHand
-    typeName: VRHandPoseTool.ControllerHandGripAnimator, Senghwan.VRHandPoseTool.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 0
   - relativePath: Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype
     typeName: JH.EntrySafety.EntrySafetyHclDetectorView, JH.EntrySafety.Runtime,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null

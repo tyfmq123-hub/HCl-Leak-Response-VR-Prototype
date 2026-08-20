@@ -51,7 +51,6 @@ namespace VRProject.LeakResponse.Narration
         bool finalCloseEnabled;
         bool lidStowed;
         bool snappingLid;
-        bool lidHandPoseWristCorrected;
         Coroutine lidReleaseRoutine;
         int visibleDepositedCount;
 
@@ -97,7 +96,6 @@ namespace VRProject.LeakResponse.Narration
             finalCloseEnabled = false;
             lidStowed = false;
             snappingLid = false;
-            lidHandPoseWristCorrected = false;
 
             bodyObject = FindDescendant(containerRoot, "HazWasteContainer_Body");
             lidObject = FindDescendant(containerRoot, "HazWasteContainer_Lid");
@@ -144,19 +142,15 @@ namespace VRProject.LeakResponse.Narration
                 lidGrab.colliders.Add(lidHandleCollider);
             lidAuthoredHandPoseAttach = P102RuntimeUtility.FindDescendantTransform(
                 lidObject, P102RuntimeUtility.RightHandPoseAttachName);
-            bool hasAuthoredHandPose = lidAuthoredHandPoseAttach != null;
-            lidHandPoseWristCorrected = hasAuthoredHandPose &&
-                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
-                    lidGrab, lidAuthoredHandPoseAttach);
-            lidGrab.attachTransform = hasAuthoredHandPose
+            lidGrab.attachTransform = lidAuthoredHandPoseAttach != null
                 ? lidAuthoredHandPoseAttach
                 : lidHandleCollider != null
                     ? lidHandleCollider.transform
                     : null;
-            lidGrab.useDynamicAttach = !hasAuthoredHandPose;
+            lidGrab.useDynamicAttach = true;
             lidGrab.matchAttachPosition = true;
-            lidGrab.matchAttachRotation = hasAuthoredHandPose;
-            lidGrab.snapToColliderVolume = !hasAuthoredHandPose;
+            lidGrab.matchAttachRotation = false;
+            lidGrab.snapToColliderVolume = true;
             lidGrab.throwOnDetach = false;
             lidGrab.selectMode = InteractableSelectMode.Single;
             lidGrab.movementType = XRGrabInteractable.MovementType.Kinematic;
@@ -288,7 +282,6 @@ namespace VRProject.LeakResponse.Narration
             {
                 lidStowEnabled = true;
                 SetGhostVisible(sideGhost, true);
-                PrepareLidHandPoseAttachIfNeeded();
                 if (lidGrab != null)
                     lidGrab.enabled = true;
             }
@@ -296,7 +289,6 @@ namespace VRProject.LeakResponse.Narration
             {
                 finalCloseEnabled = CanFinalLock;
                 SetGhostVisible(closedGhost, finalCloseEnabled);
-                PrepareLidHandPoseAttachIfNeeded();
                 if (lidGrab != null)
                     lidGrab.enabled = finalCloseEnabled;
                 if (!finalCloseEnabled)
@@ -319,8 +311,6 @@ namespace VRProject.LeakResponse.Narration
         void OnLidSelectEntered(SelectEnterEventArgs args)
         {
             StopLidReleaseRoutine();
-            P102RuntimeUtility.ApplyAuthoredHandPoseAttach(
-                lidGrab, lidAuthoredHandPoseAttach, args);
             Transform selectionAttach = args?.interactorObject?.GetAttachTransform(lidGrab);
             heldLidControllerAnchor = P102RuntimeUtility.ResolveStableControllerAnchor(
                                           args?.interactorObject) ??
@@ -358,17 +348,6 @@ namespace VRProject.LeakResponse.Narration
             lidRigidbody.angularVelocity = Vector3.zero;
             lidRigidbody.useGravity = false;
             lidRigidbody.isKinematic = true;
-        }
-
-        void PrepareLidHandPoseAttachIfNeeded()
-        {
-            if (lidAuthoredHandPoseAttach == null)
-                return;
-
-            lidHandPoseWristCorrected =
-                P102RuntimeUtility.TryPrepareRightWristCorrectedAttach(
-                    lidGrab, lidAuthoredHandPoseAttach) ||
-                lidHandPoseWristCorrected;
         }
 
         void OnLidSelectExited(SelectExitEventArgs args)

@@ -466,7 +466,7 @@ namespace VRProject.Valves.Tests
             StringAssert.Contains("m_ConnectedAnchor: {x: 0, y: 0, z: 0}", hingeBlock);
             StringAssert.Contains("m_Axis: {x: 0, y: 0, z: 1}", hingeBlock);
             Assert.That(Regex.Matches(scene, "(?m)^  m_GameObject: \\{fileID: 1084262770\\}$").Count,
-                Is.EqualTo(11), "The wheel should retain one Transform plus its ten non-Transform components, including hand-pose support.");
+                Is.EqualTo(9), "The wheel should retain one Transform plus eight active non-Transform components after legacy hand-pose support is removed.");
             Assert.That(Regex.Matches(scene,
                     "(?ms)^--- !u!54 &\\d+\\r?\\n(?:(?!^--- !u!).)*m_GameObject: \\{fileID: 1084262770\\}").Count,
                 Is.EqualTo(1), "The wheel must keep exactly one Rigidbody.");

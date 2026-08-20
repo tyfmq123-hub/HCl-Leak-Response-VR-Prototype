@@ -33,6 +33,7 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
     bool hasLockedHeight;
 
     public Transform XrCamera => xrCamera;
+    public Vector3 LocalPositionOffset => localPositionOffset;
 
     void OnEnable()
     {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace HClTraining.SharedXR
 {
@@ -43,8 +44,9 @@ namespace HClTraining.SharedXR
     }
 
     /// <summary>
-    /// App-owned body-relative equipment contract shared by every Stage.
-    /// It does not know which item a Stage wants to retrieve.
+    /// App-owned equipment contract shared by every Stage. The same bag can use its
+    /// legacy body-relative pose or a Stage-provided fixed anchor. It never chooses
+    /// which item a Stage retrieves.
     /// </summary>
     [DefaultExecutionOrder(-9800)]
     [DisallowMultipleComponent]
@@ -54,6 +56,7 @@ namespace HClTraining.SharedXR
         const string BagName = "ResponseBag_Wearable";
         const string AccessRootName = "Shared Bag Access";
         const string RetrievalAnchorName = "Item Retrieval Anchor";
+        public const string StageBagAnchorName = "StageBagAnchor";
 
         [SerializeField] Transform bodyAnchor;
         [SerializeField] Transform bagRoot;
@@ -70,8 +73,14 @@ namespace HClTraining.SharedXR
         public Collider RetrievalZone => retrievalZone;
         public Transform RetrievalAnchor => retrievalAnchor;
         public bool IsBagVisible => bagRoot != null && bagRoot.gameObject.activeInHierarchy;
+        public bool IsUsingStageAnchor => stageBagAnchor != null;
 
         Transform accessRoot;
+        Transform originalBagParent;
+        Vector3 originalBagLocalPosition;
+        Quaternion originalBagLocalRotation;
+        Vector3 originalBagLocalScale;
+        Transform stageBagAnchor;
 
         public void Initialize(Transform commonXrRoot)
         {
@@ -101,16 +110,62 @@ namespace HClTraining.SharedXR
                 return;
             }
 
+            originalBagParent = bagRoot.parent;
+            originalBagLocalPosition = bagRoot.localPosition;
+            originalBagLocalRotation = bagRoot.localRotation;
+            originalBagLocalScale = bagRoot.localScale;
             EnsureAccessObjects();
             StabilizeBagPhysics();
         }
 
         void LateUpdate()
         {
-            // The visual may reapply its authored local pose when it is first equipped.
-            // Keep the common access volume on the same body-relative pose. Scale stays
-            // independent so deployed equipment keeps its authored size.
+            if (stageBagAnchor != null)
+                ApplyStageAnchorPose();
+            else
+                AlignAccessRootToBag();
+        }
+
+        /// <summary>
+        /// Uses a fixed StageBagAnchor when one is authored in the active Stage.
+        /// Missing anchors deliberately fall back to the current body-relative pose,
+        /// allowing existing Stage scenes to migrate without runtime failures.
+        /// </summary>
+        public bool TryPlaceAtStageAnchor(Scene scene)
+        {
+            if (bagRoot == null || accessRoot == null || !scene.IsValid() || !scene.isLoaded)
+                return false;
+
+            var anchor = FindSceneTransform(scene, StageBagAnchorName);
+            if (anchor == null)
+            {
+                RestoreBodyRelativePlacement();
+                return false;
+            }
+
+            stageBagAnchor = anchor;
+            bagRoot.SetParent(transform, true);
+            accessRoot.SetParent(transform, true);
+            ApplyStageAnchorPose();
+            StabilizeBagPhysics();
+            return true;
+        }
+
+        public void RestoreBodyRelativePlacement()
+        {
+            stageBagAnchor = null;
+            if (bagRoot == null || originalBagParent == null)
+                return;
+
+            bagRoot.SetParent(originalBagParent, false);
+            bagRoot.localPosition = originalBagLocalPosition;
+            bagRoot.localRotation = originalBagLocalRotation;
+            bagRoot.localScale = originalBagLocalScale;
+
+            if (accessRoot != null && bodyAnchor != null)
+                accessRoot.SetParent(bodyAnchor, false);
             AlignAccessRootToBag();
+            StabilizeBagPhysics();
         }
 
         public bool IsLeftHandInRetrievalZone()
@@ -173,6 +228,18 @@ namespace HClTraining.SharedXR
             accessRoot.localScale = Vector3.one;
         }
 
+        void ApplyStageAnchorPose()
+        {
+            if (stageBagAnchor == null || bagRoot == null || accessRoot == null)
+                return;
+
+            bagRoot.SetPositionAndRotation(stageBagAnchor.position, stageBagAnchor.rotation);
+            accessRoot.SetPositionAndRotation(bagRoot.position, bagRoot.rotation);
+            accessRoot.localScale = InverseScale(accessRoot.parent != null
+                ? accessRoot.parent.lossyScale
+                : Vector3.one);
+        }
+
         void StabilizeBagPhysics()
         {
             if (bagRoot == null)
@@ -200,6 +267,25 @@ namespace HClTraining.SharedXR
                 if (descendants[i] != null && descendants[i].name == exactName) return descendants[i];
             return null;
         }
+
+        static Transform FindSceneTransform(Scene scene, string exactName)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var descendants = root.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < descendants.Length; i++)
+                {
+                    if (descendants[i] != null && descendants[i].name == exactName)
+                        return descendants[i];
+                }
+            }
+            return null;
+        }
+
+        static Vector3 InverseScale(Vector3 scale) => new Vector3(
+            Mathf.Abs(scale.x) > 0.0001f ? 1f / scale.x : 1f,
+            Mathf.Abs(scale.y) > 0.0001f ? 1f / scale.y : 1f,
+            Mathf.Abs(scale.z) > 0.0001f ? 1f / scale.z : 1f);
 
         void OnDestroy()
         {

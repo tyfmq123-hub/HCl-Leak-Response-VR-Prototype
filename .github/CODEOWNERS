@@ -1,0 +1,12 @@
+# Integration owner approval is required for every protected-branch Pull Request.
+* @tyfmq123-hub
+
+/AGENTS.md @tyfmq123-hub
+/.github/ @tyfmq123-hub
+/scripts/ci/ @tyfmq123-hub
+/ProjectSettings/ @tyfmq123-hub
+/Packages/ @tyfmq123-hub
+/Assets/Scenes/App/ @tyfmq123-hub
+/Assets/Scripts/App/ @tyfmq123-hub
+/Assets/Resources/App/ @tyfmq123-hub
+/Assets/Common/XR/ @tyfmq123-hub

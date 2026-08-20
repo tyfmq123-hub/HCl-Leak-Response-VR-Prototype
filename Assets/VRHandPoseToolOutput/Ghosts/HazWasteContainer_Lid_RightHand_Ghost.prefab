@@ -72,7 +72,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 802689987955399698}
-  - component: {fileID: 997967246404622921}
   m_Layer: 0
   m_Name: HazWasteContainer_Lid_RightHand_Ghost
   m_TagString: Untagged
@@ -97,21 +96,6 @@ Transform:
   - {fileID: 1395836830575262268}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &997967246404622921
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 558683941826135299}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 475f063f9a965bf43ba3c73c82e1eb3e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGhostPreviewMarker
-  m_TargetGrabObjectInstanceId: -324060
-  m_TargetGrabObjectName: HazWasteContainer_Lid
-  m_HandSide: Right
 --- !u!1 &857790611734673064
 GameObject:
   m_ObjectHideFlags: 0

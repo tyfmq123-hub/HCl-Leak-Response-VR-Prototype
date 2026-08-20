@@ -486,7 +486,7 @@ Transform:
   m_GameObject: {fileID: 153815078}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -0.019999266}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2880,7 +2880,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: JH.EntrySafety.Runtime::JH.EntrySafety.EntrySafetyHclGripLock
   _detectorController: {fileID: 602116830}
-  _leftHandGripAnimator: {fileID: 1930569465}
+  _leftHandGripAnimator: {fileID: 0}
 --- !u!114 &602116844
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6339,7 +6339,7 @@ Transform:
   m_GameObject: {fileID: 1273556347}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.019999266}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10616,44 +10616,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1930569466}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1930569465}
   m_SourcePrefab: {fileID: 100100000, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
 --- !u!4 &1930569464 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
   m_PrefabInstance: {fileID: 1930569463}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1930569465
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1233884071}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44ca88d9de7bdd04c83fde0b5bcad914, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.ControllerHandGripAnimator
-  handAnimator: {fileID: 1930569466}
-  gripAction:
-    m_UseReference: 1
-    m_Action:
-      m_Name: 
-      m_Type: 0
-      m_ExpectedControlType: 
-      m_Id: 02bad4e9-07a1-4fd5-9ef6-1cc069000773
-      m_Processors: 
-      m_Interactions: 
-      m_SingletonActionBindings: []
-      m_Flags: 0
-    m_Reference: {fileID: 11400000, guid: ae5f5c42cc6afaa409c7fde1126c722d, type: 2}
-  gripParameterName: Grip
-  useSmoothing: 1
-  smoothingSpeed: 12
-  enableGripDebugLog: 0
 --- !u!95 &1930569466
 Animator:
   serializedVersion: 7

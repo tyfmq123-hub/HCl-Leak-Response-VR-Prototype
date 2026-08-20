@@ -75,6 +75,55 @@ public static class IntegrationSceneValidator
         Debug.Log("[Integration Scene Validation] All eight Scenes, XR profiles, serialization, and Build Settings passed.");
     }
 
+    [MenuItem("Tools/HCl Training/Remove Missing Scripts From Integrated Scenes")]
+    public static void RemoveMissingScripts()
+    {
+        var report = new List<string>();
+        var removedTotal = 0;
+        foreach (var target in TargetScenes)
+        {
+            var scene = SceneManager.GetSceneByPath(target.path);
+            var openedHere = !scene.IsValid() || !scene.isLoaded;
+            if (openedHere)
+                scene = EditorSceneManager.OpenScene(target.path, OpenSceneMode.Additive);
+
+            var removedFromScene = 0;
+            try
+            {
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+                    {
+                        var gameObject = transform.gameObject;
+                        var missingCount = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
+                        if (missingCount == 0)
+                            continue;
+
+                        GameObjectUtility.RemoveMonoBehavioursWithMissingScript(gameObject);
+                        removedFromScene += missingCount;
+                    }
+                }
+
+                if (removedFromScene > 0)
+                    EditorSceneManager.SaveScene(scene);
+            }
+            finally
+            {
+                if (openedHere && scene.IsValid() && scene.isLoaded)
+                    EditorSceneManager.CloseScene(scene, true);
+            }
+
+            removedTotal += removedFromScene;
+            report.Add($"{target.path}: removed missing scripts={removedFromScene}");
+        }
+
+        Directory.CreateDirectory("Logs");
+        File.WriteAllText(
+            "Logs/IntegrationMissingScriptCleanup.log",
+            string.Join("\n", report) + $"\nTotal={removedTotal}\n");
+        Debug.Log($"[Integration Missing Script Cleanup] Removed {removedTotal} missing scripts.");
+    }
+
     static void ValidateBuildSettings(List<string> failures, List<string> report)
     {
         var buildScenes = EditorBuildSettings.scenes;
@@ -169,19 +218,19 @@ public static class IntegrationSceneValidator
         {
             if (requirements.FarInteraction || requirements.NearInteraction ||
                 requirements.UIInteraction || requirements.GrabInteraction ||
-                requirements.Movement || requirements.Turning || requirements.ComfortVignette)
+                !requirements.Movement || !requirements.Turning || requirements.ComfortVignette)
             {
-                failures.Add("PreEntry requirements must keep pointer/UI/XRI Grab/movement/turning disabled; its detector uses Stage input and scripted attach.");
+                failures.Add("PreEntry requirements must keep pointer/UI/XRI Grab disabled while enabling shared movement and turning.");
             }
         }
         else if (string.Equals(scenePath, NormalizePath(SceneFlowController.LeakResponseScenePath),
                      StringComparison.OrdinalIgnoreCase))
         {
-            if (!requirements.FarInteraction || !requirements.NearInteraction ||
+            if (requirements.FarInteraction || !requirements.NearInteraction ||
                 !requirements.UIInteraction || !requirements.GrabInteraction ||
                 !requirements.ComfortVignette)
             {
-                failures.Add("LeakResponse requirements must declare Near + Far + UI + Grab + Comfort vignette.");
+                failures.Add("LeakResponse requirements must declare Near-only interaction + UI + Grab + Comfort vignette, with the far ray hidden.");
             }
         }
     }

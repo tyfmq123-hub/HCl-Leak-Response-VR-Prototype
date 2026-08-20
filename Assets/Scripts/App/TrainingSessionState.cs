@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 
 namespace HClTraining.App
@@ -37,6 +38,7 @@ namespace HClTraining.App
         readonly HashSet<string> acquiredEquipmentIds = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> availableEquipmentIds = new HashSet<string>(StringComparer.Ordinal);
 
+        public IncidentSessionState Incident { get; } = new IncidentSessionState();
         public TrainingMode SelectedMode { get; private set; }
         public TrainingStage CurrentStage { get; private set; }
         public TrainingStage RestartTarget { get; private set; }
@@ -49,8 +51,11 @@ namespace HClTraining.App
         public bool HasPpeResult { get; private set; }
 
         public event Action Changed;
+        public event Action<FacilityId> FacilityChanged;
 
-        public void Begin(TrainingMode mode)
+        public void Begin(TrainingMode mode) => Begin(mode, Incident.SelectedFacility);
+
+        public void Begin(TrainingMode mode, FacilityId facility)
         {
             if (mode == TrainingMode.None)
                 throw new ArgumentOutOfRangeException(nameof(mode));
@@ -65,6 +70,7 @@ namespace HClTraining.App
             LeftChemicalGloveWorn = false;
             RightChemicalGloveWorn = false;
             HasPpeResult = false;
+            Incident.Reset(facility);
 
             if (mode == TrainingMode.Full)
                 stageSequence.AddRange(FullSequence);
@@ -72,6 +78,32 @@ namespace HClTraining.App
                 stageSequence.Add(FirstStageFor(mode));
 
             Changed?.Invoke();
+        }
+
+        public bool SelectFacility(FacilityId facility)
+        {
+            if (!Incident.SelectFacility(facility))
+                return false;
+
+            FacilityChanged?.Invoke(Incident.SelectedFacility);
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool SetFacilityRunState(FacilityRunState state)
+        {
+            if (!Incident.SetFacilityRunState(state))
+                return false;
+            Changed?.Invoke();
+            return true;
+        }
+
+        public bool SetLeakState(LeakState state)
+        {
+            if (!Incident.SetLeakState(state))
+                return false;
+            Changed?.Invoke();
+            return true;
         }
 
         public void EnterStage(TrainingStage stage)
@@ -178,7 +210,7 @@ namespace HClTraining.App
                 case TrainingMode.Full: return "전체 훈련";
                 case TrainingMode.PPEOnly: return "PPE 착용 교육";
                 case TrainingMode.PreEntryOnly: return "현장 진입 전 확인절차";
-                case TrainingMode.LeakResponseOnly: return "P-102 염산 누출 대응";
+                case TrainingMode.LeakResponseOnly: return "염산 누출 대응";
                 default: return "선택 안 함";
             }
         }
@@ -189,7 +221,7 @@ namespace HClTraining.App
             {
                 case TrainingStage.PPE: return "PPE 착용";
                 case TrainingStage.PreEntry: return "현장 진입 전 확인";
-                case TrainingStage.LeakResponse: return "P-102 누출 대응";
+                case TrainingStage.LeakResponse: return "누출 대응";
                 case TrainingStage.Complete: return "훈련 완료";
                 default: return "시작";
             }

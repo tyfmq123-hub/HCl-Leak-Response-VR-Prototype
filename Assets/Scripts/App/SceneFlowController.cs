@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using JH.EntrySafety;
 using Unity.XR.CoreUtils;
 using UnityEngine;
@@ -28,6 +29,8 @@ namespace HClTraining.App
         TrainingSessionState session;
         PPEStateController ppeState;
         PersistentEquipmentInventory inventory;
+        SharedPlayerEquipment sharedEquipment;
+        ITrainingTelemetry telemetry;
         CommonErrorUI errorUI;
         Scene contentScene;
         readonly List<Scene> contentScenes = new List<Scene>();
@@ -45,6 +48,8 @@ namespace HClTraining.App
             TrainingSessionState state,
             PPEStateController ppe,
             PersistentEquipmentInventory equipment,
+            SharedPlayerEquipment playerEquipment,
+            ITrainingTelemetry trainingTelemetry,
             CommonErrorUI errors)
         {
             inputLock = transitionLock;
@@ -54,6 +59,8 @@ namespace HClTraining.App
             session = state;
             ppeState = ppe;
             inventory = equipment;
+            sharedEquipment = playerEquipment;
+            telemetry = trainingTelemetry ?? TrainingTelemetry.Current;
             errorUI = errors;
         }
 
@@ -82,6 +89,7 @@ namespace HClTraining.App
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
+            sharedEquipment?.RestoreBodyRelativePlacement();
             yield return null;
             yield return UnloadContentScenes();
 
@@ -180,8 +188,9 @@ namespace HClTraining.App
             {
                 if (!xrProfiles.ApplyCompleteProfile(out var completeXrError))
                     errorUI?.Show(completeXrError);
+                telemetry?.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
             }
-            else if (stage != TrainingStage.Complete)
+            else
             {
                 if (!xrProfiles.ApplyStageProfile(contentScene, stage, out var xrError))
                     errorUI?.Show(xrError);
@@ -201,8 +210,10 @@ namespace HClTraining.App
                 }
                 if (stage == TrainingStage.LeakResponse)
                     P102LeakStageActivation.Apply(contentScene, true);
+                sharedEquipment?.TryPlaceAtStageAnchor(contentScene);
                 yield return lifecycle.BindStage(contentScene, stage);
                 ppeState.ApplyPersistentState();
+                telemetry?.StageEntered(stage);
             }
 
             // Unloading a legacy Stage rig can disable the shared XRI asset after
@@ -376,6 +387,7 @@ namespace HClTraining.App
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
+            sharedEquipment?.RestoreBodyRelativePlacement();
             var preEntryScene = SceneManager.GetSceneByPath(PreEntryScenePath);
             if (preEntryScene.IsValid() && preEntryScene.isLoaded)
                 EntrySafetyStageActivation.Apply(preEntryScene, false);
@@ -384,6 +396,7 @@ namespace HClTraining.App
                 yield return RecoverToStart("PreEntry 완료 상태를 기록하지 못했습니다.");
                 yield break;
             }
+            telemetry?.StageCompleted(TrainingStage.PreEntry);
 
             session.EnterStage(TrainingStage.LeakResponse);
             if (!xrProfiles.ApplyStageProfile(leakScene, TrainingStage.LeakResponse, out var xrError))
@@ -403,8 +416,10 @@ namespace HClTraining.App
             // Leak-owned runtime objects created during activation must be authored
             // into the Leak Scene, never into the still-loaded PreEntry primary Scene.
             P102LeakStageActivation.Apply(leakScene, true);
+            sharedEquipment?.TryPlaceAtStageAnchor(leakScene);
             yield return lifecycle.BindStage(leakScene, TrainingStage.LeakResponse);
             ppeState.ApplyPersistentState();
+            telemetry?.StageEntered(TrainingStage.LeakResponse);
 
             yield return fade.FadeIn();
             inputLock.Unlock(false);
@@ -462,6 +477,10 @@ namespace HClTraining.App
         {
             Debug.LogError("[Scene Flow] " + message, this);
             errorUI?.Show(message + "\n시작 화면으로 안전하게 복귀합니다.");
+            telemetry?.EndSession(
+                TrainingSessionStatus.Interrupted,
+                TrainingExitReason.SystemError,
+                message);
 
             yield return UnloadContentScenes();
 
@@ -552,37 +571,56 @@ namespace HClTraining.App
         TrainingSessionState session;
         SceneFlowController scenes;
         PersistentEquipmentInventory inventory;
+        ITrainingTelemetry telemetry;
         bool completionQueued;
 
         public void Initialize(
             TrainingSessionState state,
             SceneFlowController sceneController,
-            PersistentEquipmentInventory equipment)
+            PersistentEquipmentInventory equipment,
+            ITrainingTelemetry trainingTelemetry)
         {
             session = state;
             scenes = sceneController;
             inventory = equipment;
+            telemetry = trainingTelemetry ?? TrainingTelemetry.Current;
         }
 
-        public bool StartTraining(TrainingMode mode)
+        public bool StartTraining(TrainingMode mode) =>
+            StartTraining(mode, session != null ? session.Incident.SelectedFacility : FacilityId.P102);
+
+        public bool StartTraining(TrainingMode mode, FacilityId facility)
         {
             if (scenes.IsTransitioning || mode == TrainingMode.None)
                 return false;
 
-            session.Begin(mode);
+            session.Begin(mode, facility);
+            telemetry?.StartSession(mode, session.Incident.SelectedFacility);
             completionQueued = false;
             if (mode == TrainingMode.Full || mode == TrainingMode.PPEOnly)
                 PPELoadoutPresets.BeginNewFullTrainingClear();
             else
                 PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
             inventory.SyncFromLoadout();
-            return scenes.ShowStage(TrainingSessionState.FirstStageFor(mode));
+            if (scenes.ShowStage(TrainingSessionState.FirstStageFor(mode)))
+                return true;
+
+            telemetry?.EndSession(
+                TrainingSessionStatus.Interrupted,
+                TrainingExitReason.SystemError,
+                "initial_stage_transition_rejected");
+            return false;
         }
+
+        public bool SelectFacility(FacilityId facility) =>
+            !scenes.IsTransitioning && session.SelectFacility(facility);
 
         public void CompleteCurrentStage()
         {
+            var completedStage = session.CurrentStage;
             if (completionQueued || scenes.IsTransitioning || !session.MarkCurrentStageComplete())
                 return;
+            telemetry?.StageCompleted(completedStage);
             completionQueued = true;
             StartCoroutine(ContinueAfterCompletion());
         }
@@ -603,10 +641,16 @@ namespace HClTraining.App
             yield return new WaitForSecondsRealtime(0.65f);
             var next = session.GetNextStage();
             completionQueued = false;
-            if (next == TrainingStage.Complete)
-                scenes.ShowComplete();
-            else
-                scenes.ShowStage(next);
+            var transitionStarted = next == TrainingStage.Complete
+                ? scenes.ShowComplete()
+                : scenes.ShowStage(next);
+            if (!transitionStarted)
+            {
+                telemetry?.EndSession(
+                    TrainingSessionStatus.Interrupted,
+                    TrainingExitReason.SystemError,
+                    "next_stage_transition_rejected");
+            }
         }
 
         public bool RestartCurrentStage()
@@ -624,6 +668,10 @@ namespace HClTraining.App
             if (scenes.IsTransitioning)
                 return false;
             completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.NotProvided,
+                "returned_to_start");
             session.ReturnToStart();
             return scenes.ShowStart();
         }

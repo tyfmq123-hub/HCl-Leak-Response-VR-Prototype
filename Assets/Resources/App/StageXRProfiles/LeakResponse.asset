@@ -109,10 +109,6 @@ MonoBehaviour:
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
     enabled: 1
-  - relativePath: Camera Offset/Left Controller/Visual/VRHandPoseTool_VisualOffset_Left/LeftHand
-    typeName: VRHandPoseTool.ControllerHandGripAnimator, Senghwan.VRHandPoseTool.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
   - relativePath: Camera Offset/Left Controller/Left_NearFarInteractor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor, Unity.XR.Interaction.Toolkit,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
@@ -145,17 +141,9 @@ MonoBehaviour:
     typeName: UnityEngine.InputSystem.XR.TrackedPoseDriver, Unity.InputSystem, Version=1.19.0.0,
       Culture=neutral, PublicKeyToken=null
     enabled: 1
-  - relativePath: Camera Offset/Right Controller
-    typeName: VRHandPoseTool.HandInteractorSide, Senghwan.VRHandPoseTool.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 1
   - relativePath: Camera Offset/Right Controller/Visual/VRHandPoseTool_VisualOffset_Right/RightHand
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
-    enabled: 1
-  - relativePath: Camera Offset/Right Controller/Visual/VRHandPoseTool_VisualOffset_Right/RightHand
-    typeName: VRHandPoseTool.ControllerHandGripAnimator, Senghwan.VRHandPoseTool.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     enabled: 1
   - relativePath: Camera Offset/Right Controller/Right_NearFarInteractor
     typeName: UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor, Unity.XR.Interaction.Toolkit,

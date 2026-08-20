@@ -16,6 +16,7 @@ namespace HClTraining.App
 
         public static AppBootstrap Instance { get; private set; }
         public TrainingSessionState Session { get; private set; }
+        public TrainingTelemetryService Telemetry { get; private set; }
         public ScenarioFlowManager ScenarioFlow { get; private set; }
         public SceneFlowController SceneFlow { get; private set; }
         public PersistentEquipmentInventory Inventory { get; private set; }
@@ -60,6 +61,8 @@ namespace HClTraining.App
             EnsureSingleEventSystem();
 
             Session = GetOrAdd<TrainingSessionState>();
+            SharedIncidentState.Register(Session.Incident);
+            Telemetry = GetOrAdd<TrainingTelemetryService>();
             Inventory = GetOrAdd<PersistentEquipmentInventory>();
             PPEState = GetOrAdd<PPEStateController>();
             SharedInput = GetOrAdd<SharedXRInputContract>();
@@ -73,8 +76,9 @@ namespace HClTraining.App
             ScenarioFlow = GetOrAdd<ScenarioFlowManager>();
             ErrorUI = GetOrAdd<CommonErrorUI>();
 
+            Telemetry.Initialize(Session);
             SharedEquipment.Initialize(commonXrOrigin.transform);
-            Inventory.Initialize(Session, SharedEquipment.RetrievalAnchor);
+            Inventory.Initialize(Session, SharedEquipment.RetrievalAnchor, Telemetry);
             PPEState.Initialize(Session, Inventory, commonXrOrigin.transform);
             SharedInput.Initialize(commonXrOrigin);
             XRProfiles.Initialize(commonXrOrigin);
@@ -82,9 +86,19 @@ namespace HClTraining.App
             fade.Initialize(MainCamera);
             fade.SetImmediate(1f);
             ErrorUI.Initialize(MainCamera);
-            ScenarioFlow.Initialize(Session, SceneFlow, Inventory);
+            ScenarioFlow.Initialize(Session, SceneFlow, Inventory, Telemetry);
             lifecycle.Initialize(ScenarioFlow, Session, Inventory, PPEState);
-            SceneFlow.Initialize(inputLock, fade, XRProfiles, lifecycle, Session, PPEState, Inventory, ErrorUI);
+            SceneFlow.Initialize(
+                inputLock,
+                fade,
+                XRProfiles,
+                lifecycle,
+                Session,
+                PPEState,
+                Inventory,
+                SharedEquipment,
+                Telemetry,
+                ErrorUI);
             PauseController.Initialize(lifecycle, SharedInput, commonXrOrigin.transform);
         }
 
@@ -168,7 +182,11 @@ namespace HClTraining.App
         void OnDestroy()
         {
             if (Instance == this)
+            {
+                if (Session != null)
+                    SharedIncidentState.Unregister(Session.Incident);
                 Instance = null;
+            }
         }
     }
 }

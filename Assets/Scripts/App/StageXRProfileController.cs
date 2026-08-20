@@ -139,7 +139,6 @@ namespace HClTraining.App
             RestoreStartProfile();
             if (commonXrOrigin == null)
             {
-                error = "공용 XR Origin 참조가 없습니다.";
                 error = "Common XR Origin is missing.";
                 Debug.LogError("[Stage XR Profile] " + error, this);
                 return false;

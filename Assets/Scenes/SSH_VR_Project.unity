@@ -448,9 +448,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 56186ccf27ad7864681108ed88349071, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1724439559}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 56186ccf27ad7864681108ed88349071, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1724439558}
   m_SourcePrefab: {fileID: 100100000, guid: 56186ccf27ad7864681108ed88349071, type: 3}
 --- !u!4 &20692985 stripped
 Transform:
@@ -18073,9 +18070,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2060929325}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2060929324}
   m_SourcePrefab: {fileID: 100100000, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
 --- !u!4 &811503567 stripped
 Transform:
@@ -19465,7 +19459,6 @@ GameObject:
   m_Component:
   - component: {fileID: 885963776}
   - component: {fileID: 885963777}
-  - component: {fileID: 885963778}
   m_Layer: 0
   m_Name: Right Controller
   m_TagString: Untagged
@@ -19559,19 +19552,6 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
---- !u!114 &885963778
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 885963775}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 24688a8ea008719419ae6e97372dabaf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandInteractorSide
-  m_HandSide: 1
 --- !u!1 &895326634
 GameObject:
   m_ObjectHideFlags: 0
@@ -22782,8 +22762,6 @@ GameObject:
   - component: {fileID: 1084262778}
   - component: {fileID: 1084262779}
   - component: {fileID: 1084262780}
-  - component: {fileID: 1084262782}
-  - component: {fileID: 1084262781}
   m_Layer: 0
   m_Name: ENV_LeakPipeGateValveWheel_suc
   m_TagString: Untagged
@@ -23200,37 +23178,6 @@ MonoBehaviour:
   logGripAttempts: 1
   minimumDeltaToLog: 0.05
   deltaLogCooldown: 0.25
---- !u!114 &1084262781
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1084262770}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d1ab58a475ab44478bbea660074007f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPosePlayer
-  m_EnableGrabDiagnosticLog: 0
---- !u!114 &1084262782
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1084262770}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2934e8d23e17b943850b45744975612, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPoseBinding
-  m_LeftRecord: {fileID: 11400000, guid: 2691a37ff40a9e04f95e58a6c1fe114b, type: 2}
-  m_RightRecord: {fileID: 0}
-  m_AttachLeft: {fileID: 1192196299}
-  m_AttachRight: {fileID: 0}
-  m_WristCorrectionAppliedLeft: 0
-  m_WristCorrectionAppliedRight: 0
 --- !u!1 &1087222393
 GameObject:
   m_ObjectHideFlags: 0
@@ -27380,15 +27327,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -6091496040030072395, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1723608973}
-    - targetCorrespondingSourceObject: {fileID: -6091496040030072395, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1723608972}
-    - targetCorrespondingSourceObject: {fileID: -6091496040030072395, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1723608971}
-    - targetCorrespondingSourceObject: {fileID: -6091496040030072395, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1723608970}
   m_SourcePrefab: {fileID: 100100000, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
 --- !u!1 &1315630040
 GameObject:
@@ -27806,170 +27744,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
   m_PrefabInstance: {fileID: 1759048634}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1353734410
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1353734407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0b0bd5d888cceb0428eeb3702c5e8569, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandSideAwareGrabInteractable
-  m_InteractionManager: {fileID: 0}
-  m_Colliders:
-  - {fileID: 1353734413}
-  m_InteractionLayers:
-    m_Bits: 1
-  m_DistanceCalculationMode: 1
-  m_SelectMode: 0
-  m_FocusMode: 1
-  m_CustomReticle: {fileID: 0}
-  m_AllowGazeInteraction: 0
-  m_AllowGazeSelect: 0
-  m_OverrideGazeTimeToSelect: 0
-  m_GazeTimeToSelect: 0.5
-  m_OverrideTimeToAutoDeselectGaze: 0
-  m_TimeToAutoDeselectGaze: 3
-  m_AllowGazeAssistance: 0
-  m_FirstHoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastHoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_HoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_HoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FirstSelectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastSelectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_SelectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_SelectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FirstFocusEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastFocusExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FocusEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FocusExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Activated:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Deactivated:
-    m_PersistentCalls:
-      m_Calls: []
-  m_StartingHoverFilters: []
-  m_StartingSelectFilters: []
-  m_StartingInteractionStrengthFilters: []
-  m_AutoFindParentInteractableInHierarchy: 0
-  m_ParentInteractableObject: {fileID: 0}
-  m_AttachTransform: {fileID: 0}
-  m_SecondaryAttachTransform: {fileID: 0}
-  m_UseDynamicAttach: 0
-  m_MatchAttachPosition: 1
-  m_MatchAttachRotation: 1
-  m_SnapToColliderVolume: 1
-  m_ReinitializeDynamicAttachEverySingleGrab: 1
-  m_AttachEaseInTime: 0.15
-  m_MovementType: 2
-  m_PredictedVisualsTransform: {fileID: 0}
-  m_VelocityDamping: 1
-  m_VelocityScale: 1
-  m_AngularVelocityDamping: 1
-  m_AngularVelocityScale: 1
-  m_TrackPosition: 1
-  m_SmoothPosition: 0
-  m_SmoothPositionAmount: 8
-  m_TightenPosition: 0.1
-  m_TrackRotation: 1
-  m_SmoothRotation: 0
-  m_SmoothRotationAmount: 8
-  m_TightenRotation: 0.1
-  m_TrackScale: 1
-  m_SmoothScale: 0
-  m_SmoothScaleAmount: 8
-  m_TightenScale: 0.1
-  m_ThrowOnDetach: 1
-  m_ThrowSmoothingDuration: 0.25
-  m_ThrowSmoothingCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  m_ThrowVelocityScale: 1.5
-  m_ThrowAngularVelocityScale: 1
-  m_ForceGravityOnDetach: 0
-  m_RetainTransformParent: 1
-  m_StartingSingleGrabTransformers: []
-  m_StartingMultipleGrabTransformers: []
-  m_AddDefaultGrabTransformers: 1
-  m_FarAttachMode: 0
-  m_LimitLinearVelocity: 0
-  m_LimitAngularVelocity: 0
-  m_MaxLinearVelocityDelta: 10
-  m_MaxAngularVelocityDelta: 20
-  m_LogObjectGrabPosePreserve: 0
-  m_LogGrabSelectDiagnostics: 0
-  m_GrabSelectDiagnosticLateUpdateFrames: 5
---- !u!114 &1353734411
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1353734407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d1ab58a475ab44478bbea660074007f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPosePlayer
-  m_EnableGrabDiagnosticLog: 0
---- !u!114 &1353734412
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1353734407}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2934e8d23e17b943850b45744975612, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPoseBinding
-  m_LeftRecord: {fileID: 11400000, guid: 5e535b8d0bd065246bcd663f776c822f, type: 2}
-  m_RightRecord: {fileID: 11400000, guid: 72567e589d7da41449e28faf2e32671c, type: 2}
-  m_AttachLeft: {fileID: 0}
-  m_AttachRight: {fileID: 1344009843}
-  m_WristCorrectionAppliedLeft: 0
-  m_WristCorrectionAppliedRight: 0
 --- !u!65 &1353734413
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -33548,7 +33322,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1631438476}
-  - component: {fileID: 1631438477}
   m_Layer: 0
   m_Name: VRHandPoseTool_ObjectGhosts
   m_TagString: Untagged
@@ -33582,28 +33355,6 @@ Transform:
   - {fileID: 1363849197}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1631438477
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1631438475}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b6a5f43eb43cf2d43975dbb0e7a27cb7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: VRProject.ObjectInstallation.Runtime::VRProject.ObjectInstallation.GhostObjectAutoFillGroup
-  acceptedItemTypeId: pad
-  activationCenter: {fileID: 1631438476}
-  activationRadius: 1
-  entries:
-  - slot: {fileID: 0}
-    installedPrefab: {fileID: 780077071}
-  - slot: {fileID: 0}
-    installedPrefab: {fileID: 780077071}
-  - slot: {fileID: 0}
-    installedPrefab: {fileID: 780077071}
 --- !u!1 &1632218865
 GameObject:
   m_ObjectHideFlags: 0
@@ -35097,170 +34848,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -1209316397501809586, guid: 191b2de39013f5e49800130ba1f2bacb, type: 3}
   m_PrefabInstance: {fileID: 1313941975}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1723608970
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1723608966}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0b0bd5d888cceb0428eeb3702c5e8569, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandSideAwareGrabInteractable
-  m_InteractionManager: {fileID: 0}
-  m_Colliders:
-  - {fileID: 1723608973}
-  m_InteractionLayers:
-    m_Bits: 1
-  m_DistanceCalculationMode: 1
-  m_SelectMode: 0
-  m_FocusMode: 1
-  m_CustomReticle: {fileID: 0}
-  m_AllowGazeInteraction: 0
-  m_AllowGazeSelect: 0
-  m_OverrideGazeTimeToSelect: 0
-  m_GazeTimeToSelect: 0.5
-  m_OverrideTimeToAutoDeselectGaze: 0
-  m_TimeToAutoDeselectGaze: 3
-  m_AllowGazeAssistance: 0
-  m_FirstHoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastHoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_HoverEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_HoverExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FirstSelectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastSelectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_SelectEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_SelectExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FirstFocusEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_LastFocusExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FocusEntered:
-    m_PersistentCalls:
-      m_Calls: []
-  m_FocusExited:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Activated:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Deactivated:
-    m_PersistentCalls:
-      m_Calls: []
-  m_StartingHoverFilters: []
-  m_StartingSelectFilters: []
-  m_StartingInteractionStrengthFilters: []
-  m_AutoFindParentInteractableInHierarchy: 0
-  m_ParentInteractableObject: {fileID: 0}
-  m_AttachTransform: {fileID: 0}
-  m_SecondaryAttachTransform: {fileID: 0}
-  m_UseDynamicAttach: 0
-  m_MatchAttachPosition: 1
-  m_MatchAttachRotation: 1
-  m_SnapToColliderVolume: 1
-  m_ReinitializeDynamicAttachEverySingleGrab: 1
-  m_AttachEaseInTime: 0.15
-  m_MovementType: 2
-  m_PredictedVisualsTransform: {fileID: 0}
-  m_VelocityDamping: 1
-  m_VelocityScale: 1
-  m_AngularVelocityDamping: 1
-  m_AngularVelocityScale: 1
-  m_TrackPosition: 1
-  m_SmoothPosition: 0
-  m_SmoothPositionAmount: 8
-  m_TightenPosition: 0.1
-  m_TrackRotation: 1
-  m_SmoothRotation: 0
-  m_SmoothRotationAmount: 8
-  m_TightenRotation: 0.1
-  m_TrackScale: 1
-  m_SmoothScale: 0
-  m_SmoothScaleAmount: 8
-  m_TightenScale: 0.1
-  m_ThrowOnDetach: 1
-  m_ThrowSmoothingDuration: 0.25
-  m_ThrowSmoothingCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  m_ThrowVelocityScale: 1.5
-  m_ThrowAngularVelocityScale: 1
-  m_ForceGravityOnDetach: 0
-  m_RetainTransformParent: 1
-  m_StartingSingleGrabTransformers: []
-  m_StartingMultipleGrabTransformers: []
-  m_AddDefaultGrabTransformers: 1
-  m_FarAttachMode: 0
-  m_LimitLinearVelocity: 0
-  m_LimitAngularVelocity: 0
-  m_MaxLinearVelocityDelta: 10
-  m_MaxAngularVelocityDelta: 20
-  m_LogObjectGrabPosePreserve: 0
-  m_LogGrabSelectDiagnostics: 0
-  m_GrabSelectDiagnosticLateUpdateFrames: 5
---- !u!114 &1723608971
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1723608966}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9d1ab58a475ab44478bbea660074007f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPosePlayer
-  m_EnableGrabDiagnosticLog: 0
---- !u!114 &1723608972
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1723608966}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2934e8d23e17b943850b45744975612, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.HandGrabPoseBinding
-  m_LeftRecord: {fileID: 0}
-  m_RightRecord: {fileID: 11400000, guid: 6b8fe8913fcb16a448456a49464c4269, type: 2}
-  m_AttachLeft: {fileID: 0}
-  m_AttachRight: {fileID: 1389469373}
-  m_WristCorrectionAppliedLeft: 0
-  m_WristCorrectionAppliedRight: 0
 --- !u!65 &1723608973
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -35314,35 +34901,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 56186ccf27ad7864681108ed88349071, type: 3}
   m_PrefabInstance: {fileID: 20692984}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1724439558
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1724439557}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44ca88d9de7bdd04c83fde0b5bcad914, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.ControllerHandGripAnimator
-  handAnimator: {fileID: 1724439559}
-  gripAction:
-    m_UseReference: 1
-    m_Action:
-      m_Name: 
-      m_Type: 0
-      m_ExpectedControlType: 
-      m_Id: 6b591753-2257-470a-98d4-4bcf14a634d4
-      m_Processors: 
-      m_Interactions: 
-      m_SingletonActionBindings: []
-      m_Flags: 0
-    m_Reference: {fileID: 11400000, guid: 7b0dd54d76dccd6429c369821fcdacd1, type: 2}
-  gripParameterName: Grip
-  useSmoothing: 1
-  smoothingSpeed: 12
-  enableGripDebugLog: 0
 --- !u!95 &1724439559
 Animator:
   serializedVersion: 7
@@ -36132,15 +35690,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1353734413}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1353734412}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1353734411}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1353734410}
   m_SourcePrefab: {fileID: 100100000, guid: 174679403ac9eb04c9f7f20a3e29cbbd, type: 3}
 --- !u!1 &1772051054
 GameObject:
@@ -41614,35 +41163,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: bf7151579c38e2a44be94ba8773876c1, type: 3}
   m_PrefabInstance: {fileID: 811503566}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &2060929324
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2060929323}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44ca88d9de7bdd04c83fde0b5bcad914, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Senghwan.VRHandPoseTool.Runtime::VRHandPoseTool.ControllerHandGripAnimator
-  handAnimator: {fileID: 2060929325}
-  gripAction:
-    m_UseReference: 1
-    m_Action:
-      m_Name: 
-      m_Type: 0
-      m_ExpectedControlType: 
-      m_Id: 15cd7bbe-4bc9-4838-a324-6e8c385a8338
-      m_Processors: 
-      m_Interactions: 
-      m_SingletonActionBindings: []
-      m_Flags: 0
-    m_Reference: {fileID: 11400000, guid: 72a2dcfb969983142b56ab4bbaf413a8, type: 2}
-  gripParameterName: Grip
-  useSmoothing: 1
-  smoothingSpeed: 12
-  enableGripDebugLog: 0
 --- !u!95 &2060929325
 Animator:
   serializedVersion: 7

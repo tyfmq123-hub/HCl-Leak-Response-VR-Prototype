@@ -20,36 +20,41 @@ Integration 관리자는 전체 통합 호환성 작업을 위해 각 Stage의 �
 ```text
 main
   │
-  └── integration
+  └── develop
         ├── feature/ppe
         ├── feature/preentry
-        └── feature/leakresponse
+        ├── feature/leakresponse
+        └── integration/<통합작업명>
 ```
 
-- `main`은 출시, 제출, 시연이 가능한 최종 안정 브랜치다. 전체 검증이 끝난 `integration`만 반영한다.
-- `integration`은 App Shared XR, 공용 인프라, 세 Stage를 합치고 검증하는 전체 개발 통합 브랜치다.
+- `main`은 출시, 제출, 시연이 가능한 최종 안정 브랜치다. 전체 검증이 끝난 `develop`만 반영한다.
+- `develop`은 App Shared XR, 공용 인프라, 세 Stage를 합치고 검증하는 전체 개발 통합 브랜치다.
+- 기존 `integration` 브랜치는 폐기하며 새 commit, push, merge, Pull Request에 사용하지 않는다.
 - `feature/ppe`, `feature/preentry`, `feature/leakresponse`는 각 담당 Stage의 기능과 소유 파일을 작업하는 브랜치다.
-- Stage feature branch는 항상 최신 `integration`에서 시작하며 `main`에서 직접 만들지 않는다.
+- Integration 관리자의 공용 수정은 `integration/<통합작업명>`에서 진행하고 `develop`로 Pull Request한다.
+- Stage feature branch는 항상 최신 `develop`에서 시작하며 `main`에서 직접 만들지 않는다.
 - Stage feature branch는 `main`에 직접 merge하거나 Pull Request하지 않는다.
 
 Pull Request 방향은 다음으로 고정한다.
 
 ```text
 feature/ppe          ─┐
-feature/preentry      ├──→ integration ──→ main
+feature/preentry      ├──→ develop ──→ main
 feature/leakresponse ─┘
+integration/<작업명> ─┘
 ```
 
 ```text
-base: integration  compare: feature/ppe
-base: integration  compare: feature/preentry
-base: integration  compare: feature/leakresponse
+base: develop  compare: feature/ppe
+base: develop  compare: feature/preentry
+base: develop  compare: feature/leakresponse
+base: develop  compare: integration/<통합작업명>
 
 전체 통합 검증 완료 후에만:
-base: main         compare: integration
+base: main     compare: develop
 ```
 
-Stage 작업 중 `integration`이 변경되면 통합 직전에 최신 상태와 자신의 변경을 비교한다. App, Shared XR, Input, Equipment, SceneFlow, 공용 Prefab의 충돌은 Stage 담당자가 임의로 선택해 해결하지 않으며 Integration 관리자가 최종 판단한다.
+Stage 작업 중 `develop`이 변경되면 통합 직전에 최신 상태와 자신의 변경을 비교한다. App, Shared XR, Input, Equipment, SceneFlow, 공용 Prefab의 충돌은 Stage 담당자가 임의로 선택해 해결하지 않으며 Integration 관리자가 최종 판단한다.
 
 ## 3. Integration 전용 공용 영역
 
@@ -65,7 +70,9 @@ Stage 작업 중 `integration`이 변경되면 통합 직전에 최신 상태와
 - App의 `Common XR Origin`, XR Main Camera, Controller Tracking
 - 공용 Input Action 기반과 `SharedXRInputContract`
 - 공용 Ray/Near-Far/Grab/Haptic 기반
-- `SharedPlayerEquipment`, 공용 가방 Body Anchor, Retrieval Zone/Anchor 계약
+- `SharedPlayerEquipment`, 단일 공용 가방, `StageBagAnchor`, Retrieval Zone/Anchor 계약
+- `SharedIncidentState`, `FacilityId`, `SharedTrainingTelemetry` 공용 계약
+- 세션/Stage 이력과 로컬 텔레메트리 저장 기반
 - App의 Scene 전환, Stage 완료 Adapter, 공용 EventSystem
 - `ProjectSettings/`, `Packages/`
 
@@ -121,17 +128,26 @@ SharedXRInputContract
 
 ## 6. 공용 플레이어 가방
 
-가방 Visual과 위치 기반은 App가 한 개만 소유한다.
+가방 Visual은 App가 한 개만 소유한다.
 
-- 가방은 World 좌표에 고정하지 않는다.
-- Main Camera 자식으로 단순 고정해 머리 pitch/roll을 따라 돌리지 않는다.
-- `PlayerBodyAnchor`가 HMD 위치와 수평 yaw만 따라가며 가방을 왼쪽 허리 위치에 유지한다.
+- Stage Scene은 가방을 복제하지 않고 위치만 나타내는 `StageBagAnchor`를 배치한다.
+- `StageBagAnchor`가 있으면 공용 가방은 해당 고정 위치를 사용한다.
+- 아직 앵커가 없는 기존 Scene은 이행 기간 동안 `PlayerBodyAnchor` 위치를 fallback으로 사용한다.
+- Stage 전환 전에 공용 가방은 App 소유 계층으로 복귀하므로 Stage Scene unload에 함께 파괴되지 않는다.
 - `SharedPlayerEquipment`은 Bag Transform, Retrieval Zone, Retrieval Anchor만 제공한다.
 - 공용 가방은 Stage 이름이나 가방 내용물을 알지 않는다.
 - 어떤 아이템을 꺼낼지, 언제 허용할지는 해당 Stage handler가 결정한다.
 - Stage별 가방 Visual을 추가로 복제하지 않는다.
 
-PPE에서 대응가방 착용이 완료되면 그 상태를 App 세션에 반영하고 PreEntry와 LeakResponse까지 같은 Visual을 유지한다. Stage 단독 테스트는 기존 Stage fallback 또는 명시적인 개발 초기화만 사용하며, 실제 통합 진행 상태를 덮어쓰지 않는다.
+PPE에서 장비를 Grip으로 수납하면 획득/수납 상태를 공용 Inventory에 반영한다. PreEntry와 LeakResponse는 자기 `StageBagAnchor`에 놓인 같은 공용 가방에서 허용된 장비를 호출한다. Stage 단독 테스트는 기존 Stage fallback 또는 명시적인 개발 초기화만 사용하며, 실제 통합 진행 상태를 덮어쓰지 않는다.
+
+공용 설비 상태와 이벤트 수집 원칙:
+
+- `FacilityId`는 `P101`, `P102`, `P103`, `P104`를 공통으로 표현한다.
+- PreEntry는 `SharedIncidentState`에 선택 설비/정지 결과를 기록하고 LeakResponse는 그 값만 읽는다.
+- Scene Object, Valve, VFX, AudioSource 참조는 각 Stage의 로컬 binding에 둔다.
+- Stage는 `SharedTrainingTelemetry.Current`에 큰 단계 진입/완료, 콘텐츠 확인, 장비 사용 이벤트만 전달한다.
+- Stage는 DB, HTTP, 파일 저장을 직접 구현하지 않는다. App 저장 실패는 gameplay를 중단시키지 않는다.
 
 ## 7. PPE 허용 범위
 
@@ -164,6 +180,7 @@ PreEntry 담당자가 관리할 수 있는 예:
 - Left Y로 기존 HCl 측정기 꺼내기
 - 측정기 Grab/Attach/측정/보관
 - PreEntry 전용 입력, UI, TTS, 진행 상태
+- 설비/펜스 Collider 범위 안의 자유 이동과 회전
 
 통합 실행에서는 `SharedPlayerEquipment.IsLeftHandInRetrievalZone()`을 우선 사용하고, 단독 Scene 테스트에서는 기존 Stage zone을 fallback으로 사용할 수 있다.
 
@@ -204,7 +221,7 @@ Unity `.unity` Scene은 충돌 해결이 어렵기 때문에 다음 소유권을
 Assets/Scenes/PPE_PreparationRoom.unity → feature/ppe
 Assets/Scenes/JH_Test_Scene.unity       → feature/preentry
 Assets/Scenes/SSH_VR_Project.unity      → feature/leakresponse
-Assets/Scenes/App/                      → integration
+Assets/Scenes/App/                      → develop의 Integration 관리자
 ```
 
 - 자기 Stage가 아닌 Scene을 임의로 수정하지 않는다.
@@ -224,7 +241,8 @@ Assets/Scenes/App/                      → integration
 - 다른 Stage 소유 파일을 일반 Stage 작업으로 수정
 - `git add .`, `git add -A`
 - Stage feature branch에서 `main`으로 직접 Pull Request 또는 merge
-- Stage 담당자가 `main` 또는 `integration`에 직접 Push
+- Stage 담당자가 `main`, `develop`, 기존 `integration`에 직접 Push
+- 기존 `integration` 브랜치에 새 작업 생성
 
 ## 12. 검증 체크리스트
 

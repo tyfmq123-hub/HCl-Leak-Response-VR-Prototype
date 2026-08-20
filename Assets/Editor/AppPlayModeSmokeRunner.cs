@@ -123,20 +123,20 @@ public static class AppPlayModeSmokeRunner
             switch (phase)
             {
                 case 0:
-                    if (IsContentLoaded(SceneFlowController.TitleScenePath))
+                    if (IsContentLoaded(SceneFlowController.StartScenePath))
                     {
-                        ValidateRuntime("Initial Title", TrainingStage.None);
-                        var titleMenu = UnityEngine.Object.FindAnyObjectByType<JH.EntrySafety.TitleMenuController>();
-                        Require(titleMenu != null, "Title menu controller missing.");
-                        titleMenu.SelectEducation();
-                        return;
+                        ValidateRuntime("Initial Start", TrainingStage.None);
+                        Require(UnityEngine.Object.FindAnyObjectByType<StartMenuPresenter>() != null, "Start menu presenter missing.");
+                        Require(app.ScenarioFlow.StartTraining(TrainingMode.Full), "Could not start full training.");
+                        Advance("Initial Start -> Full/PPE");
+                        break;
                     }
-                    if (!IsContentLoaded(SceneFlowController.StartScenePath)) return;
-                    ValidateRuntime("Initial Start", TrainingStage.None);
-                    Require(UnityEngine.Object.FindAnyObjectByType<StartMenuPresenter>() != null, "Start menu presenter missing.");
-                    Require(app.ScenarioFlow.StartTraining(TrainingMode.Full), "Could not start full training.");
-                    Advance("Initial Start -> Full/PPE");
-                    break;
+                    if (!IsContentLoaded(SceneFlowController.TitleScenePath)) return;
+                    ValidateRuntime("Initial Title", TrainingStage.None);
+                    var titleMenu = UnityEngine.Object.FindAnyObjectByType<JH.EntrySafety.TitleMenuController>();
+                    Require(titleMenu != null, "Title menu controller missing.");
+                    titleMenu.SelectEducation();
+                    return;
 
                 case 1:
                     if (app.Session.CurrentStage != TrainingStage.PPE) return;
@@ -351,7 +351,11 @@ public static class AppPlayModeSmokeRunner
                 contentScenes++;
         }
         var expectedContentScenes = expectedStage == TrainingStage.PreEntry ||
-                                    expectedStage == TrainingStage.LeakResponse
+                                    expectedStage == TrainingStage.LeakResponse ||
+                                    string.Equals(
+                                        NormalizePath(app.SceneFlow.CurrentContentScene.path),
+                                        NormalizePath(SceneFlowController.StartScenePath),
+                                        StringComparison.OrdinalIgnoreCase)
             ? 2
             : 1;
         Require(contentScenes == expectedContentScenes,
@@ -771,7 +775,10 @@ public static class AppPlayModeSmokeRunner
             $"{label}: active shared XRBodyTransformer count is not one.");
         Require(CountActive(mediators) == 1,
             $"{label}: active shared LocomotionMediator count is not one.");
-        var allowLocomotion = stage != TrainingStage.PreEntry;
+        var allowLocomotion =
+            stage == TrainingStage.PPE ||
+            stage == TrainingStage.PreEntry ||
+            stage == TrainingStage.LeakResponse;
         var expectedMove = allowLocomotion ? 1 : 0;
         var expectedTurn = allowLocomotion ? 1 : 0;
         Require(CountActive(moveProviders) == expectedMove,
@@ -862,6 +869,35 @@ public static class AppPlayModeSmokeRunner
     static void ValidateBagBodySpaceMotion(string label, AppBootstrap app)
     {
         var equipment = app.SharedEquipment;
+        if (equipment.IsUsingStageAnchor)
+        {
+            Transform stageAnchor = null;
+            var contentScene = app.SceneFlow.CurrentContentScene;
+            foreach (var root in contentScene.GetRootGameObjects())
+            {
+                var candidates = root.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < candidates.Length; i++)
+                {
+                    if (candidates[i] != null && candidates[i].name == SharedPlayerEquipment.StageBagAnchorName)
+                    {
+                        stageAnchor = candidates[i];
+                        break;
+                    }
+                }
+                if (stageAnchor != null)
+                    break;
+            }
+
+            Require(stageAnchor != null, $"{label}: Stage bag placement is active without StageBagAnchor.");
+            Require(Vector3.Distance(equipment.BagRoot.position, stageAnchor.position) < 0.002f &&
+                    Quaternion.Angle(equipment.BagRoot.rotation, stageAnchor.rotation) < 0.1f,
+                $"{label}: shared bag does not match StageBagAnchor pose.");
+            Require(equipment.BagRoot.gameObject.scene == app.gameObject.scene,
+                $"{label}: shared bag was moved into the Stage Scene and would be destroyed on unload.");
+            report.Add($"PASS {label}: shared bag uses the fixed StageBagAnchor while remaining App-owned.");
+            return;
+        }
+
         var xrRoot = app.XRProfiles.CommonXrOrigin.transform;
         var follower = equipment.BodyAnchor != null
             ? equipment.BodyAnchor.GetComponent<PlayerBodyAnchorFollower>()
@@ -932,9 +968,17 @@ public static class AppPlayModeSmokeRunner
             $"{label}: shared body anchor is outside the common XR rig.");
         if (equipment.BodyAnchor != null)
         {
-            Require(Vector3.Distance(equipment.BodyAnchor.localPosition,
-                        new Vector3(-0.52f, 0.65f, 0.14f)) < 0.002f,
-                $"{label}: shared bag body anchor is not locked to the configured left-hip local offset.");
+            var follower = equipment.BodyAnchor.GetComponent<PlayerBodyAnchorFollower>();
+            Require(follower != null, $"{label}: shared bag body-space follower is missing.");
+            var cameraLocal = equipment.BodyAnchor.parent.InverseTransformPoint(
+                app.MainCamera.transform.position);
+            var offset = follower.LocalPositionOffset;
+            var expectedLocalPosition = new Vector3(
+                cameraLocal.x + offset.x,
+                offset.y,
+                cameraLocal.z + offset.z);
+            Require(Vector3.Distance(equipment.BodyAnchor.localPosition, expectedLocalPosition) < 0.002f,
+                $"{label}: shared bag body anchor is not at the configured left-hip offset from the tracked player.");
         }
         Require(equipment.BagRoot != null && equipment.BagRoot.parent == equipment.BodyAnchor,
             $"{label}: shared bag is not directly owned by the body anchor.");
@@ -1014,10 +1058,18 @@ public static class AppPlayModeSmokeRunner
                 : null;
             Require(curveVisual != null,
                 $"{label}: Near/Far has no CurveVisualController: {nearFar[i].name}.");
-            Require(curveVisual.lineRenderer != null,
-                $"{label}: Near/Far CurveVisualController has no LineRenderer: {nearFar[i].name}.");
-            Require(curveVisual.curveInteractionDataProvider != null,
-                $"{label}: Near/Far CurveVisualController has no data provider: {nearFar[i].name}.");
+            if (requirements != null && requirements.FarInteraction)
+            {
+                Require(curveVisual.lineRenderer != null,
+                    $"{label}: Near/Far CurveVisualController has no LineRenderer: {nearFar[i].name}.");
+                Require(curveVisual.curveInteractionDataProvider != null,
+                    $"{label}: Near/Far CurveVisualController has no data provider: {nearFar[i].name}.");
+            }
+            else
+            {
+                Require(!lineVisualRoot.gameObject.activeInHierarchy && !curveVisual.isActiveAndEnabled,
+                    $"{label}: far pointer visual is active in a near-only Stage: {nearFar[i].name}.");
+            }
             ValidateInteractorInput(label, nearFar[i]);
             if (requirements != null)
             {
