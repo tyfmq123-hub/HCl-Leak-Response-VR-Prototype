@@ -1,3 +1,5 @@
+using HClTraining.SharedXR;
+
 namespace JH.EntrySafety
 {
     /// <summary>
@@ -37,6 +39,23 @@ namespace JH.EntrySafety
             ScreenText = screenText ?? string.Empty;
             TtsText = string.Empty;
             HasTts = false;
+        }
+
+        public EntrySafetyInstruction ForFacility(FacilityId facility)
+        {
+            var label = EntrySafetyFacilityCatalog.ToDisplayName(facility);
+            var screen = ReplaceFacility(ScreenText, label);
+            var tts = ReplaceFacility(TtsText, label);
+            if (screen == ScreenText && tts == TtsText)
+                return this;
+            return HasTts ? new EntrySafetyInstruction(screen, tts) : NoTts(screen);
+        }
+
+        private static string ReplaceFacility(string text, string label)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(label))
+                return text ?? string.Empty;
+            return text.Replace("P-102", label);
         }
     }
 }

@@ -82,8 +82,8 @@ namespace JH.EntrySafety
                 {
                     EntrySafetyStep.StopPump,
                     Pair(
-                        "P-102가 운전 중입니다.\n안전한 누출 대응을 위해 오른손을 파란 영역에 넣고 오른쪽 Trigger를 눌러 펌프를 정지하십시오.",
-                        "P-102가 운전 중입니다. 안전한 누출 대응을 위해 오른손을 파란 영역에 넣고 오른쪽 Trigger를 눌러 펌프를 정지하십시오.")
+                        "P-102가 운전 중입니다.\n해당 열의 STOP 버튼에 오른손을 넣고 오른쪽 Trigger를 눌러 펌프를 정지하십시오.",
+                        "P-102가 운전 중입니다. 해당 열의 STOP 버튼에 오른손을 넣고 오른쪽 Trigger를 눌러 펌프를 정지하십시오.")
                 },
                 {
                     EntrySafetyStep.VerifyStopIndicator,

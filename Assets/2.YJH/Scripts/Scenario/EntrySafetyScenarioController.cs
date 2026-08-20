@@ -14,7 +14,7 @@ namespace JH.EntrySafety
         private const float DefaultGazeHoldSeconds = 3f;
         private const float PtPanelGazeHoldSeconds = 2f;
         private const string Goal2SafetyCheckCompleteText =
-            "염화수소 농도와 풍향, P-102 정지와 압력 감소까지 확인했습니다.";
+            "염화수소 농도와 풍향, {0} 정지와 압력 감소까지 확인했습니다.";
         private const string Goal2CheckAccessRestrictionText =
             "빨간 접근 금지 표시가 해제되면 오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
 
@@ -49,6 +49,9 @@ namespace JH.EntrySafety
         private bool _goal2OutroStarted;
         private bool _allowLeakResponseHandoff;
         private bool _inputHandlersSubscribed;
+        private bool _preEntryTelemetryStarted;
+        private int _panelAttemptCount;
+        private int _panelRejectedCount;
 
         public EntrySafetyStateMachine StateMachine => _stateMachine;
         public bool LeakResponseHandoffAllowed => _allowLeakResponseHandoff;
@@ -56,6 +59,7 @@ namespace JH.EntrySafety
 
         private void Awake()
         {
+            EnsureLocalSupportComponents();
             _isConfigured = _gazeAdapter != null && _inputAdapter != null && _guidanceView != null &&
                             _equipmentTransferZone != null && _detectorController != null &&
                             _windChangeController != null && _windsockGazeTarget != null;
@@ -70,6 +74,8 @@ namespace JH.EntrySafety
             _stateMachine = new EntrySafetyStateMachine();
             _gazeCoordinator = new EntrySafetyGazeCoordinator(_stateMachine);
             _guidanceCoordinator = new EntrySafetyGuidanceCoordinator(_stateMachine);
+            _stateMachine.SectionCompleted += OnSectionCompleted;
+            _stateMachine.StepChanged += OnStepChanged;
             SubscribeInputHandlers();
             _lastStep = _stateMachine.CurrentStep;
             _detectorController.ResetDetector();
@@ -82,6 +88,11 @@ namespace JH.EntrySafety
         private void OnDestroy()
         {
             StopNarration();
+            if (_stateMachine != null)
+            {
+                _stateMachine.SectionCompleted -= OnSectionCompleted;
+                _stateMachine.StepChanged -= OnStepChanged;
+            }
             UnsubscribeInputHandlers();
         }
 
@@ -163,6 +174,7 @@ namespace JH.EntrySafety
                 yield return new WaitForSeconds(_introStartDelaySeconds);
 
             RefreshGuidance();
+            ReportPreEntryEntered();
             var introSeconds = _goal01TtsPlayer != null
                 ? _goal01TtsPlayer.GetClipLength(EntrySafetyStep.SceneIntro)
                 : 0f;
@@ -275,10 +287,16 @@ namespace JH.EntrySafety
             if (IsGuidanceTtsBlocking())
                 return;
             if (_equipmentTransferZone == null || !_equipmentTransferZone.EvaluateEquipAttempt())
+            {
+                SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, false);
                 return;
+            }
 
             if (_detectorController.TryEquip())
+            {
+                SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, true);
                 Advance(EntrySafetyStep.EquipDetector);
+            }
         }
 
         private void TryStoreDetector()
@@ -289,7 +307,10 @@ namespace JH.EntrySafety
                 return;
 
             if (_detectorController.TryStore())
+            {
+                SharedTrainingTelemetry.Current.EquipmentUsed(SharedEquipmentIds.GasDetector);
                 Advance(EntrySafetyStep.StoreDetector);
+            }
         }
 
         private void TryMoveToPtPanel()
@@ -341,8 +362,22 @@ namespace JH.EntrySafety
             if (IsGuidanceTtsBlocking())
                 return;
 
-            if (_goal2PtPanel.TryStopPump(_inputAdapter.RightHandPosition, _inputAdapter.HasRightHandPose))
+            var result = _goal2PtPanel.TryStopPump(_inputAdapter.RightHandPosition, _inputAdapter.HasRightHandPose);
+            if (result == EntrySafetyStopAttemptResult.Stopped)
+            {
+                _panelAttemptCount++;
+                SharedTrainingTelemetry.Current.ContentViewed(
+                    "PreEntry.FacilityStop." + EntrySafetyFacilityCatalog.ToDisplayName(_goal2PtPanel.BoundFacility));
                 Advance(EntrySafetyStep.StopPump);
+                return;
+            }
+
+            if (result == EntrySafetyStopAttemptResult.Missed ||
+                result == EntrySafetyStopAttemptResult.WrongFacility)
+            {
+                _panelRejectedCount++;
+                SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Panel.StopFailed");
+            }
         }
 
         private void TryCompleteGazeForSimulation()
@@ -382,6 +417,11 @@ namespace JH.EntrySafety
 
             if (_stateMachine.TryCompleteStep(expectedStep, EntrySafetyCompletionMode.Normal))
             {
+                if (expectedStep == EntrySafetyStep.MeasureInitialHcl ||
+                    expectedStep == EntrySafetyStep.MeasureReducedHcl)
+                    SharedTrainingTelemetry.Current.EquipmentUsed(SharedEquipmentIds.GasDetector);
+
+                SkipAutoCompletePanelSteps();
                 _lastStep = _stateMachine.CurrentStep;
                 RefreshGuidance();
             }
@@ -435,7 +475,9 @@ namespace JH.EntrySafety
             _stepVisuals?.SetStep(EntrySafetyStep.MoveToNextArea);
 
             yield return PlayTemporaryGoal2Line(
-                Goal2SafetyCheckCompleteText,
+                string.Format(
+                    Goal2SafetyCheckCompleteText,
+                    EntrySafetyFacilityCatalog.ToDisplayName(EntrySafetyFacilityCatalog.ResolveSelectedFacility())),
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlaySafetyCheckComplete() : 0f);
 
             if (!_allowLeakResponseHandoff)
@@ -565,7 +607,7 @@ namespace JH.EntrySafety
             if (!wasInsideStopZone && _goal2PtPanel.IsRightHandInsideStopZone)
             {
                 _inputAdapter.PulseRightHand(0.45f, 0.08f);
-                Debug.Log("P-102 STOP zone entered; right-hand haptic requested.");
+                Debug.Log("Selected facility STOP zone entered; right-hand haptic requested.");
             }
 
             if (step == EntrySafetyStep.WaitPressureDecrease)
@@ -619,6 +661,63 @@ namespace JH.EntrySafety
                 return;
 
             _windsockGazeProgress.SetVisible(false);
+        }
+
+        private void EnsureLocalSupportComponents()
+        {
+            if (GetComponent<EntrySafetyLeakAmbientPlayer>() == null)
+                gameObject.AddComponent<EntrySafetyLeakAmbientPlayer>();
+            if (GetComponent<EntrySafetyMovementBounds>() == null)
+                gameObject.AddComponent<EntrySafetyMovementBounds>();
+        }
+
+        private void SkipAutoCompletePanelSteps()
+        {
+            if (_stateMachine == null)
+                return;
+
+            while (IsAutoCompletePanelStep(_stateMachine.CurrentStep) && !_stateMachine.IsSectionCompleted)
+            {
+                if (!_stateMachine.TryCompleteStep(_stateMachine.CurrentStep, EntrySafetyCompletionMode.Normal))
+                    break;
+            }
+        }
+
+        private static bool IsAutoCompletePanelStep(EntrySafetyStep step)
+        {
+            return step == EntrySafetyStep.CheckPressure ||
+                   step == EntrySafetyStep.CheckTemperature ||
+                   step == EntrySafetyStep.CheckRunState ||
+                   step == EntrySafetyStep.VerifyStopIndicator ||
+                   step == EntrySafetyStep.VerifyPressureDecrease;
+        }
+
+        private void ReportPreEntryEntered()
+        {
+            if (_preEntryTelemetryStarted)
+                return;
+
+            _preEntryTelemetryStarted = true;
+            SharedTrainingTelemetry.Current.StepEntered(TrainingStepId.PreEntry);
+        }
+
+        private void OnStepChanged(EntrySafetyStep previous, EntrySafetyStep next)
+        {
+            if (next != EntrySafetyStep.StopPump)
+                return;
+
+            var facility = EntrySafetyFacilityCatalog.ToDisplayName(EntrySafetyFacilityCatalog.ResolveSelectedFacility());
+            SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Panel.Start");
+            SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Facility." + facility);
+        }
+
+        private void OnSectionCompleted()
+        {
+            SharedTrainingTelemetry.Current.ContentViewed("PreEntry.Panel.Complete");
+            SharedTrainingTelemetry.Current.StepCompleted(
+                TrainingStepId.PreEntry,
+                Mathf.Max(1, _panelAttemptCount),
+                _panelRejectedCount);
         }
 
         private void ReportConfigurationErrorOnce()
