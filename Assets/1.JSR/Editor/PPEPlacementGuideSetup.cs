@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 /// <summary>Wires the STEP 4 guide visuals and STEP 5 placement equip settings.</summary>
 public static class PPEPlacementGuideSetup
 {
-    const string ScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string ScenePath = "Assets/Scenes/04_PPE.unity";
     const string ManagerName = "PPE_PlacementGuideManager";
     const string NotReadyMaterialPath = "Assets/1.JSR/Materials/PPE_GuideNotReady.mat";
     const string ReadyMaterialPath = "Assets/1.JSR/Materials/PPE_GuideReady.mat";
@@ -150,7 +150,7 @@ public static class PPEPlacementGuideSetup
 static class PPEPlacementGuideSetupTrigger
 {
     const string SessionKey = "PPE.PlacementGuideSetup.Step5.v2";
-    const string TargetScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string TargetScenePath = "Assets/Scenes/04_PPE.unity";
 
     static PPEPlacementGuideSetupTrigger()
     {

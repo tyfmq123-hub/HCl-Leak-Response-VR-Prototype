@@ -105,7 +105,10 @@ namespace HClTraining.App
         IEnumerator Start()
         {
             yield return null;
-            SceneFlow.ShowTitle();
+            if (StandaloneStageRedirect.TryConsumePendingMode(out var mode))
+                ScenarioFlow.StartTraining(mode);
+            else
+                SceneFlow.ShowTitle();
         }
 
         void ResolveCommonXr()

@@ -12,11 +12,13 @@
 ## 수정 허용
 
 - `Assets/1.JSR/`
-- `Assets/Scenes/PPE_PreparationRoom.unity`
-- `Assets/Scenes/PPE_PreparationRoom.unity.meta`
+- `Assets/Scenes/04_PPE.unity`
+- `Assets/Scenes/04_PPE.unity.meta`
 - `docs/handoffs/ppe/LATEST.md`
 
-단, `Assets/1.JSR/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.
+작업 전 `docs/integration/SESSION_INVENTORY_CONTRACT.md`도 읽는다.
+
+`Assets/1.JSR/Resources/SharedXR/`의 PPE 프로필은 PPE 시작 위치·포인터·이동·회전 요구사항에 한해 수정할 수 있다. `*.asmdef`, `*.asmref`와 공용 XR 구현은 Integration 보호 영역이다.
 
 ## 담당 기능
 
@@ -32,12 +34,19 @@
 
 - 다른 Stage Scene과 폴더
 - App SceneFlow, Common XR, Camera, Controller, Ray/Near-Far 기반
-- 공용 가방 Transform·Retrieval 계약과 Inventory 저장 구현
+- 공용 `SessionEquipmentInventory` 구현과 장비 ID/API 계약
 - `PPESequenceManager.OnPPESequenceCompleted` 계약과 App 완료 Adapter
 - ProjectSettings, Packages, Build Settings, GitHub 설정
 - VR Hand Pose Tool 스크립트/컴포넌트/새 Pose 자산
 
 PPE 장비 상태를 다른 Scene에 전달할 공용 API가 필요하면 직접 App 코드를 고치지 말고 인수인계의 `Integration 요청`에 장비 ID, 기록 시점, 읽는 Stage를 적는다.
+
+## Inventory 병렬 작업
+
+- 실제 수납 단계 시작 시 `BeginPpeBagCapture()`를 한 번 호출하고, 장비가 들어간 순간 `Store(itemId)`를 호출한다.
+- 가방 Visual, 수납 Zone, 장비 배치와 수납 판정은 `Assets/1.JSR/` 및 `04_PPE`에서 관리한다.
+- 공용 Inventory 구현 파일은 수정하지 않고 공개 API만 사용한다.
+- 현재 PPE 완료 호환 브리지가 기존 기본 장비 목록도 전달하므로 PreEntry 완료를 기다릴 필요가 없다.
 
 ## 종료 조건
 

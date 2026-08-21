@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PreEntry
   m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
   stage: 2
-  sourceScenePath: Assets/Scenes/JH_Test_Scene.unity
+  sourceScenePath: Assets/Scenes/05_PreEntry.unity
   spawnPosition: {x: 0.407, y: 0, z: -16.27}
   spawnEulerAngles: {x: -0, y: 0, z: 0}
   componentStates:

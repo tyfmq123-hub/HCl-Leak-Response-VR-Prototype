@@ -28,7 +28,7 @@ public static class PPEChemicalGlovesStorageSetup
     /// <summary>World-space distance between left/right hand centers after fit.</summary>
     const float PairSpacingWorld = 0.14f;
 
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
     [MenuItem("Tools/PPE/Install Chemical Gloves Into Storage", false, 26)]
     public static void InstallChemicalGlovesIntoStorage()
@@ -151,7 +151,7 @@ public static class PPEChemicalGlovesStorageSetup
 
         // Don't interrupt an unrelated dirty scene silently — only auto-open if current isn't the PPE room.
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
 
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);

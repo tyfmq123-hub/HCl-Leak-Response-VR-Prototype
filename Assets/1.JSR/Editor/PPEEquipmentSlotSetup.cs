@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 /// <summary>Authors PPE placement metadata and the Stage-local body-relative anchor frame.</summary>
 public static class PPEEquipmentSlotSetup
 {
-    const string ScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string ScenePath = "Assets/Scenes/04_PPE.unity";
     const string BodyAnchorName = "PlayerBodyAnchor";
     const string BodyReferenceName = "PPE_PlayerBodyReference";
     const string AnchorRootName = "PlayerEquipmentAnchors";
@@ -352,7 +352,7 @@ public static class PPEEquipmentSlotSetup
 static class PPEEquipmentSlotSetupTrigger
 {
     const string SessionKey = "PPE.EquipmentSlotSetup.Step6.v1";
-    const string TargetScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string TargetScenePath = "Assets/Scenes/04_PPE.unity";
 
     static PPEEquipmentSlotSetupTrigger()
     {

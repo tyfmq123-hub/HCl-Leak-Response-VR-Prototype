@@ -12,32 +12,41 @@
 ## 수정 허용
 
 - `Assets/2.YJH/`
-- `Assets/Scenes/JH_Test_Scene.unity`
-- `Assets/Scenes/JH_Test_Scene.unity.meta`
+- `Assets/Scenes/05_PreEntry.unity`
+- `Assets/Scenes/05_PreEntry.unity.meta`
 - `docs/handoffs/preentry/LATEST.md`
 
-단, `Assets/2.YJH/Resources/SharedXR/`, `*.asmdef`, `*.asmref`는 Integration 보호 영역이므로 수정하지 않는다.
+작업 전 `docs/integration/SESSION_INVENTORY_CONTRACT.md`도 읽는다.
+
+`Assets/2.YJH/Resources/SharedXR/`의 PreEntry 프로필은 PreEntry 시작 위치·포인터·이동·회전 요구사항에 한해 수정할 수 있다. `*.asmdef`, `*.asmref`와 공용 XR 구현은 Integration 보호 영역이다.
 
 ## 담당 기능
 
 - 자유 이동·회전과 설비·펜스 Collider 이동 범위
 - 간소화된 패널 절차와 버튼 조작
-- 선택된 P-101~P-104 설비의 PreEntry 로컬 패널 연동
+- 고정 P-102 설비의 PreEntry 로컬 패널 연동
 - 진입 전 누출 Sound
 - PreEntry 전용 측정기 꺼내기·측정·보관
 - PreEntry UI·Highlight·TTS·진행 상태
-- Stage 로컬 `StageBagAnchor` 배치 요청에 필요한 위치 정보
+- `PreEntry_ResponseBag` 위치·크기와 로컬 Retrieval Zone/Anchor
 
 ## 절대 수정 금지
 
 - 다른 Stage Scene과 폴더
 - App SceneFlow, Common XR, Camera, Controller, 공용 이동·회전 기반
-- 공용 `FacilityId`, `SharedIncidentState`, 가방, Inventory, 텔레메트리 저장 구현
+- 공용 `SharedIncidentState`, `SessionEquipmentInventory` 구현/API, 텔레메트리 저장 구현
 - `EntrySafetyStateMachine.SectionCompleted` 계약과 App 완료 Adapter
 - ProjectSettings, Packages, Build Settings, GitHub 설정
 - VR Hand Pose Tool 스크립트/컴포넌트/새 Pose 자산
 
-P-101~P-104 상태 계약이나 공용 입력이 부족하면 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 값, 기록 시점, 소비 Stage를 적는다.
+P-102 상태 계약이나 공용 입력이 부족하면 보호 코드를 직접 수정하지 말고 인수인계의 `Integration 요청`에 필요한 값, 기록 시점, 소비 Stage를 적는다.
+
+## Inventory 병렬 작업
+
+- 단독 Scene 실행은 `GasDetector` 1개를 개발용 Inventory에 자동 등록한다.
+- 통합 실행에서는 PPE 결과가 우선하며 개발용 시드는 기존 결과를 덮어쓰지 않는다.
+- 측정기 꺼내기는 `TryCheckOut(GasDetector)`, 보관은 `ReturnCheckedOut(GasDetector)`를 사용한다.
+- 가방 위치·크기·Collider·Anchor는 `05_PreEntry`의 `PreEntry_ResponseBag` 계층에서 직접 수정한다.
 
 ## 종료 조건
 

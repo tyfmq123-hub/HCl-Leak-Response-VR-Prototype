@@ -22,8 +22,8 @@ STAGES = (
         branch="feature/ppe",
         roots=("Assets/1.JSR/",),
         exact_files=(
-            "Assets/Scenes/PPE_PreparationRoom.unity",
-            "Assets/Scenes/PPE_PreparationRoom.unity.meta",
+            "Assets/Scenes/04_PPE.unity",
+            "Assets/Scenes/04_PPE.unity.meta",
         ),
         handoff="docs/handoffs/ppe/LATEST.md",
     ),
@@ -31,8 +31,8 @@ STAGES = (
         branch="feature/preentry",
         roots=("Assets/2.YJH/",),
         exact_files=(
-            "Assets/Scenes/JH_Test_Scene.unity",
-            "Assets/Scenes/JH_Test_Scene.unity.meta",
+            "Assets/Scenes/05_PreEntry.unity",
+            "Assets/Scenes/05_PreEntry.unity.meta",
         ),
         handoff="docs/handoffs/preentry/LATEST.md",
     ),
@@ -40,18 +40,18 @@ STAGES = (
         branch="feature/leakresponse",
         roots=("Assets/3.SSH/",),
         exact_files=(
-            "Assets/Scenes/SSH_VR_Project.unity",
-            "Assets/Scenes/SSH_VR_Project.unity.meta",
+            "Assets/Scenes/06_LeakResponse.unity",
+            "Assets/Scenes/06_LeakResponse.unity.meta",
         ),
         handoff="docs/handoffs/leakresponse/LATEST.md",
     ),
 )
 
 PROTECTED_ROOTS = (
-    "Assets/Scenes/App/",
     "Assets/Scripts/App/",
     "Assets/Resources/App/",
     "Assets/Common/XR/",
+    "Assets/Common/InteractionGhosts/",
     "Assets/Editor/AppIntegrationBuilder.cs",
     "Assets/Editor/AppPlayModeSmokeRunner.cs",
     "Assets/Editor/IntegrationSceneValidator.cs",
@@ -62,10 +62,15 @@ PROTECTED_ROOTS = (
     "scripts/ci/",
 )
 
-PROTECTED_STAGE_PROFILE_ROOTS = (
-    "Assets/1.JSR/Resources/SharedXR/",
-    "Assets/2.YJH/Resources/SharedXR/",
-    "Assets/3.SSH/Resources/SharedXR/",
+PROTECTED_EXACT_FILES = (
+    "Assets/Scenes/01_App.unity",
+    "Assets/Scenes/01_App.unity.meta",
+    "Assets/Scenes/02_Title.unity",
+    "Assets/Scenes/02_Title.unity.meta",
+    "Assets/Scenes/03_Start.unity",
+    "Assets/Scenes/03_Start.unity.meta",
+    "Assets/Scenes/07_Complete.unity",
+    "Assets/Scenes/07_Complete.unity.meta",
 )
 
 PROTECTED_SUFFIXES = (
@@ -118,7 +123,9 @@ def is_protected(path: str) -> bool:
         return True
     if path.endswith(PROTECTED_SUFFIXES):
         return True
-    return path.startswith(PROTECTED_ROOTS + PROTECTED_STAGE_PROFILE_ROOTS)
+    if path in PROTECTED_EXACT_FILES:
+        return True
+    return path.startswith(PROTECTED_ROOTS)
 
 
 def validate(base: str, head: str, files: list[str]) -> list[str]:

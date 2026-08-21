@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 /// <summary>STEP 8 authoring and static validation for the final PPE placement flow.</summary>
 public static class PPEFinalFlowValidationTool
 {
-    const string ScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string ScenePath = "Assets/Scenes/04_PPE.unity";
 
     readonly struct FlowCase
     {

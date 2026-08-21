@@ -11,7 +11,7 @@ using Unity.XR.CoreUtils;
 /// </summary>
 public static class WasteContainerPrepareSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string ContainerNamePrefix = "INT_WasteContainer";
     const string RouterName = "XR_InteractionConfirmRouter";
     const string GazeDriverName = "CameraGazeSelectDriver";
@@ -86,7 +86,7 @@ public static class WasteContainerPrepareSetup
         if (!System.IO.File.Exists(PreferredScenePath))
             return;
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);
     }

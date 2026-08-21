@@ -26,7 +26,7 @@ public static class PPEWearableChemicalGlovesSetup
     const string RightWearableName = "PPE_VrHand_Right_Wearable";
     const string LegacyLeftWearableName = "ChemicalGlove_Left_Wearable";
     const string LegacyRightWearableName = "ChemicalGlove_Right_Wearable";
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
     static readonly Vector3 WearableScale = Vector3.one;
 
@@ -280,7 +280,7 @@ public static class PPEWearableChemicalGlovesSetup
         if (!System.IO.File.Exists(PreferredScenePath))
             return;
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);
     }

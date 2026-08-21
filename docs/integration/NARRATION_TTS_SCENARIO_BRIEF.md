@@ -20,12 +20,12 @@
 
 | 순서 | Unity Scene | 사용자 목적 | 음성 정책 |
 |---|---|---|---|
-| 0 | `Assets/Scenes/App/App.unity` | 공용 XR 및 전체 흐름 유지 | 음성 없음 |
-| 1 | `Assets/Scenes/App/Start.unity` | 전체 훈련 또는 개별 Stage 선택 | 음성 없음 |
-| 2 | `Assets/Scenes/PPE_PreparationRoom.unity` | PPE와 현장 대응 장비 준비 | 행동 안내 중심 |
-| 3 | `Assets/Scenes/JH_Test_Scene.unity` | 진입 전 풍향·농도·P-102 상태 확인 | 측정 결과와 행동 안내 중심 |
-| 4 | `Assets/Scenes/SSH_VR_Project.unity` | 누출 차단·흡착·오염물 회수 | 안전 상태와 행동 안내 중심 |
-| 5 | `Assets/Scenes/App/Complete.unity` | 완료 결과와 재시작 선택 | 음성 없음 |
+| 0 | `Assets/Scenes/01_App.unity` | 공용 XR 및 전체 흐름 유지 | 음성 없음 |
+| 1 | `Assets/Scenes/03_Start.unity` | 전체 훈련 또는 개별 Stage 선택 | 음성 없음 |
+| 2 | `Assets/Scenes/04_PPE.unity` | PPE와 현장 대응 장비 준비 | 행동 안내 중심 |
+| 3 | `Assets/Scenes/05_PreEntry.unity` | 진입 전 풍향·농도·P-102 상태 확인 | 측정 결과와 행동 안내 중심 |
+| 4 | `Assets/Scenes/06_LeakResponse.unity` | 누출 차단·흡착·오염물 회수 | 안전 상태와 행동 안내 중심 |
+| 5 | `Assets/Scenes/07_Complete.unity` | 완료 결과와 재시작 선택 | 음성 없음 |
 
 전체 훈련 외에도 `PPEOnly`, `PreEntryOnly`, `LeakResponseOnly` 진입이 가능하다. 따라서 각 Stage의 첫 안내는 이전 Stage를 경험하지 않은 사용자도 이해할 수 있어야 한다. 다만 공통 조작을 장황하게 전부 다시 설명하지는 않는다.
 
@@ -425,7 +425,7 @@ implementation_note
 - PreEntry 상태 전이: `Assets/2.YJH/Scripts/Scenario/EntrySafetyStateMachine.cs`
 - PreEntry 현재 문구: `Assets/2.YJH/Scripts/Scenario/Guidance/EntrySafetyInstructionCatalog.cs`
 - PreEntry 실제 진행: `Assets/2.YJH/Scripts/Scenario/EntrySafetyScenarioController.cs`
-- PreEntry TTS 연결: `Assets/Scenes/JH_Test_Scene.unity`
+- PreEntry TTS 연결: `Assets/Scenes/05_PreEntry.unity`
 - LeakResponse 현재 Cue/자막: `Assets/3.SSH/Resources/P102/Unity_TTS_Map.csv`
 - LeakResponse 가방 Y 입력: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102SharedBagItemHandler.cs`
 - LeakResponse 진행 연결: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102LeakNarrationController.cs`

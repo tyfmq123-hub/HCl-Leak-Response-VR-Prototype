@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using HClTraining.App;
+using HClTraining.SharedXR;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -419,6 +420,7 @@ namespace VRProject.LeakResponse.Narration
                 }
 
                 narrationSource.clip = clip;
+                narrationSource.time = 0f;
                 narrationSource.Play();
                 Debug.Log(
                     $"[P102 Flow] AudioSource playback started: TTS {(int)cue:00}, " +

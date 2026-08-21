@@ -10,7 +10,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 /// <summary>Configures existing wearable PPE roots for XRI direct/ray grabbing.</summary>
 public static class PPEHandGrabSetup
 {
-    const string ScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string ScenePath = "Assets/Scenes/04_PPE.unity";
 
     [MenuItem("Tools/PPE/Setup STEP 2 Hand Grab", false, 27)]
     public static void SetupHandGrab()
@@ -214,7 +214,7 @@ public static class PPEHandGrabSetup
 static class PPEHandGrabSetupTrigger
 {
     const string SessionKey = "PPE.HandGrabSetup.Step2.v1";
-    const string TargetScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
+    const string TargetScenePath = "Assets/Scenes/04_PPE.unity";
 
     static PPEHandGrabSetupTrigger()
     {

@@ -47,7 +47,7 @@ Earlier uncommitted PPE STEP 2-8 files and Scene changes remain in the same work
 
 ## Required Inspector and Scene work
 
-1. Add the approved PPE-owned Helmet root to `PPE_PreparationRoom` and name it `PPE_Helmet`.
+1. Add the approved PPE-owned Helmet root to `04_PPE` and name it `PPE_Helmet`.
 2. Configure `PPEEquipable`: ItemId `Helmet`, Type `Helmet`, Equip Slots `Head`, distance `0.18`, angle `35`, Deactivate On Equip `false`, and optional Helmet Ghost Guide prefab.
 3. Configure `PPEHandGrabbable`, a non-kinematic Rigidbody with gravity, and an appropriate convex Collider. Its XRI interaction layers must match the Common XR hand direct interactor and ray fallback.
 4. Confirm `PPE_PlacementGuideManager` references the anchor set and Not Ready/Ready materials; keep Auto Equip enabled and tune Ready Hold Duration in Inspector.
@@ -61,7 +61,7 @@ Earlier uncommitted PPE STEP 2-8 files and Scene changes remain in the same work
 - Android OpenXR configuration has Hand Tracking Subsystem, Meta Hand Tracking Aim, and Hand Interaction Profile enabled.
 - The protected PPE App XR profile references left/right `XRHandTrackingEvents`.
 - `PPEHandGrabbable` uses standard XRI select events and `IXRInteractor.handedness`, so its runtime path is not Editor-simulator-specific.
-- Common XR hand visual/direct-interactor activation is Integration-owned and was not modified.
+- Common XR hand visual/direct-interactor activation is Integration-owned and is now configured as described in the update below.
 
 ## Validation
 
@@ -74,18 +74,34 @@ Earlier uncommitted PPE STEP 2-8 files and Scene changes remain in the same work
 
 ## Quest device test procedure
 
-1. On Quest, enable hand tracking and launch without controllers. Verify both hand visuals and the near/direct interactor can grab a known XRI object.
+1. On Quest, connect both controllers. Verify the XR Hands sample FBX models follow the controllers and both near/direct interactors can Grip a known XRI object without visible rays.
 2. Start the Helmet-only sequence and grab `PPE_Helmet`. Confirm Left/Right handedness and that the object follows the hand.
 3. Confirm one Not Ready ghost appears on the body-relative Head anchor and follows room-scale translation/HMD height without inheriting HMD pitch or roll.
 4. Enter distance while keeping rotation invalid; the guide must remain Not Ready.
 5. Match distance and rotation for Ready Hold Duration; confirm Ready, clean XRI select exit, and no stuck pinch/select state.
 6. Confirm Helmet stays visible at Head, Rigidbody becomes kinematic with gravity/collision disabled, and `IsEquipped("Helmet")` is true.
 7. Confirm Helmet checklist completion and one existing `OnPPESequenceCompleted` invocation in Helmet-only mode.
-8. Repeat with controller/ray and verify the enabled legacy fallback reaches the same state path.
+8. Confirm PPE never displays controller models or visible interaction rays; both hands' direct Grip must reach the same equipment state path.
 
 ## Remaining blockers and Integration requests
 
 1. Supply or approve a PPE-owned Helmet 3D prefab/mesh. Do not substitute another PPE or the title-menu icon.
-2. Verify the Common XR PPE profile activates hand visuals and a near/direct XRI interactor on Quest. PPE Stage code cannot modify that protected profile.
+2. Confirm on Quest that the Integration-owned two-hand near/direct profile works without visible rays.
 3. Perform Quest tuning for Head anchor pose, attach pose, collider, distance, angle, and ready hold duration.
 4. Decide later whether Helmet joins the production completion order. This pass intentionally leaves that order unchanged.
+
+## Integration update — PPE controller-tracked hand visual swap
+
+- Updated: 2026-08-20
+- PPE shared XR requirements now use `BothHands`, near interaction on, and far interaction off.
+- Before chemical gloves are equipped, the App shows `LeftHand.fbx` and `RightHand.fbx` from XR Hands `1.7.3` as controller-tracked visuals. This does not enable optical hand tracking.
+- Both default hands use the existing left/right Grip animator controllers and `Hand` input driver.
+- After `ChemicalGloves` is equipped, `ChemicalGlovesWearableVisual` hides the default sample hands and shows the existing left/right chemical-glove hand meshes.
+- The App XR policy hides both controller models and disables both standard rays throughout PPE.
+- Both near/far interactors remain active in near-only mode so either Grip can interact without rendering a ray.
+- PPE state post-processing now preserves the correct default-hand/glove-hand state instead of restoring controller meshes.
+- `04_PPE` mirrors the initial authoring state: both sample hands on, glove hands off, controller models off, and ray objects off.
+- Start/Complete and the other stages keep their existing controller policies.
+- PreEntry and LeakResponse were verified to already load through `LoadSceneMode.Additive`; Full flow keeps both loaded and transfers active ownership without reloading the plant environment.
+- Updated files: `StageXRRequirements.cs`, `StageXRProfileController.cs`, `PPEStateController.cs`, `ChemicalGlovesWearableVisual.cs`, PPE shared requirements/profile assets, `01_App.unity`, `04_PPE.unity`, and `AppFlowStateTests.cs`.
+- Validation: Unity scripts recompiled with 0 C# errors. Quest runtime/Play Mode interaction remains for the scene owner to verify.

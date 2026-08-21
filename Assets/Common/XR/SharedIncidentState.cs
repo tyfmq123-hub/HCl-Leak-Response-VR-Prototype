@@ -1,14 +1,5 @@
 namespace HClTraining.SharedXR
 {
-    public enum FacilityId
-    {
-        None = 0,
-        P101 = 101,
-        P102 = 102,
-        P103 = 103,
-        P104 = 104,
-    }
-
     public enum FacilityRunState
     {
         Unknown = 0,
@@ -25,18 +16,16 @@ namespace HClTraining.SharedXR
 
     public interface ISharedIncidentState
     {
-        FacilityId SelectedFacility { get; }
         FacilityRunState FacilityRunState { get; }
         LeakState LeakState { get; }
 
-        bool SelectFacility(FacilityId facility);
         bool SetFacilityRunState(FacilityRunState state);
         bool SetLeakState(LeakState state);
     }
 
     /// <summary>
-    /// Cross-assembly bridge for the selected facility and incident facts. Stage
-    /// code never references another Stage's scene objects through this contract.
+    /// Cross-assembly bridge for the fixed P-102 incident facts. Stage code never
+    /// references another Stage's scene objects through this contract.
     /// </summary>
     public static class SharedIncidentState
     {
@@ -58,11 +47,9 @@ namespace HClTraining.SharedXR
 
         sealed class NullIncidentState : ISharedIncidentState
         {
-            public FacilityId SelectedFacility => FacilityId.P102;
             public FacilityRunState FacilityRunState => FacilityRunState.Running;
             public LeakState LeakState => LeakState.Active;
 
-            public bool SelectFacility(FacilityId facility) => false;
             public bool SetFacilityRunState(FacilityRunState state) => false;
             public bool SetLeakState(LeakState state) => false;
         }

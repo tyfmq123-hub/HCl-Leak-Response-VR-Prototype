@@ -43,7 +43,7 @@ public static class ResponseBagDirectContentsSetup
 
     public static void SetupDirectContentsBatch()
     {
-        const string ScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+        const string ScenePath = "Assets/Scenes/04_PPE.unity";
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         if (!scene.IsValid())
         {
@@ -82,7 +82,7 @@ public static class ResponseBagDirectContentsSetup
         var bag = manager.ResponseBagRoot;
         if (bag == null)
         {
-            Debug.LogError("[Direct Bag Contents] manager.responseBagRoot is null. Assign ResponseBag_UnityReady.");
+            Debug.LogError("[Direct Bag Contents] manager.responseBagRoot is null. Assign ResponseBag_HardShell.");
             return;
         }
 

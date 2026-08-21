@@ -82,21 +82,19 @@ public sealed class AppFlowStateTests
     }
 
     [Test]
-    public void IncidentState_UsesGenericFacilityAndKeepsP102CompatibilityDefault()
+    public void IncidentState_ResetsFixedP102RunAndLeakFacts()
     {
         var state = root.AddComponent<TrainingSessionState>();
         state.Begin(TrainingMode.Full);
 
-        Assert.AreEqual(FacilityId.P102, state.Incident.SelectedFacility);
-        Assert.IsTrue(state.SelectFacility(FacilityId.P103));
-        Assert.AreEqual(FacilityId.P103, state.Incident.SelectedFacility);
         Assert.AreEqual(FacilityRunState.Running, state.Incident.FacilityRunState);
         Assert.AreEqual(LeakState.Active, state.Incident.LeakState);
 
         Assert.IsTrue(state.SetFacilityRunState(FacilityRunState.Stopped));
         Assert.AreEqual(FacilityRunState.Stopped, state.Incident.FacilityRunState);
-        Assert.IsTrue(state.SelectFacility(FacilityId.P104));
+        state.Begin(TrainingMode.Full);
         Assert.AreEqual(FacilityRunState.Running, state.Incident.FacilityRunState);
+        Assert.AreEqual(LeakState.Active, state.Incident.LeakState);
     }
 
     [Test]
@@ -106,9 +104,9 @@ public sealed class AppFlowStateTests
         var sink = new RecordingTelemetrySink();
         var telemetry = root.AddComponent<TrainingTelemetryService>();
         telemetry.Initialize(state, sink);
-        state.Begin(TrainingMode.Full, FacilityId.P103);
+        state.Begin(TrainingMode.Full);
 
-        telemetry.StartSession(TrainingMode.Full, state.Incident.SelectedFacility);
+        telemetry.StartSession(TrainingMode.Full);
         state.EnterStage(TrainingStage.PreEntry);
         telemetry.StageEntered(TrainingStage.PreEntry);
         telemetry.StepEntered(TrainingStepId.PreEntry);
@@ -118,7 +116,7 @@ public sealed class AppFlowStateTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(sink.SessionId));
         Assert.AreEqual(5, sink.Records.Count);
         Assert.AreEqual("SessionStarted", sink.Records[0].event_type);
-        Assert.AreEqual("P103", sink.Records[0].facility_id);
+        Assert.AreEqual("P102", sink.Records[0].facility_id);
         Assert.AreEqual("StepCompleted", sink.Records[3].event_type);
         Assert.AreEqual(2, sink.Records[3].attempt_count);
         Assert.AreEqual(1, sink.Records[3].rejected_count);
@@ -228,9 +226,9 @@ public sealed class AppFlowStateTests
     [Test]
     public void ScenePaths_KeepOfficialStageAssets()
     {
-        Assert.AreEqual("Assets/Scenes/PPE_PreparationRoom.unity", SceneFlowController.PpeScenePath);
-        Assert.AreEqual("Assets/Scenes/JH_Test_Scene.unity", SceneFlowController.PreEntryScenePath);
-        Assert.AreEqual("Assets/Scenes/SSH_VR_Project.unity", SceneFlowController.LeakResponseScenePath);
+        Assert.AreEqual("Assets/Scenes/04_PPE.unity", SceneFlowController.PpeScenePath);
+        Assert.AreEqual("Assets/Scenes/05_PreEntry.unity", SceneFlowController.PreEntryScenePath);
+        Assert.AreEqual("Assets/Scenes/06_LeakResponse.unity", SceneFlowController.LeakResponseScenePath);
         Assert.IsFalse(new[]
         {
             SceneFlowController.AppScenePath,
@@ -240,11 +238,13 @@ public sealed class AppFlowStateTests
     }
 
     [Test]
-    public void CommonXrPolicy_KeepsOneVisibleControllerRigAcrossStageOrder()
+    public void CommonXrPolicy_UsesPpeBothHandsWithoutRaysAndKeepsOtherStageControllers()
     {
         var xrRoot = CreatePath(root.transform, "Common XR Origin");
         var leftVisuals = CreatePath(xrRoot, "Camera Offset/Left Controller/Visuals");
         var leftModel = CreatePath(leftVisuals, "XR Controller Left");
+        var leftHand = CreatePath(leftVisuals, "PPE_DefaultHand_Left");
+        var leftGlove = CreatePath(leftVisuals, "PPE_VrHand_Left_Wearable");
         var leftLegacyVisual = CreatePath(xrRoot, "Camera Offset/Left Controller/Visual");
         var leftRay = CreatePath(xrRoot, "Camera Offset/Left Controller/Ray Interactor");
         var leftNearFar = CreatePath(xrRoot, "Camera Offset/Left Controller/Left_NearFarInteractor");
@@ -252,6 +252,8 @@ public sealed class AppFlowStateTests
 
         var rightVisuals = CreatePath(xrRoot, "Camera Offset/Right Controller/Visuals");
         var rightModel = CreatePath(rightVisuals, "XR Controller Right");
+        var rightHand = CreatePath(rightVisuals, "PPE_DefaultHand_Right");
+        var rightGlove = CreatePath(rightVisuals, "PPE_VrHand_Right_Wearable");
         var rightLegacyVisual = CreatePath(xrRoot, "Camera Offset/Right Controller/Visual");
         var rightRay = CreatePath(xrRoot, "Camera Offset/Right Controller/Ray Interactor");
         var rightNearFar = CreatePath(xrRoot, "Camera Offset/Right Controller/Right_NearFarInteractor");
@@ -271,25 +273,80 @@ public sealed class AppFlowStateTests
             BindingFlags.Static | BindingFlags.NonPublic);
         Assert.IsNotNull(policy);
 
-        var ppeRequirements = CreateRequirements(far: true, near: false, ui: true, grab: true);
+        var ppeRequirements = CreateRequirements(
+            far: false,
+            near: true,
+            ui: true,
+            grab: true,
+            handVisualMode: StageXRHandVisualMode.BothHands);
         var preEntryRequirements = CreateRequirements(far: false, near: false, ui: false, grab: false);
         var leakRequirements = CreateRequirements(far: true, near: true, ui: true, grab: true);
 
         policy.Invoke(null, new object[] { xrRoot, ppeRequirements });
-        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, true, false);
-        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, true, false);
+        AssertCommonControllerState(
+            leftVisuals, leftModel, leftHand, leftLegacyVisual, leftRay, leftNearFar,
+            expectedModel: false, expectedHand: true, expectedRay: false, expectedNearFar: true);
+        AssertCommonControllerState(
+            rightVisuals, rightModel, rightHand, rightLegacyVisual, rightRay, rightNearFar,
+            expectedModel: false, expectedHand: true, expectedRay: false, expectedNearFar: true);
+        Assert.IsFalse(leftGlove.gameObject.activeSelf);
+        Assert.IsFalse(rightGlove.gameObject.activeSelf);
 
         policy.Invoke(null, new object[] { xrRoot, preEntryRequirements });
-        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, false, false);
-        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, false, false);
+        AssertCommonControllerState(leftVisuals, leftModel, leftHand, leftLegacyVisual, leftRay, leftNearFar, true, false, false, false);
+        AssertCommonControllerState(rightVisuals, rightModel, rightHand, rightLegacyVisual, rightRay, rightNearFar, true, false, false, false);
+        Assert.IsFalse(leftGlove.gameObject.activeSelf);
+        Assert.IsFalse(rightGlove.gameObject.activeSelf);
 
         policy.Invoke(null, new object[] { xrRoot, leakRequirements });
-        AssertCommonControllerState(leftVisuals, leftModel, leftLegacyVisual, leftRay, leftNearFar, false, true);
-        AssertCommonControllerState(rightVisuals, rightModel, rightLegacyVisual, rightRay, rightNearFar, false, true);
+        AssertCommonControllerState(leftVisuals, leftModel, leftHand, leftLegacyVisual, leftRay, leftNearFar, true, false, false, true);
+        AssertCommonControllerState(rightVisuals, rightModel, rightHand, rightLegacyVisual, rightRay, rightNearFar, true, false, false, true);
+        Assert.IsFalse(leftGlove.gameObject.activeSelf);
+        Assert.IsFalse(rightGlove.gameObject.activeSelf);
 
         Object.DestroyImmediate(ppeRequirements);
         Object.DestroyImmediate(preEntryRequirements);
         Object.DestroyImmediate(leakRequirements);
+    }
+
+    [Test]
+    public void PpeStatePostProcessing_KeepsBothHandsVisibleAndControllerModelsHidden()
+    {
+        var session = root.AddComponent<TrainingSessionState>();
+        session.Begin(TrainingMode.PPEOnly);
+        session.EnterStage(TrainingStage.PPE);
+
+        var xrRoot = CreatePath(root.transform, "Common XR Origin");
+        var leftVisuals = CreatePath(xrRoot, "Camera Offset/Left Controller/Visuals");
+        var leftModel = CreatePath(leftVisuals, "XR Controller Left").gameObject;
+        var leftHand = CreatePath(leftVisuals, "PPE_DefaultHand_Left").gameObject;
+        var leftGlove = CreatePath(leftVisuals, "PPE_VrHand_Left_Wearable").gameObject;
+        var rightVisuals = CreatePath(xrRoot, "Camera Offset/Right Controller/Visuals");
+        var rightModel = CreatePath(rightVisuals, "XR Controller Right").gameObject;
+        var rightHand = CreatePath(rightVisuals, "PPE_DefaultHand_Right").gameObject;
+        var rightGlove = CreatePath(rightVisuals, "PPE_VrHand_Right_Wearable").gameObject;
+
+        var wearableHost = CreatePath(xrRoot, "ChemicalGloves_WearableHost").gameObject;
+        var wearable = wearableHost.AddComponent<ChemicalGlovesWearableVisual>();
+        wearable.EditorWire(
+            leftHand, rightHand, leftGlove, rightGlove, new[] { leftModel, rightModel });
+
+        var ppeState = root.AddComponent<PPEStateController>();
+        ppeState.Initialize(session, null, xrRoot);
+        ppeState.ApplyPersistentState();
+
+        Assert.IsTrue(leftHand.activeSelf);
+        Assert.IsTrue(rightHand.activeSelf);
+        Assert.IsFalse(leftGlove.activeSelf);
+        Assert.IsFalse(rightGlove.activeSelf);
+        Assert.IsFalse(leftModel.activeSelf);
+        Assert.IsFalse(rightModel.activeSelf);
+
+        wearable.ApplyPpeRoomState(true, true);
+        Assert.IsFalse(leftHand.activeSelf);
+        Assert.IsFalse(rightHand.activeSelf);
+        Assert.IsTrue(leftGlove.activeSelf);
+        Assert.IsTrue(rightGlove.activeSelf);
     }
 
     [TestCase("<XRController>{RightHand}/gripPressed", "Right")]
@@ -321,25 +378,34 @@ public sealed class AppFlowStateTests
         return current;
     }
 
-    static StageXRRequirements CreateRequirements(bool far, bool near, bool ui, bool grab)
+    static StageXRRequirements CreateRequirements(
+        bool far,
+        bool near,
+        bool ui,
+        bool grab,
+        StageXRHandVisualMode handVisualMode = StageXRHandVisualMode.Controllers)
     {
         var requirements = ScriptableObject.CreateInstance<StageXRRequirements>();
         requirements.EditorConfigure(string.Empty, Vector3.zero, Quaternion.identity,
-            far, near, ui, grab, useHaptics: true);
+            far, near, ui, grab, useHaptics: true, visualMode: handVisualMode);
         return requirements;
     }
 
     static void AssertCommonControllerState(
         Transform visuals,
         Transform model,
+        Transform hand,
         Transform legacyVisual,
         Transform ray,
         Transform nearFar,
+        bool expectedModel,
+        bool expectedHand,
         bool expectedRay,
         bool expectedNearFar)
     {
         Assert.IsTrue(visuals.gameObject.activeSelf);
-        Assert.IsTrue(model.gameObject.activeSelf);
+        Assert.AreEqual(expectedModel, model.gameObject.activeSelf);
+        Assert.AreEqual(expectedHand, hand.gameObject.activeSelf);
         Assert.IsFalse(legacyVisual.gameObject.activeSelf);
         Assert.AreEqual(expectedRay, ray.gameObject.activeSelf);
         Assert.Less(Quaternion.Angle(Quaternion.Euler(70f, 0f, 0f), ray.localRotation), 0.01f);

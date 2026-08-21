@@ -173,6 +173,9 @@ namespace VRProject.LeakResponse.Narration
                 var bagHandler = GetComponent<P102SharedBagItemHandler>();
                 if (bagHandler != null)
                     bagHandler.enabled = false;
+                var leakAudio = GetComponent<LeakResponseSpatialLeakAudio>();
+                if (leakAudio != null)
+                    leakAudio.enabled = false;
                 return;
             }
 
@@ -181,6 +184,9 @@ namespace VRProject.LeakResponse.Narration
             var activeBagHandler = GetComponent<P102SharedBagItemHandler>();
             if (activeBagHandler != null)
                 activeBagHandler.enabled = true;
+            var activeLeakAudio = GetComponent<LeakResponseSpatialLeakAudio>();
+            if (activeLeakAudio != null)
+                activeLeakAudio.enabled = true;
         }
 
         public void ConfigureOnce()
@@ -190,10 +196,19 @@ namespace VRProject.LeakResponse.Narration
             if (!configureGate.TryEnter())
                 return;
 
+            P102LeakEnvironmentSetup environmentSetup =
+                ResolveOrCreateHelper<P102LeakEnvironmentSetup>();
+            environmentSetup.Configure(gameObject.scene);
             DisableLeakSceneHandVisuals();
 
             ValveWheelClosureController suctionValve = FindValve("ENV_LeakPipeGateValveWheel_suc");
             ValveWheelClosureController dischargeValve = FindValve("ENV_LeakPipeGateValveWheel_dis");
+            GameObject leakPointObject = P102RuntimeUtility.FindSceneObject("LeakPoint");
+            LeakResponseSpatialLeakAudio spatialLeakAudio =
+                ResolveOrCreateHelper<LeakResponseSpatialLeakAudio>();
+            spatialLeakAudio.Configure(
+                leakPointObject != null ? leakPointObject.transform : null,
+                dischargeValve);
 
             PreplacedGhostInstallGroup sockGroup = ResolveOrBuildGroup(
                 "Sock", SockGhostNames, "INT_AbsorbentSock_Straight_01", 0.25f);
@@ -252,6 +267,9 @@ namespace VRProject.LeakResponse.Narration
                 sockGroup,
                 padGroup,
                 absorption);
+            LeakResponseTelemetryReporter telemetry =
+                ResolveOrCreateHelper<LeakResponseTelemetryReporter>();
+            telemetry.Configure(narration);
             narration.SetStageActivated(true);
             ConfigureInteractionGates(narration, sockGroup, padGroup);
             P102SharedBagItemHandler bagHandler =
@@ -266,7 +284,6 @@ namespace VRProject.LeakResponse.Narration
             guidance.Configure(suctionValve, dischargeValve, narration, cameraTransform,
                 suctionUiAnchor, dischargeUiAnchor);
 
-            GameObject leakPointObject = P102RuntimeUtility.FindSceneObject("LeakPoint");
             if (leakPointObject == null)
                 Debug.LogError("[P102 Flow] Required flange gaze target 'LeakPoint' is missing.", this);
             Transform flangeRoot = ResolveRequiredFixedAnchor(
@@ -302,7 +319,7 @@ namespace VRProject.LeakResponse.Narration
             Debug.Log(
                 $"[P102 Flow] Bootstrap configured once. CSV={narration.LoadedCueCount}/26, " +
                 $"WAV={narration.LoadedAudioClipCount}/26, Sock={sockGroup?.Items?.Length ?? 0}/4, " +
-                $"Pad={padGroup?.Items?.Length ?? 0}/3.", this);
+                $"Pad={padGroup?.Items?.Length ?? 0}/3, Facility=P102.", this);
         }
 
         PreplacedGhostInstallGroup ResolveOrBuildGroup(string typeId, string[] ghostNames,
@@ -408,7 +425,10 @@ namespace VRProject.LeakResponse.Narration
                 return null;
             }
 
-            sourceObject.SetActive(true);
+            // This authored object is the deployable item stored in the response bag,
+            // not a loose supply that should be visible in the LeakResponse Scene.
+            // The LeakResponse Stage bag handler activates it only when the trainee retrieves it.
+            sourceObject.SetActive(false);
             XRGrabInteractable sourceGrab = sourceObject.GetComponent<XRGrabInteractable>();
             if (sourceGrab == null)
             {
@@ -894,7 +914,10 @@ namespace VRProject.LeakResponse.Narration
 
             sceneActivation[Normalize(scene.path)] = activate;
             if (!activate)
+            {
                 SetProgressionBehaviours(scene, false);
+                HideAuthoredAbsorbentSupplies(scene);
+            }
 
             foreach (var root in scene.GetRootGameObjects())
             {
@@ -933,6 +956,26 @@ namespace VRProject.LeakResponse.Narration
                     if (!active)
                         splashBursts[i].StopLeak();
                     splashBursts[i].enabled = active;
+                }
+            }
+        }
+
+        static void HideAuthoredAbsorbentSupplies(Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var transforms = root.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < transforms.Length; i++)
+                {
+                    var candidate = transforms[i];
+                    if (candidate == null)
+                        continue;
+
+                    if (string.Equals(candidate.name, "INT_AbsorbentSock_Straight_01", StringComparison.Ordinal) ||
+                        string.Equals(candidate.name, "INT_AbsorbentPad_01", StringComparison.Ordinal))
+                    {
+                        candidate.gameObject.SetActive(false);
+                    }
                 }
             }
         }

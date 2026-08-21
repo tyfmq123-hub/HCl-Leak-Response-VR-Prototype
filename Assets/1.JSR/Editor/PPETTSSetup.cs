@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class PPETTSSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string ObjectName = "PPE_TTS";
     const string ClipFolder = "Assets/1.JSR/Audio/PPE/TTS";
 
