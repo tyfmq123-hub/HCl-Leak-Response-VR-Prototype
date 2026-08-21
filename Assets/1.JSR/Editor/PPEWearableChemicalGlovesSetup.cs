@@ -28,7 +28,8 @@ public static class PPEWearableChemicalGlovesSetup
     const string LegacyRightWearableName = "ChemicalGlove_Right_Wearable";
     const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
-    static readonly Vector3 WearableScale = Vector3.one;
+    // Match shelf world size: ProtectiveGloves visual 0.38 under PPE_Storage 2.15.
+    static readonly Vector3 WearableScale = new Vector3(0.817f, 0.817f, 0.817f);
 
     // Keep Controller/Visuals at identity so Quest XR Controller meshes (Y=180 under
     // Visuals) stay aligned with tracking. Step_13 put the grip calibration on Left

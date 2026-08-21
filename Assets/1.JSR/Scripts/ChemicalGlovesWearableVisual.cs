@@ -6,6 +6,8 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 /// Switches controller-tracked hand visuals between the XR Hands sample meshes
 /// used before PPE is equipped and the chemical-glove meshes used afterward.
 /// Quest controller meshes are hidden individually so Visuals stays active.
+/// Default-hand Visuals stay at identity; glove Visuals use the captured
+/// chemical-glove rotation. Tracking and ray origin are never rotated.
 /// </summary>
 [DisallowMultipleComponent]
 public class ChemicalGlovesWearableVisual : MonoBehaviour
@@ -30,15 +32,36 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     [SerializeField] bool startHidden = true;
 
     bool applyingPersistentState;
+    bool capturedGloveRotation;
+    Quaternion capturedLeftGloveRotation;
+    Quaternion capturedRightGloveRotation;
     readonly Dictionary<XRRayInteractor, bool> rayEnabledBeforeWear = new();
     readonly Dictionary<XRRayInteractor, bool> rayObjectActiveBeforeWear = new();
+
+    // Visual-only. Same grip * model correction as PPEWearableChemicalGlovesSetup.
+    // Never applied to controller tracking or ray origin.
+    static readonly Quaternion FallbackLeftGloveVisualRotation =
+        Quaternion.Euler(70f, 0f, 0f) *
+        new Quaternion(-0.44794282f, -0.3529363f, 0.5857566f, 0.57591015f);
+    static readonly Quaternion FallbackRightGloveVisualRotation =
+        Quaternion.Euler(70f, 0f, 0f) *
+        new Quaternion(-0.44794282f, 0.3529363f, -0.5857566f, 0.57591015f);
+
+    static ChemicalGlovesWearableVisual cachedInstance;
 
     public bool IsVisible =>
         (leftGlove != null && leftGlove.activeSelf) ||
         (rightGlove != null && rightGlove.activeSelf);
 
+    void Awake()
+    {
+        cachedInstance = this;
+        CaptureGloveVisualRotations();
+    }
+
     void OnEnable()
     {
+        cachedInstance = this;
         if (applyingPersistentState)
             return;
         ShowWearable();
@@ -53,6 +76,8 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     {
         SetBareHandsActive(false, false);
         SetGlovesActive(true);
+        AlignBareHandVisuals();
+        AlignGloveVisuals();
         SetQuestMeshesActive(false);
         SetRayInteractorsEnabled(false);
 
@@ -61,12 +86,47 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
             this);
     }
 
+    public static ChemicalGlovesWearableVisual FindActive()
+    {
+        if (cachedInstance != null)
+            return cachedInstance;
+        cachedInstance = FindAnyObjectByType<ChemicalGlovesWearableVisual>(FindObjectsInactive.Include);
+        return cachedInstance;
+    }
+
+    public void SetLeftGloveEquipped(bool equipped)
+    {
+        var pair = PPEGlovePairCoordinator.ChemicalGlovesInstance;
+        var right = pair != null
+            ? pair.RightEquipped
+            : rightGlove != null && rightGlove.activeSelf;
+        ApplyPpeRoomState(equipped, right);
+    }
+
+    public void SetRightGloveEquipped(bool equipped)
+    {
+        var pair = PPEGlovePairCoordinator.ChemicalGlovesInstance;
+        var left = pair != null
+            ? pair.LeftEquipped
+            : leftGlove != null && leftGlove.activeSelf;
+        ApplyPpeRoomState(left, equipped);
+    }
+
     /// <summary>
     /// PPE always uses controller tracking with hand meshes. Before glove equipment,
     /// show the XR Hands sample FBX; afterward switch each side to its glove mesh.
+    /// Partial ChemicalGloves progress from a glove pair is preserved so App's
+    /// all-or-nothing equipped flag cannot hide a single worn glove.
     /// </summary>
     public void ApplyPpeRoomState(bool leftWorn, bool rightWorn)
     {
+        var pair = PPEGlovePairCoordinator.ChemicalGlovesInstance;
+        if (pair != null)
+        {
+            leftWorn |= pair.LeftEquipped;
+            rightWorn |= pair.RightEquipped;
+        }
+
         applyingPersistentState = true;
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
@@ -74,6 +134,9 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
 
         SetBareHandsActive(!leftWorn, !rightWorn);
         SetGlovesActive(leftWorn, rightWorn);
+        AlignBareHandVisuals();
+        if (leftWorn || rightWorn)
+            AlignGloveVisuals();
         SetQuestMeshesActive(false);
         SetRayInteractorsEnabled(false);
     }
@@ -107,7 +170,48 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
 
         SetBareHandsActive(false, false);
         SetGlovesActive(leftWorn, rightWorn);
+        if (anyWorn)
+            AlignGloveVisuals();
         SetQuestMeshesActive(!anyWorn);
+    }
+
+    void CaptureGloveVisualRotations()
+    {
+        if (capturedGloveRotation)
+            return;
+
+        capturedLeftGloveRotation = CaptureOrFallback(leftGlove, FallbackLeftGloveVisualRotation);
+        capturedRightGloveRotation = CaptureOrFallback(rightGlove, FallbackRightGloveVisualRotation);
+        capturedGloveRotation = true;
+    }
+
+    static Quaternion CaptureOrFallback(GameObject glove, Quaternion fallback)
+    {
+        if (glove == null)
+            return fallback;
+
+        var authored = glove.transform.localRotation;
+        return authored == Quaternion.identity ? fallback : authored;
+    }
+
+    void AlignBareHandVisuals()
+    {
+        ApplyLocalRotation(leftBareHand, Quaternion.identity);
+        ApplyLocalRotation(rightBareHand, Quaternion.identity);
+    }
+
+    void AlignGloveVisuals()
+    {
+        CaptureGloveVisualRotations();
+        ApplyLocalRotation(leftGlove, capturedLeftGloveRotation);
+        ApplyLocalRotation(rightGlove, capturedRightGloveRotation);
+    }
+
+    static void ApplyLocalRotation(GameObject target, Quaternion localRotation)
+    {
+        if (target == null)
+            return;
+        target.transform.localRotation = localRotation;
     }
 
     void SetGlovesActive(bool active)
@@ -213,6 +317,7 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
         rightBareHand = rightDefault;
         leftGlove = leftWearable;
         rightGlove = rightWearable;
+        capturedGloveRotation = false;
         questControllerMeshes = questMeshes ?? System.Array.Empty<GameObject>();
         disableRayInteractorsWhileWorn = false;
         rayInteractors = System.Array.Empty<XRRayInteractor>();

@@ -55,8 +55,17 @@ public static class PPEHandGrabSetup
         foreach (var equipable in FindWearablePpe(scene))
         {
             var root = equipable.gameObject;
+            if (root.GetComponent<PPEGlovePairCoordinator>() != null)
+            {
+                if (root.GetComponent<PPEHandGrabbable>() != null ||
+                    root.GetComponent<XRBaseInteractable>() == null ||
+                    CountDirectPairMembers(root) < 2)
+                    return true;
+                continue;
+            }
             if (root.GetComponent<PPEHandGrabbable>() == null ||
                 root.GetComponent<Rigidbody>() == null ||
+                root.GetComponent<PPEStoredDisplayState>() == null ||
                 root.GetComponentInChildren<Collider>(true) == null)
                 return true;
         }
@@ -66,6 +75,9 @@ public static class PPEHandGrabSetup
 
     static bool Configure(GameObject root, StringBuilder report)
     {
+        if (root.GetComponent<PPEGlovePairCoordinator>() != null)
+            return ConvertLogicalGlovePairRoot(root, report);
+
         var changed = false;
         var simple = root.GetComponent<XRSimpleInteractable>();
         var interactionLayers = simple != null ? simple.interactionLayers : default;
@@ -88,10 +100,12 @@ public static class PPEHandGrabSetup
 
         Undo.RecordObject(rigidbody, "Configure PPE hand grab rigidbody");
         rigidbody.mass = 0.35f;
-        rigidbody.useGravity = true;
-        rigidbody.isKinematic = false;
+        // Stored display owns Play Mode rest pose. Gravity is restored by XRI
+        // forceGravityOnDetach after a real grab, not while the item is on the shelf.
+        rigidbody.useGravity = false;
+        rigidbody.isKinematic = true;
         rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-        rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         EditorUtility.SetDirty(rigidbody);
 
         var grab = root.GetComponent<PPEHandGrabbable>();
@@ -111,7 +125,7 @@ public static class PPEHandGrabSetup
         grab.trackRotation = true;
         grab.smoothPosition = true;
         grab.smoothRotation = true;
-        grab.attachEaseInTime = 0.08f;
+        grab.attachEaseInTime = 0f;
         grab.useDynamicAttach = true;
         grab.matchAttachPosition = true;
         grab.matchAttachRotation = true;
@@ -125,6 +139,29 @@ public static class PPEHandGrabSetup
         }
         EditorUtility.SetDirty(grab);
 
+        var stored = root.GetComponent<PPEStoredDisplayState>();
+        if (stored == null)
+        {
+            stored = Undo.AddComponent<PPEStoredDisplayState>(root);
+            changed = true;
+        }
+
+        Undo.RecordObject(stored, "Configure PPE stored display");
+        stored.EditorApplyDefaults();
+        EditorUtility.SetDirty(stored);
+
+        var filter = root.GetComponent<PPEDirectGrabProximityFilter>();
+        if (filter == null)
+        {
+            filter = Undo.AddComponent<PPEDirectGrabProximityFilter>(root);
+            changed = true;
+        }
+
+        Undo.RecordObject(filter, "Configure PPE grab proximity filter");
+        filter.EditorApplyDefaults();
+        filter.RegisterWithInteractable();
+        EditorUtility.SetDirty(filter);
+
         if (simple != null)
         {
             Undo.DestroyObjectImmediate(simple);
@@ -132,7 +169,63 @@ public static class PPEHandGrabSetup
         }
 
         EditorUtility.SetDirty(root);
-        report.AppendLine($"  {HierarchyPath(root.transform)}: PPEHandGrabbable + Rigidbody ({grab.colliders.Count} colliders)");
+        report.AppendLine($"  {HierarchyPath(root.transform)}: PPEHandGrabbable + stored display ({grab.colliders.Count} colliders)");
+        return changed;
+    }
+
+    /// <summary>
+    /// PPEItem / PPEOutlineHighlight require XRBaseInteractable. Add XRSimpleInteractable
+    /// before removing PPEHandGrabbable so Unity will allow the grab component to come off
+    /// the logical pair root. Physical grab stays on Left/Right members.
+    /// </summary>
+    static bool ConvertLogicalGlovePairRoot(GameObject root, StringBuilder report)
+    {
+        var changed = false;
+        var grab = root.GetComponent<PPEHandGrabbable>();
+        var simple = root.GetComponent<XRSimpleInteractable>();
+        if (simple == null)
+        {
+            simple = Undo.AddComponent<XRSimpleInteractable>(root);
+            changed = true;
+        }
+
+        Undo.RecordObject(simple, "Configure glove pair hover interactable");
+        if (grab != null)
+            simple.interactionLayers = grab.interactionLayers;
+        simple.selectMode = InteractableSelectMode.Multiple;
+        simple.colliders.Clear();
+        EditorUtility.SetDirty(simple);
+
+        if (grab != null)
+        {
+            Undo.DestroyObjectImmediate(grab);
+            changed = true;
+        }
+
+        var filter = root.GetComponent<PPEDirectGrabProximityFilter>();
+        if (filter != null)
+        {
+            Undo.DestroyObjectImmediate(filter);
+            changed = true;
+        }
+
+        var stored = root.GetComponent<PPEStoredDisplayState>();
+        if (stored != null)
+        {
+            Undo.DestroyObjectImmediate(stored);
+            changed = true;
+        }
+
+        var body = root.GetComponent<Rigidbody>();
+        if (body != null)
+        {
+            Undo.DestroyObjectImmediate(body);
+            changed = true;
+        }
+
+        EditorUtility.SetDirty(root);
+        report.AppendLine(
+            $"  {HierarchyPath(root.transform)}: logical pair hover via XRSimpleInteractable; grab is on physical members");
         return changed;
     }
 
@@ -145,6 +238,18 @@ public static class PPEHandGrabSetup
         foreach (var equipable in wearables)
         {
             var root = equipable.gameObject;
+            if (root.GetComponent<PPEGlovePairCoordinator>() != null)
+            {
+                if (root.GetComponent<XRBaseInteractable>() == null)
+                    failures.Add(root.name + ": glove pair missing XRBaseInteractable for PPEItem/outline");
+                else if (root.GetComponent<PPEHandGrabbable>() != null)
+                    failures.Add(root.name + ": logical glove pair still has PPEHandGrabbable (should be hover-only)");
+                else if (CountDirectPairMembers(root) < 2)
+                    failures.Add(root.name + ": authored left/right pair members missing");
+                else
+                    valid++;
+                continue;
+            }
             var grab = root.GetComponent<PPEHandGrabbable>();
             if (grab == null)
                 failures.Add(root.name + ": missing PPEHandGrabbable");
@@ -152,6 +257,8 @@ public static class PPEHandGrabSetup
                 failures.Add(root.name + ": no grab collider");
             else if (root.GetComponent<Rigidbody>() == null)
                 failures.Add(root.name + ": missing Rigidbody");
+            else if (root.GetComponent<PPEStoredDisplayState>() == null)
+                failures.Add(root.name + ": missing PPEStoredDisplayState");
             else if (root.GetComponent<XRSimpleInteractable>() != null)
                 failures.Add(root.name + ": legacy XRSimpleInteractable remains");
             else
@@ -194,6 +301,19 @@ public static class PPEHandGrabSetup
         return null;
     }
 
+    static int CountDirectPairMembers(GameObject root)
+    {
+        var count = 0;
+        var members = root.GetComponentsInChildren<PPEGlovePairMember>(true);
+        for (var i = 0; i < members.Length; i++)
+        {
+            if (members[i] != null && members[i].transform.parent == root.transform)
+                count++;
+        }
+
+        return count;
+    }
+
     static string HierarchyPath(Transform transform)
     {
         var path = transform.name;
@@ -213,7 +333,7 @@ public static class PPEHandGrabSetup
 [InitializeOnLoad]
 static class PPEHandGrabSetupTrigger
 {
-    const string SessionKey = "PPE.HandGrabSetup.Step2.v1";
+    const string SessionKey = "PPE.HandGrabSetup.Step2.v2";
     const string TargetScenePath = "Assets/Scenes/04_PPE.unity";
 
     static PPEHandGrabSetupTrigger()

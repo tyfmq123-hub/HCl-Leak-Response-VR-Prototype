@@ -581,6 +581,7 @@ public class PPETTSManager : MonoBehaviour
             if (sequence != null)
             {
                 sequence.OnRequiredStepChanged += OnRequiredStepChanged;
+                sequence.OnPhaseChanged += OnPhaseChanged;
                 sequence.OnPPESequenceCompleted += OnSequenceCompleted;
             }
 
@@ -594,6 +595,7 @@ public class PPETTSManager : MonoBehaviour
         if (sequence != null)
         {
             sequence.OnRequiredStepChanged -= OnRequiredStepChanged;
+            sequence.OnPhaseChanged -= OnPhaseChanged;
             sequence.OnPPESequenceCompleted -= OnSequenceCompleted;
         }
 
@@ -607,6 +609,13 @@ public class PPETTSManager : MonoBehaviour
             return;
 
         EnqueuePromptForStep(step);
+        KickPlay();
+    }
+
+    void OnPhaseChanged(PPETrainingPhase previous, PPETrainingPhase next)
+    {
+        if (previous == PPETrainingPhase.Donning && next == PPETrainingPhase.EquipmentPreparation)
+            Enqueue(PPETTSCue.EssentialPPEComplete);
         KickPlay();
     }
 
@@ -706,19 +715,7 @@ public class PPETTSManager : MonoBehaviour
 
     public void NotifyStepCompleted(PPESequenceStep step)
     {
-        switch (step)
-        {
-            case PPESequenceStep.Respirator:
-                // Transition briefing before the ResponseBag prompt.
-                Enqueue(PPETTSCue.RespiratorEquipped);
-                break;
-            case PPESequenceStep.ProtectiveGloves:
-                // Transition briefing before the WasteContainer prompt.
-                Enqueue(PPETTSCue.EssentialPPEComplete);
-                break;
-        }
-
-        KickPlay();
+        _ = step;
     }
 
 #if UNITY_EDITOR

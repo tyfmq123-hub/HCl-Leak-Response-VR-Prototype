@@ -39,10 +39,10 @@ public static class PPEEquipmentSlotSetup
         {
             { PPEEquipmentManager.IdHelmet, new PlacementProfile(PPEType.Helmet, PPEEquipSlot.Head, 0.18f, 35f) },
             { "Goggles", new PlacementProfile(PPEType.Goggles, PPEEquipSlot.Face, 0.14f, 30f) },
-            { "ChemicalFaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 35f) },
-            { "FaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 35f) },
-            { "FaceRespirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 30f) },
-            { "Respirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 30f) },
+            { "ChemicalFaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 80f) },
+            { "FaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 80f) },
+            { "FaceRespirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 80f) },
+            { "Respirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 80f) },
             { "ChemicalSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.25f, 45f) },
             { "ProtectiveSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.25f, 45f) },
             { "InnerGloves", new PlacementProfile(PPEType.Gloves, PPEEquipSlot.LeftHand | PPEEquipSlot.RightHand, 0.14f, 40f) },
@@ -266,6 +266,11 @@ public static class PPEEquipmentSlotSetup
                 profile.Distance,
                 profile.AngleTolerance,
                 equipable.GuidePrefab);
+            var requireRotation = profile.Type == PPEType.Respirator ||
+                                  profile.Type == PPEType.FaceShield ||
+                                  profile.Type == PPEType.Helmet ||
+                                  profile.Type == PPEType.Goggles;
+            equipable.EditorSetUseRotationValidation(requireRotation);
             EditorUtility.SetDirty(equipable);
             count++;
             report.AppendLine(

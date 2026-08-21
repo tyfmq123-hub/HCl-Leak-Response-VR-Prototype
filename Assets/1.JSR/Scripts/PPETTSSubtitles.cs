@@ -47,7 +47,7 @@ public static class PPETTSSubtitles
             case PPETTSCue.OuterGlovesEquipped:
                 return "외부 보호장갑을 착용했습니다.";
             case PPETTSCue.EssentialPPEComplete:
-                return "오염된 흡착재 회수에 사용할 유해폐기물 수거용기를 준비합니다.";
+                return "PPE 착용이 완료되었습니다. 이제 대응 장비를 준비하세요.";
             case PPETTSCue.PrepareResponseBag:
                 return "대응가방을 Grip으로 선택하고, 왼손 Y로 내용물을 확인한 뒤 다시 Grip을 눌러 준비하십시오.";
             case PPETTSCue.ResponseBagReady:

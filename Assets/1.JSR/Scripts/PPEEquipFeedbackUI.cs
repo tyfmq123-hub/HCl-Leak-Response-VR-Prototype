@@ -160,6 +160,11 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     /// <summary>Shows <paramref name="message"/> for <paramref name="durationSeconds"/> (e.g. TTS clip length).</summary>
     public void ShowMessage(string message, float durationSeconds)
     {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        if (!isActiveAndEnabled)
+            return;
+
         ResolveReferences();
         EnsureHangulFont();
         CacheCamera();

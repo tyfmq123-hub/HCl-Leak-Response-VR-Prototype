@@ -30,8 +30,16 @@ public class PPEEquipable : MonoBehaviour
 
     [SerializeField]
     [Range(0f, 180f)]
-    [Tooltip("Maximum orientation difference in degrees for a future equip check.")]
+    [Tooltip("Maximum orientation difference in degrees when Use Rotation Validation is enabled.")]
     float equipAngleTolerance = 35f;
+
+    [SerializeField]
+    [Tooltip("When false, placement uses distance only. Gloves/boots/suit should leave this off.")]
+    bool useRotationValidation = true;
+
+    [SerializeField]
+    [Tooltip("Optional placement point. When empty, an EquipReference child is created at the visual center.")]
+    Transform equipReference;
 
     [SerializeField]
     [Tooltip("Optional ghost/guide visual. STEP 3 stores the reference but does not instantiate it.")]
@@ -59,6 +67,23 @@ public class PPEEquipable : MonoBehaviour
     public PPEEquipSlot EquipSlots => equipSlots;
     public float EquipDistance => equipDistance;
     public float EquipAngleTolerance => equipAngleTolerance;
+    public bool UseRotationValidation => useRotationValidation;
+    public Transform EquipReference => equipReference;
+    public Transform PlacementReference =>
+        equipReference != null ? equipReference : transform;
+
+    public Transform EnsurePlacementReference()
+    {
+        if (equipReference != null)
+            return equipReference;
+
+        equipReference = PPEEquipReferenceUtility.Ensure(transform, transform);
+        if (ppeType == PPEType.ProtectiveSuit ||
+            string.Equals(itemId, PPEEquipmentManager.IdChemicalSuit, StringComparison.Ordinal))
+            PPEEquipReferenceUtility.PlaceAtSuitChest(equipReference, transform);
+        return PlacementReference;
+    }
+
     public GameObject GuidePrefab => guidePrefab;
     public bool IsEquipped => isEquipped;
     public bool DeactivateOnEquip => deactivateOnEquip;
@@ -146,6 +171,12 @@ public class PPEEquipable : MonoBehaviour
         equipDistance = Mathf.Max(0.01f, distance);
         equipAngleTolerance = Mathf.Clamp(angleTolerance, 0f, 180f);
         guidePrefab = guide;
+    }
+
+    /// <summary>Editor helper for proximity-first vs orientation-checked items.</summary>
+    public void EditorSetUseRotationValidation(bool requireRotation)
+    {
+        useRotationValidation = requireRotation;
     }
 
     /// <summary>Editor helper for an item that remains visible on its anchor after equip.</summary>
