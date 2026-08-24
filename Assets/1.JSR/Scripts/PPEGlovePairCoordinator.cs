@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// <summary>
 /// Logical left/right pair (ChemicalGloves, InnerGloves, ChemicalBoots).
@@ -48,6 +49,8 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
     bool logicalEquipCompleted;
     bool debugCompleteSideCalled;
     bool debugCompleteSideSucceeded;
+    string lastSecondGrabDiagnostic;
+
     PPEEquipmentManager cachedEquipmentManager;
     ChemicalGlovesWearableVisual cachedWearable;
     XRInteractionManager cachedInteractionManager;
@@ -158,6 +161,229 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
             activeCoordinators.Add(this);
     }
 
+    void Start()
+    {
+        // PPEStateController intentionally defers per-side visuals to this
+        // coordinator. Establish the IDLE bare/bare state before the first grab
+        // instead of waiting for the wearable host's first side-equip activation.
+        if (this == ChemicalGlovesInstance)
+            ApplyWearableVisual();
+    }
+
+    void LateUpdate()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        LogSecondProtectiveGloveGrabDiagnostic();
+#endif
+    }
+
+    void LogSecondProtectiveGloveGrabDiagnostic()
+    {
+        if (this != ChemicalGlovesInstance)
+            return;
+        if (leftEquipped == rightEquipped)
+            return;
+
+        var equippedSide = leftEquipped ? PPEGrabHand.Left : PPEGrabHand.Right;
+        var remaining = leftEquipped ? rightMember : leftMember;
+        if (remaining == null)
+            return;
+
+        var remainingGrab = remaining.GetComponent<PPEHandGrabbable>();
+        var remainingFilter = remaining.GetComponent<PPEDirectGrabProximityFilter>();
+        var remainingCollider = remaining.PhysicalCollider;
+        var assistCollider = remaining.AssistCollider;
+        var stored = remaining.GetComponent<PPEStoredDisplayState>();
+        var equippedInteractor = FindSideInteractor(equippedSide);
+        var selectInteractor = equippedInteractor as IXRSelectInteractor;
+        var hoverInteractor = equippedInteractor as IXRHoverInteractor;
+        var hovering = IsHoveredBy(remainingGrab, hoverInteractor);
+        var selected = IsSelectedBy(remainingGrab, selectInteractor);
+        var target = GetTrackedTarget(equippedSide);
+        var targetFollower = target != null ? target.GetComponent<PPEGloveHandTargetFollower>() : null;
+        var tracking = targetFollower != null && targetFollower.IsTracking;
+        var attach = equippedInteractor != null && remainingGrab != null
+            ? ((IXRInteractor)equippedInteractor).GetAttachTransform(remainingGrab)
+            : null;
+
+        var selectCandidate = "(none)";
+        if (hovering)
+            selectCandidate = remaining.name;
+        else if (hoverInteractor != null && hoverInteractor.interactablesHovered.Count > 0 &&
+                 hoverInteractor.interactablesHovered[0] != null)
+            selectCandidate = hoverInteractor.interactablesHovered[0].transform.name;
+
+        var filterAllows = false;
+        var distance = float.PositiveInfinity;
+        if (selectInteractor != null && remainingGrab != null && remainingFilter != null)
+        {
+            filterAllows = remainingFilter.Process(selectInteractor, remainingGrab);
+            distance = remainingFilter.EvaluateDistance(selectInteractor, remainingGrab);
+        }
+
+        var inputInteractor = equippedInteractor as XRBaseInputInteractor;
+        var selectInputConfigured = inputInteractor != null && inputInteractor.selectInput != null;
+        var interactionRoot = FindInteractionRoot(equippedInteractor, equippedSide);
+        var firstFailure = DetermineSecondGrabFirstFailure(
+            interactionRoot,
+            equippedInteractor,
+            selectInputConfigured,
+            tracking,
+            attach,
+            remaining,
+            remainingGrab,
+            remainingCollider,
+            assistCollider,
+            remainingFilter,
+            hovering,
+            filterAllows,
+            selected);
+        var distanceCentimeters = float.IsPositiveInfinity(distance)
+            ? -1
+            : Mathf.RoundToInt(distance * 100f);
+
+        var candidate = selectCandidate;
+        var key =
+            equippedSide + "|" +
+            (equippedInteractor != null && equippedInteractor.isActiveAndEnabled) + "|" +
+            tracking + "|" +
+            remaining.gameObject.activeInHierarchy + "|" +
+            (remainingGrab != null && remainingGrab.enabled) + "|" +
+            (remainingCollider != null && remainingCollider.enabled) + "|" +
+            (assistCollider != null && assistCollider.enabled) + "|" +
+            hovering + "|" +
+            candidate + "|" +
+            filterAllows + "|" +
+            selected + "|" +
+            firstFailure + "|" +
+            distanceCentimeters;
+        if (key == lastSecondGrabDiagnostic)
+            return;
+        lastSecondGrabDiagnostic = key;
+
+        Debug.Log(
+            "[Second ProtectiveGlove Grab]\n\n" +
+            "EquippedSide = " + equippedSide + "\n\n" +
+            equippedSide + "InteractionRootActive = " + (interactionRoot != null && interactionRoot.gameObject.activeInHierarchy) + "\n" +
+            equippedSide + "InteractorActive = " + (equippedInteractor != null && equippedInteractor.gameObject.activeInHierarchy) + "\n" +
+            equippedSide + "InteractorEnabled = " + (equippedInteractor != null && equippedInteractor.enabled) + "\n" +
+            equippedSide + "SelectActionEnabled = " + selectInputConfigured + "\n" +
+            equippedSide + "SelectActionActive = " + (inputInteractor != null && inputInteractor.isSelectActive) + "\n" +
+            equippedSide + "TrackingValid = " + tracking + "\n" +
+            equippedSide + "AttachTransformValid = " + (attach != null) + "\n" +
+            "ResolverSource=" + (targetFollower != null ? targetFollower.ResolvedSourceLabel : "None") + "\n\n" +
+            "RemainingMember = " + remaining.name + "\n" +
+            "RemainingActive = " + remaining.gameObject.activeInHierarchy + "\n" +
+            "RemainingGrabbableEnabled = " + (remainingGrab != null && remainingGrab.enabled) + "\n" +
+            "RemainingXRGrabEnabled = " + (remainingGrab != null && remainingGrab.isActiveAndEnabled) + "\n" +
+            "PhysicalColliderEnabled=" + (remainingCollider != null && remainingCollider.enabled) + "\n" +
+            "NearGrabAssistEnabled=" + (assistCollider != null && assistCollider.enabled) + "\n" +
+            "ProximityFilterEnabled=" + (remainingFilter != null && remainingFilter.isActiveAndEnabled) + "\n" +
+            "StorageState=" + (stored != null ? stored.State.ToString() : "None") + "\n\n" +
+            "DistanceToPhysicalCollider = " + (float.IsPositiveInfinity(distance) ? "n/a" : distance.ToString("F3")) + "\n" +
+            "MaxDirectGrabDistance = " + (remainingFilter != null ? remainingFilter.MaxDirectGrabDistance.ToString("F3") : "n/a") + "\n\n" +
+            "Hovering = " + hovering + "\n" +
+            "FilterAllows = " + filterAllows + "\n" +
+            "SelectCandidate = " + candidate + "\n" +
+            "SelectSucceeded = " + selected + "\n\n" +
+            "FirstFailure = " + firstFailure,
+            remaining);
+    }
+
+    static string DetermineSecondGrabFirstFailure(
+        Transform interactionRoot,
+        XRBaseInteractor interactor,
+        bool selectInputConfigured,
+        bool tracking,
+        Transform attach,
+        PPEGlovePairMember remaining,
+        PPEHandGrabbable grab,
+        Collider physical,
+        Collider assist,
+        PPEDirectGrabProximityFilter filter,
+        bool hovering,
+        bool filterAllows,
+        bool selected)
+    {
+        if (interactionRoot == null || !interactionRoot.gameObject.activeInHierarchy)
+            return "INTERACTION_ROOT_INACTIVE";
+        if (interactor == null || !interactor.gameObject.activeInHierarchy)
+            return "INTERACTOR_INACTIVE";
+        if (!interactor.enabled)
+            return "INTERACTOR_DISABLED";
+        if (!selectInputConfigured)
+            return "SELECT_ACTION_DISABLED";
+        if (!tracking)
+            return "TRACKING_INVALID";
+        if (attach == null)
+            return "ATTACH_TRANSFORM_INVALID";
+        if (remaining == null || !remaining.gameObject.activeInHierarchy)
+            return "REMAINING_MEMBER_INACTIVE";
+        if (grab == null || !grab.isActiveAndEnabled)
+            return "REMAINING_GRABBABLE_DISABLED";
+        if (physical == null || !physical.enabled)
+            return "PHYSICAL_COLLIDER_DISABLED";
+        if (assist == null || !assist.enabled)
+            return "NEAR_GRAB_ASSIST_DISABLED";
+        if (filter == null || !filter.isActiveAndEnabled)
+            return "PROXIMITY_FILTER_DISABLED";
+        if (!hovering)
+            return "HOVER_FALSE";
+        if (!filterAllows)
+            return "FILTER_FALSE";
+        if (!selected)
+            return "SELECT_NOT_SUCCEEDED";
+        return "NONE";
+    }
+
+    static Transform FindInteractionRoot(XRBaseInteractor interactor, PPEGrabHand side)
+    {
+        if (interactor == null)
+            return null;
+        var expectedName = side == PPEGrabHand.Right ? "Right Controller" : "Left Controller";
+        var current = interactor.transform;
+        while (current != null)
+        {
+            if (string.Equals(current.name, expectedName, System.StringComparison.Ordinal))
+                return current;
+            current = current.parent;
+        }
+        return interactor.transform;
+    }
+
+    static bool IsHoveredBy(PPEHandGrabbable target, IXRHoverInteractor interactor)
+    {
+        if (target == null || interactor == null)
+            return false;
+        for (var i = 0; i < target.interactorsHovering.Count; i++)
+            if (ReferenceEquals(target.interactorsHovering[i], interactor))
+                return true;
+        return false;
+    }
+
+    static bool IsSelectedBy(PPEHandGrabbable target, IXRSelectInteractor interactor)
+    {
+        if (target == null || interactor == null)
+            return false;
+        for (var i = 0; i < target.interactorsSelecting.Count; i++)
+            if (ReferenceEquals(target.interactorsSelecting[i], interactor))
+                return true;
+        return false;
+    }
+
+    static XRBaseInteractor FindSideInteractor(PPEGrabHand side)
+    {
+        var attach = PPEHandTargetResolver.ResolveControllerHand(side);
+        if (attach != null)
+        {
+            var fromAttach = attach.GetComponentInParent<XRBaseInteractor>(true);
+            if (fromAttach != null && !PPEWearableVisualOnly.IsInHierarchy(fromAttach.transform))
+                return fromAttach;
+        }
+
+        return null;
+    }
+
     void OnDisable()
     {
         activeCoordinators.Remove(this);
@@ -167,6 +393,15 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
     {
         if (ChemicalGlovesInstance == this)
             ChemicalGlovesInstance = null;
+
+        activeCoordinators.Remove(this);
+        if (activeCoordinators.Count == 0)
+        {
+            cachedLeftFollower = null;
+            cachedRightFollower = null;
+            cachedLeftLowerLeg = null;
+            cachedRightLowerLeg = null;
+        }
     }
 
     public bool NotifySideEquipped(PPEGlovePairMember member)
@@ -225,6 +460,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         placement?.HideActiveGuides();
 
         ApplyWearableVisual();
+        EndTargetHandPresentation(member);
         debugCompleteSideSucceeded = true;
         Debug.Log(
             "[PPE Pair] CompleteSide " + member.GloveSide +
@@ -242,6 +478,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
             return false;
 
         logicalEquipCompleted = manager.Equip(LogicalItem);
+        ApplyWearableVisual();
         return logicalEquipCompleted;
     }
 
@@ -286,6 +523,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         cachedPlacementGuide = placement;
         placement?.HideActiveGuides();
         ApplyWearableVisual();
+        EndTargetHandPresentation(member);
 
         Debug.Log(
             "[PPE Pair] Release side=" + member.GloveSide +
@@ -298,11 +536,54 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         {
             var manager = ResolveEquipmentManager();
             if (manager != null)
+            {
                 logicalEquipCompleted = manager.Equip(LogicalItem);
+                ApplyWearableVisual();
+            }
         }
 
         StartCoroutine(DisableInnerGloveMemberEndOfFrame(member));
         return true;
+    }
+
+    /// <summary>
+    /// Full PPE-room reset: both physical sides active at authored Stored poses,
+    /// pair flags cleared. Does not recreate members.
+    /// </summary>
+    public void ResetPair()
+    {
+        StopAllCoroutines();
+        leftEquipped = false;
+        rightEquipped = false;
+        logicalEquipCompleted = false;
+        debugCompleteSideCalled = false;
+        debugCompleteSideSucceeded = false;
+        lastSecondGrabDiagnostic = null;
+
+        RestorePhysicalMember(leftMember);
+        RestorePhysicalMember(rightMember);
+        ResolveWearable()?.CancelTargetGhostPresentations();
+        ApplyWearableVisual();
+    }
+
+    void RestorePhysicalMember(PPEGlovePairMember member)
+    {
+        if (member == null)
+            return;
+
+        if (!member.gameObject.activeSelf)
+            member.gameObject.SetActive(true);
+
+        var grab = member.GetComponent<PPEHandGrabbable>();
+        if (grab != null)
+        {
+            grab.enabled = true;
+            grab.ApplyWearableThrowPolicy();
+        }
+
+        var stored = member.GetComponent<PPEStoredDisplayState>();
+        if (stored != null)
+            stored.RestoreToStoredPose();
     }
 
     IEnumerator DisableInnerGloveMemberEndOfFrame(PPEGlovePairMember member)
@@ -565,11 +846,12 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
     Transform ResolveTargetParent()
     {
         var body = ResolveBodyReference();
-        if (body != null)
+        body?.EnsureActiveInPpeScene();
+        if (body != null && body.gameObject.activeInHierarchy)
             return body.transform;
 
         // Stay in the PPE scene. Do not parent under XR Origin.
-        return transform;
+        return PPEPlayerBodyReference.GetOrCreateBodyTargetRoot();
     }
 
     string PhysicalMemberName(PPEGrabHand side)
@@ -701,7 +983,15 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         if (wearable == null)
             return;
 
-        wearable.ApplyPpeRoomState(leftEquipped, rightEquipped);
+        wearable.ApplyAuthoritativeVisual();
+    }
+
+    static void EndTargetHandPresentation(PPEGlovePairMember member)
+    {
+        if (member == null || !member.IsTrackedHandGlove)
+            return;
+        ChemicalGlovesWearableVisual.FindActive()?
+            .SetTargetGhostPresentation(member.GloveSide, false);
     }
 
     PPEEquipmentManager ResolveEquipmentManager()
@@ -773,8 +1063,8 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         destination.useDynamicAttach = true;
         destination.matchAttachPosition = true;
         destination.matchAttachRotation = true;
-        destination.throwOnDetach = true;
-        destination.forceGravityOnDetach = true;
+        destination.throwOnDetach = false;
+        destination.forceGravityOnDetach = false;
         if (source == null)
             return;
 
@@ -784,13 +1074,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         destination.useDynamicAttach = source.useDynamicAttach;
         destination.matchAttachPosition = source.matchAttachPosition;
         destination.matchAttachRotation = source.matchAttachRotation;
-        destination.throwOnDetach = source.throwOnDetach;
-        destination.forceGravityOnDetach = source.forceGravityOnDetach;
-        var member = destination.GetComponent<PPEGlovePairMember>();
-        if (member != null && member.IsInnerGlove)
-        {
-            destination.throwOnDetach = false;
-            destination.forceGravityOnDetach = false;
-        }
+        destination.throwOnDetach = false;
+        destination.forceGravityOnDetach = false;
     }
 }

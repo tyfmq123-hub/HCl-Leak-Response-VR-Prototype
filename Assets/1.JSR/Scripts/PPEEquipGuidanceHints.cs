@@ -23,13 +23,22 @@ public static class PPEEquipGuidanceHints
         if (item == null)
             return;
 
-        var ui = ResolveUi(activateIfNeeded: gloveMember != null);
+        var isFaceOrSuit = item.UsesSlot(PPEEquipSlot.Face) ||
+                           item.UsesSlot(PPEEquipSlot.Head) ||
+                           item.UsesSlot(PPEEquipSlot.Body);
+        var ui = ResolveUi(activateIfNeeded: gloveMember != null || isFaceOrSuit);
         if (ui == null || !ui.isActiveAndEnabled)
             return;
 
         if (gloveMember != null && gloveMember.IsSameHandGrab(holdingHand))
         {
             ui.ShowMessage(WrongHandMessage(gloveMember), ItemDuration);
+            return;
+        }
+
+        if (isFaceOrSuit)
+        {
+            ui.ShowMessage(ResolveItemHint(item, null), ItemDuration);
             return;
         }
 
@@ -92,7 +101,7 @@ public static class PPEEquipGuidanceHints
             string.Equals(itemId, PPEEquipmentManager.IdWasteContainer, System.StringComparison.Ordinal))
             return string.Empty;
         if (string.Equals(itemId, PPEEquipmentManager.IdHelmet, System.StringComparison.Ordinal))
-            return "머리 쪽으로 가져가 착용하세요.";
+            return "안전모를 머리 위로 가져간 뒤 놓으세요.";
         return string.Empty;
     }
 

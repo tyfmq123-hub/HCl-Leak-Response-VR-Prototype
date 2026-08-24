@@ -73,14 +73,14 @@ public sealed class PPEInnerGloveDonning : MonoBehaviour
         UpdateDebugOverlay();
     }
 
-    public static void TryEquipInnerGloveOnRelease(PPEHandGrabbable grabbable, PPEGrabHand capturedHoldingHand)
+    public static bool TryEquipInnerGloveOnRelease(PPEHandGrabbable grabbable, PPEGrabHand capturedHoldingHand)
     {
         if (grabbable == null)
-            return;
+            return false;
 
         var member = grabbable.GetComponent<PPEGlovePairMember>();
         if (member == null || !member.IsInnerGlove)
-            return;
+            return false;
 
         var donning = member.Coordinator != null
             ? member.Coordinator.GetComponent<PPEInnerGloveDonning>()
@@ -92,26 +92,22 @@ public sealed class PPEInnerGloveDonning : MonoBehaviour
                 " CapturedHolding=" + capturedHoldingHand +
                 " Result=NO_DONNING_COMPONENT",
                 member);
-            return;
+            return false;
         }
 
-        donning.TryEquipInnerGloveOnRelease(member, capturedHoldingHand);
+        return donning.TryEquipInnerGloveOnRelease(member, capturedHoldingHand);
     }
 
-    void TryEquipInnerGloveOnRelease(PPEGlovePairMember member, PPEGrabHand capturedHolding)
+    bool TryEquipInnerGloveOnRelease(PPEGlovePairMember member, PPEGrabHand capturedHolding)
     {
         if (member == null || coordinator == null)
-            return;
+            return false;
 
         var maxDistance = EffectiveReleaseDistance();
         var sequenceAllowed = IsSequenceValid();
         var correctHolding = member.IsOppositeHandGrab(capturedHolding);
         var targetValid = TryGetReleasePalm(member, out var palm);
         var equipRef = member.EnsureEquipReference();
-        var follower = member.TargetTransform != null
-            ? member.TargetTransform.GetComponent<PPEGloveHandTargetFollower>()
-            : null;
-        var targetSource = follower != null ? follower.ResolvedSourceLabel : "None";
         var distance = equipRef != null && targetValid
             ? Vector3.Distance(equipRef.position, palm)
             : float.PositiveInfinity;
@@ -129,23 +125,22 @@ public sealed class PPEInnerGloveDonning : MonoBehaviour
         else
             result = member.GloveSide == PPEGrabHand.Right ? "EQUIP_RIGHT" : "EQUIP_LEFT";
 
-        Debug.Log(
-            "[InnerGlove Release] Member=" + member.GloveSide +
-            " CapturedHolding=" + capturedHolding +
-            " Target=" + member.GloveSide +
-            " TargetSource=" + targetSource +
-            " TargetValid=" + (targetValid ? "True" : "False") +
-            " Distance=" + (float.IsInfinity(distance) ? "inf" : distance.ToString("0.000")) +
-            " Max=" + maxDistance.ToString("0.000") +
-            " Sequence=" + (sequenceAllowed ? "True" : "False") +
-            " Result=" + result,
-            member);
+        PPEGloveReleaseDiagnostics.Log(
+            member,
+            capturedHolding,
+            palm,
+            equipRef,
+            distance,
+            maxDistance,
+            targetValid,
+            result);
 
         if (result != "EQUIP_LEFT" && result != "EQUIP_RIGHT")
-            return;
+            return false;
 
         var equipped = coordinator.NotifyInnerGloveSideFromRelease(member);
         if (!equipped)
+        {
             Debug.Log(
                 "[InnerGlove Release] Member=" + member.GloveSide +
                 " CapturedHolding=" + capturedHolding +
@@ -153,6 +148,11 @@ public sealed class PPEInnerGloveDonning : MonoBehaviour
                 " LeftEquipped=" + coordinator.LeftEquipped +
                 " RightEquipped=" + coordinator.RightEquipped,
                 member);
+            return false;
+        }
+
+        member.GetComponent<PPEStoredDisplayState>()?.NotifyEquipped();
+        return true;
     }
 
     float EffectiveReleaseDistance()

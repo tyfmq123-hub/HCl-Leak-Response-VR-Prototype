@@ -511,24 +511,15 @@ public static class PPEXrHandsJointPose
         if (cachedOriginTransform != null && cachedOriginTransform.gameObject.activeInHierarchy)
             return cachedOriginTransform;
 
-        cachedOriginTransform = null;
-        var body = Object.FindAnyObjectByType<PPEPlayerBodyReference>(FindObjectsInactive.Exclude);
-        XROrigin origin = null;
-        if (body != null)
-            origin = body.Origin;
-        if (origin == null || !origin.isActiveAndEnabled)
-            origin = Object.FindAnyObjectByType<XROrigin>();
-        if (origin == null)
-            return null;
-
-        cachedOriginTransform = origin.Origin != null ? origin.Origin.transform : origin.transform;
+        cachedOriginTransform = PPEActiveXrOrigin.ResolveOriginTransform();
         return cachedOriginTransform;
     }
 }
 
 /// <summary>
 /// Authoritative controller-hand pose for PPE glove targets.
-/// Prefers the visible virtual hand on the currently active XR Origin.
+/// Uses the active XR Origin NearFar/Direct attach transform. Never searches
+/// active <c>Hand</c> visuals, which may be worn-glove meshes.
 /// </summary>
 public static class PPEHandTargetResolver
 {
@@ -563,15 +554,8 @@ public static class PPEHandTargetResolver
         if (hand != PPEGrabHand.Left && hand != PPEGrabHand.Right)
             return null;
 
-        var fromHandVisual = FindActiveHandVisual(hand);
-        if (IsUsable(fromHandVisual))
-        {
-            CacheControllerHand(hand, fromHandVisual);
-            return fromHandVisual;
-        }
-
         var cached = hand == PPEGrabHand.Right ? cachedRightControllerHand : cachedLeftControllerHand;
-        if (IsUsable(cached))
+        if (IsUsableInteractionSource(cached))
             return cached;
 
         Transform resolved = null;
@@ -579,16 +563,16 @@ public static class PPEHandTargetResolver
         var controller = ResolveActiveController(origin, hand);
         if (controller != null)
         {
-            var nearFar = FindActiveNearFar(controller);
-            if (nearFar != null)
+            var interactor = FindActiveNearFar(controller);
+            if (interactor != null)
             {
-                if (IsUsable(nearFar.attachTransform))
-                    resolved = nearFar.attachTransform;
-                else if (nearFar.transform.gameObject.activeInHierarchy)
-                    resolved = nearFar.transform;
+                if (IsUsableInteractionSource(interactor.attachTransform))
+                    resolved = interactor.attachTransform;
+                else if (IsUsableInteractionSource(interactor.transform))
+                    resolved = interactor.transform;
             }
 
-            if (resolved == null && controller.gameObject.activeInHierarchy)
+            if (resolved == null && IsUsableInteractionSource(controller))
                 resolved = controller;
         }
 
@@ -607,60 +591,19 @@ public static class PPEHandTargetResolver
             cachedLeftControllerHand = source;
     }
 
-    static Transform FindActiveHandVisual(PPEGrabHand hand)
+    static bool IsWearableVisual(Transform transform)
     {
-        Transform fallback = null;
-        var hands = Object.FindObjectsByType<Hand>(FindObjectsInactive.Exclude);
-        for (var i = 0; i < hands.Length; i++)
-        {
-            var visual = hands[i];
-            if (visual == null || !visual.isActiveAndEnabled || !visual.gameObject.activeInHierarchy)
-                continue;
-            if (!MatchesHandSide(visual, hand))
-                continue;
-            if (IsUnderActiveOrigin(visual.transform))
-                return visual.transform;
-            if (fallback == null)
-                fallback = visual.transform;
-        }
-
-        return fallback;
+        return PPEWearableVisualOnly.IsInHierarchy(transform);
     }
 
-    static bool MatchesHandSide(Hand visual, PPEGrabHand hand)
+    static bool IsUsableInteractionSource(Transform transform)
     {
-        if (visual == null)
-            return false;
-        var characteristics = visual.inputDeviceCharacteristics;
-        if (hand == PPEGrabHand.Left && (characteristics & InputDeviceCharacteristics.Left) != 0)
-            return true;
-        if (hand == PPEGrabHand.Right && (characteristics & InputDeviceCharacteristics.Right) != 0)
-            return true;
-        return false;
-    }
-
-    static bool IsUnderActiveOrigin(Transform transform)
-    {
-        if (transform == null)
-            return false;
-        var origin = transform.GetComponentInParent<XROrigin>(true);
-        return origin != null && origin.isActiveAndEnabled && origin.gameObject.activeInHierarchy;
+        return IsUsable(transform) && !IsWearableVisual(transform);
     }
 
     static XROrigin FindActiveOrigin()
     {
-        var origins = Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Exclude);
-        for (var i = 0; i < origins.Length; i++)
-        {
-            var origin = origins[i];
-            if (origin != null && origin.isActiveAndEnabled && origin.gameObject.activeInHierarchy)
-                return origin;
-        }
-
-        var body = Object.FindAnyObjectByType<PPEPlayerBodyReference>(FindObjectsInactive.Exclude);
-        if (body != null && body.Origin != null && body.Origin.isActiveAndEnabled)
-            return body.Origin;
-        return Object.FindAnyObjectByType<XROrigin>();
+        return PPEActiveXrOrigin.Resolve();
     }
 
     static Transform ResolveActiveController(XROrigin origin, PPEGrabHand hand)
@@ -679,14 +622,23 @@ public static class PPEHandTargetResolver
         return controller;
     }
 
-    static NearFarInteractor FindActiveNearFar(Transform controller)
+    static XRBaseInteractor FindActiveNearFar(Transform controller)
     {
         if (controller == null)
             return null;
-        var interactors = controller.GetComponentsInChildren<NearFarInteractor>(false);
-        for (var i = 0; i < interactors.Length; i++)
+
+        var nearFar = controller.GetComponentsInChildren<NearFarInteractor>(false);
+        for (var i = 0; i < nearFar.Length; i++)
         {
-            var interactor = interactors[i];
+            var interactor = nearFar[i];
+            if (interactor != null && interactor.isActiveAndEnabled && interactor.gameObject.activeInHierarchy)
+                return interactor;
+        }
+
+        var direct = controller.GetComponentsInChildren<XRDirectInteractor>(false);
+        for (var i = 0; i < direct.Length; i++)
+        {
+            var interactor = direct[i];
             if (interactor != null && interactor.isActiveAndEnabled && interactor.gameObject.activeInHierarchy)
                 return interactor;
         }
@@ -797,9 +749,7 @@ public static class PPEHandSourceDiagnostics
         var pose = PPEHandTargetResolver.ResolveControllerHand(
             label == "Right" ? PPEGrabHand.Right : PPEGrabHand.Left);
         var nearFar = pose != null ? pose.GetComponentInParent<NearFarInteractor>() : null;
-        var interactor = nearFar != null
-            ? nearFar.name
-            : FindActiveInteractorName(label == "Right" ? PPEGrabHand.Right : PPEGrabHand.Left);
+        var interactor = nearFar != null ? nearFar.name : "(none)";
 
         return
             "\n" + label + ":\n" +
@@ -810,24 +760,6 @@ public static class PPEHandSourceDiagnostics
             "VisibleHandSource = " + (pose != null ? pose.name + " (" + BuildPath(pose) + ")" : "(none)") + "\n" +
             "ResolvedTargetSource = " + (follower != null ? follower.ResolvedSourceLabel : "None") + "\n" +
             "TargetValid = " + (follower != null && follower.TargetValid) + "\n";
-    }
-
-    static string FindActiveInteractorName(PPEGrabHand hand)
-    {
-        var interactors = Object.FindObjectsByType<NearFarInteractor>(FindObjectsInactive.Exclude);
-        for (var i = 0; i < interactors.Length; i++)
-        {
-            var interactor = interactors[i];
-            if (interactor == null || !interactor.isActiveAndEnabled)
-                continue;
-            var handedness = interactor.handedness;
-            if (hand == PPEGrabHand.Left && handedness == InteractorHandedness.Left)
-                return interactor.name;
-            if (hand == PPEGrabHand.Right && handedness == InteractorHandedness.Right)
-                return interactor.name;
-        }
-
-        return "(none)";
     }
 
     static PPEGloveHandTargetFollower FindOther(PPEGrabHand hand)

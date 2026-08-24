@@ -19,6 +19,8 @@ public sealed class PPEGlovePairMember : MonoBehaviour
     public const string PhysicalColliderName = "PhysicalCollider";
     public const string AssistColliderName = "NearGrabAssist";
     public const string EquipReferenceName = "EquipReference";
+    public const string GhostPoseCalibrationName = "GhostPoseCalibration";
+    public const string GhostVisualOriginName = "GhostVisualOrigin";
 
     [SerializeField] PPEGlovePairCoordinator coordinator;
     [SerializeField] PPEGrabHand gloveSide = PPEGrabHand.Left;
@@ -35,17 +37,59 @@ public sealed class PPEGlovePairMember : MonoBehaviour
     bool requireOppositeHand = true;
     [SerializeField] PPEPairTargetKind targetKind = PPEPairTargetKind.TrackedHands;
 
+    [Header("Ghost Pose Calibration")]
+    [SerializeField]
+    [Tooltip("Child Transform you rotate in the Inspector until the Ghost sits on the target. Runtime Ghost uses this local pose relative to the live target (palm or body yaw).")]
+    Transform ghostPoseCalibration;
+    [SerializeField]
+    [Tooltip("Seeded onto GhostPoseCalibration when that child is first created.")]
+    Vector3 guidePositionOffset;
+    [SerializeField]
+    [Tooltip("Seeded onto GhostPoseCalibration when that child is first created. Gloves: palm-relative. Boots: body-yaw-relative.")]
+    Vector3 guideRotationOffsetEuler;
+    [SerializeField, HideInInspector]
+    [Tooltip("Mesh-origin compensation kept separate from the palm-relative visual offset. Not a runtime hand-position calibration.")]
+    Vector3 ghostVisualOriginOffset;
+    [SerializeField]
+    [Tooltip("Development builds only: keeps this held glove Ghost visible while tuning GhostPoseCalibration in Play Mode.")]
+    bool developmentRuntimeCalibrationMode;
+
     PPEGloveHandTargetFollower cachedTargetFollower;
 
     public PPEGlovePairCoordinator Coordinator => coordinator;
     public PPEGrabHand GloveSide => gloveSide;
     public Transform VisualRoot => visualRoot != null ? visualRoot : transform;
+    public Collider PhysicalCollider => physicalCollider;
+    public Collider AssistCollider => assistCollider;
     public Transform EquipReference => equipReference;
     public Transform PlacementReference =>
         equipReference != null ? equipReference : transform;
     public GameObject GuidePrefab => guidePrefab;
     public bool RequireOppositeHand => requireOppositeHand;
     public PPEPairTargetKind TargetKind => targetKind;
+    public Transform GhostPoseCalibration => EnsureGhostPoseCalibration();
+    public Transform GhostPoseCalibrationOrNull =>
+        ghostPoseCalibration != null ? ghostPoseCalibration : transform.Find(GhostPoseCalibrationName);
+    public Vector3 GuidePositionOffset =>
+        ghostPoseCalibration != null ? ghostPoseCalibration.localPosition : guidePositionOffset;
+    public Vector3 GuideRotationOffsetEuler =>
+        ghostPoseCalibration != null ? ghostPoseCalibration.localEulerAngles : guideRotationOffsetEuler;
+    public Quaternion GhostCalibrationLocalRotation =>
+        ghostPoseCalibration != null ? ghostPoseCalibration.localRotation : Quaternion.Euler(guideRotationOffsetEuler);
+    public Vector3 GhostCalibrationLocalPosition =>
+        ghostPoseCalibration != null ? ghostPoseCalibration.localPosition : guidePositionOffset;
+    public Vector3 GhostVisualOriginOffset => ghostVisualOriginOffset;
+    public bool DevelopmentRuntimeCalibrationMode
+    {
+        get
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            return developmentRuntimeCalibrationMode;
+#else
+            return false;
+#endif
+        }
+    }
     public PPEEquipable LogicalEquipable => coordinator != null ? coordinator.LogicalItem : null;
 
     public PPEEquipSlot TargetSlot
@@ -104,6 +148,82 @@ public sealed class PPEGlovePairMember : MonoBehaviour
             return grabbingHand == PPEGrabHand.Left;
         return false;
     }
+
+    public Transform EnsureGhostPoseCalibration()
+    {
+        if (ghostPoseCalibration != null)
+            return ghostPoseCalibration;
+
+        var existing = transform.Find(GhostPoseCalibrationName);
+        if (existing != null)
+        {
+            ghostPoseCalibration = existing;
+            return ghostPoseCalibration;
+        }
+
+        var go = new GameObject(GhostPoseCalibrationName);
+        go.transform.SetParent(transform, false);
+        var seedPosition = guidePositionOffset;
+        if (targetKind == PPEPairTargetKind.TrackedHands)
+            seedPosition = Vector3.zero;
+        go.transform.localPosition = seedPosition;
+        go.transform.localRotation = Quaternion.Euler(guideRotationOffsetEuler);
+        ghostPoseCalibration = go.transform;
+        return ghostPoseCalibration;
+    }
+
+    public bool IsTrackedHandGlove => targetKind == PPEPairTargetKind.TrackedHands;
+
+#if UNITY_EDITOR
+    public void EditorSetGhostVisualOriginOffset(Vector3 localOffset)
+    {
+        ghostVisualOriginOffset = localOffset;
+    }
+
+    public void EditorResetGhostCalibration()
+    {
+        var calib = EnsureGhostPoseCalibration();
+        if (calib == null)
+            return;
+        calib.localPosition = Vector3.zero;
+        calib.localRotation = Quaternion.identity;
+        guidePositionOffset = calib.localPosition;
+        guideRotationOffsetEuler = Vector3.zero;
+    }
+
+    public void EditorCopyMirroredCalibrationFrom(PPEGlovePairMember source)
+    {
+        if (source == null || source == this)
+            return;
+        var src = source.EnsureGhostPoseCalibration();
+        var dst = EnsureGhostPoseCalibration();
+        if (src == null || dst == null)
+            return;
+        var p = src.localPosition;
+        var q = src.localRotation;
+        dst.localPosition = new Vector3(-p.x, p.y, p.z);
+        dst.localRotation = new Quaternion(q.x, -q.y, -q.z, q.w);
+        guidePositionOffset = dst.localPosition;
+        guideRotationOffsetEuler = dst.localEulerAngles;
+    }
+#endif
+
+    void Awake()
+    {
+        EnsureGhostPoseCalibration();
+    }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        UnityEditor.EditorApplication.delayCall += () =>
+        {
+            if (this == null)
+                return;
+            EnsureGhostPoseCalibration();
+        };
+    }
+#endif
 
     public void Configure(
         PPEGlovePairCoordinator pair,
@@ -382,11 +502,65 @@ public sealed class PPEGlovePairMember : MonoBehaviour
 #if UNITY_EDITOR
     void OnDrawGizmos()
     {
-        if (equipReference == null)
+        if (equipReference != null)
+        {
+            Gizmos.color = new Color(0.15f, 0.95f, 1f, 0.95f);
+            Gizmos.DrawWireSphere(equipReference.position, 0.012f);
+            Gizmos.DrawLine(transform.position, equipReference.position);
+        }
+
+        DrawGhostPosePreview();
+    }
+
+    void DrawGhostPosePreview()
+    {
+        // Tracked-hand glove preview is owned by the editor calibration tool,
+        // which draws the actual visible hand mesh and Palm-local handles.
+        if (targetKind == PPEPairTargetKind.TrackedHands)
             return;
-        Gizmos.color = new Color(0.15f, 0.95f, 1f, 0.95f);
-        Gizmos.DrawWireSphere(equipReference.position, 0.012f);
-        Gizmos.DrawLine(transform.position, equipReference.position);
+
+        var calib = GhostPoseCalibrationOrNull;
+        if (calib == null)
+            return;
+
+        var target = TargetTransform;
+        Vector3 previewPos;
+        Quaternion previewRot;
+        if (target != null)
+        {
+            previewPos = target.TransformPoint(calib.localPosition);
+            previewRot = target.rotation * calib.localRotation;
+        }
+        else
+        {
+            previewPos = transform.TransformPoint(calib.localPosition);
+            previewRot = transform.rotation * calib.localRotation;
+        }
+
+        Gizmos.color = new Color(0.2f, 0.85f, 1f, 0.9f);
+        Gizmos.matrix = Matrix4x4.TRS(previewPos, previewRot, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, new Vector3(0.06f, 0.04f, 0.12f));
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.08f);
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(Vector3.zero, Vector3.up * 0.08f);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(Vector3.zero, Vector3.forward * 0.08f);
+        Gizmos.matrix = Matrix4x4.identity;
+
+        var source = VisualRoot;
+        if (source == null)
+            return;
+        var filters = source.GetComponentsInChildren<MeshFilter>(true);
+        Gizmos.color = new Color(0.35f, 0.9f, 1f, 0.18f);
+        for (var i = 0; i < filters.Length; i++)
+        {
+            var filter = filters[i];
+            if (filter == null || filter.sharedMesh == null)
+                continue;
+            var scale = filter.transform.lossyScale;
+            Gizmos.DrawMesh(filter.sharedMesh, previewPos, previewRot, scale);
+        }
     }
 #endif
 }

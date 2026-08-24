@@ -314,14 +314,8 @@ public static class PPEPairPhysicalAuthoringSetup
         grab.useDynamicAttach = true;
         grab.matchAttachPosition = true;
         grab.matchAttachRotation = true;
-        var innerGloves = coordinator != null &&
-                          coordinator.LogicalItem != null &&
-                          string.Equals(
-                              coordinator.LogicalItem.ItemId,
-                              PPEEquipmentManager.IdInnerGloves,
-                              System.StringComparison.Ordinal);
-        grab.throwOnDetach = !innerGloves;
-        grab.forceGravityOnDetach = !innerGloves;
+        grab.throwOnDetach = false;
+        grab.forceGravityOnDetach = false;
 
         var stored = root.GetComponent<PPEStoredDisplayState>();
         if (stored == null)

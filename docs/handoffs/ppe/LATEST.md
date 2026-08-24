@@ -4,11 +4,517 @@
 
 - Role: PPE
 - Branch: `feature/ppe`
-- Commit: uncommitted (release-to-equip for wearable PPE + debug visuals off)
+- Commit: uncommitted (Ghost pose / face-suit comfort / equipped-hand grab)
 - Push target: `origin/feature/ppe`
 - Base develop commit: `d445493 feat: decouple stage equipment inventory and bags`
-- Updated: 2026-08-21
-- Current focus: InnerGloves preserved. Debug spheres off. ProtectiveGloves/Boots/Suit/Respirator/FaceProtection use release-to-equip. DEVICE TEST REQUIRED.
+- Updated: 2026-08-24
+- Current focus: Ghosts only for InnerGloves / ProtectiveGloves / ChemicalBoots. Face/Suit/Helmet use invisible dynamic targets. Do not start Phase 4 until requested.
+- Follow-up: Phase 3 scene integrity + ChemicalGloves visual ownership remains in place.
+- Follow-up: Dropped cabinet PPE no longer acts as walkable ground for CharacterController / GravityProvider (IgnoreCollision + Ignore Raycast while Held/Released).
+- Follow-up: `PPESequenceManager.CancelWearableSelections` uses `IXRSelectInteractable` / `IXRHoverInteractable` (XRI 3 obsolete `XRBaseInteractable` overloads).
+
+## Second ProtectiveGlove grab + reversed stored Gloves/Boots + Boot Ghost facing (2026-08-24)
+
+Scope is limited to the second ProtectiveGlove XRI source/diagnostic, authored physical display rotations for four gloves/two boots, and verification of the existing boot Ghost calibration. Sequence, pair completion, Release-to-Equip, glove Ghost calibration, scale, cabinet dimensions, XR Origin, reset architecture, TTS, other PPE, ResponseBag, and WasteContainer were not changed.
+
+### Second ProtectiveGlove
+
+- First failure identified in the pre-fix select path: Hover used the remaining member's large `NearGrabAssist`, but `PPEDirectGrabProximityFilter` measured from a resolver-selected XR Hands Palm to the tight physical collider. That resolver could disagree with the actual selecting NearFar hand, yielding `Hover=true` and `FilterAllows=false`.
+- Initial select distance remains attach-first: actual `IXRSelectInteractor.GetAttachTransform(target)` from active XR Origin Left/Right Controller -> NearFar/Direct interactor. XR Hands Palm is fallback-only. No visible `Hand` search exists and the authored `0.065 m` ProtectiveGlove distance was not increased.
+- Coordinator diagnostics no longer fall back to a scene-wide NearFar search. They use the cached `PPEHandTargetResolver` source from `PPEActiveXrOrigin` and report on-change under `[Second ProtectiveGlove Grab]`, including ordered `FirstFailure`.
+- `PPEWearableVisualOnly` keeps `Hand`/Animator but forces worn roots to Ignore Raycast and disables child Colliders, `XRBaseInteractable`, `XRBaseInteractor`, and `PPEDirectGrabProximityFilter`.
+- Static code state after Left equip: Left controller/interactor/select/attach are never disabled; only Left bare Renderers are hidden and Left wearable is visual-only. `RightProtectiveGlovePhysical` remains active with `PPEHandGrabbable`, physical collider, NearGrabAssist, proximity filter, and Stored/Released state.
+- DEVICE TEST REQUIRED: actual Quest transition must show `Hovering=true`, `FilterAllows=true`, `SelectSucceeded=true`, `FirstFailure=NONE`.
+
+### Authored stored presentation
+
+- Reversed each physical member root around its local cabinet-vertical Y axis. Local position and scale are unchanged; Left/Right identities and child local calibration values are unchanged.
+  - LeftInnerGlovePhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+  - RightInnerGlovePhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+  - LeftProtectiveGlovePhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+  - RightProtectiveGlovePhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+  - LeftBootPhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+  - RightBootPhysical: quaternion `(0,0,0,1)` -> `(0,1,0,0)` / Euler `(0,180,0)`
+- No clipping position correction was applied.
+- `PPEStoredDisplayState.Awake/CaptureStoredPose` captures the revised root local rotation; `ResetPpeRoomTraining()` therefore restores the new reversed authored pose, not the former identity rotation.
+
+### Boot Ghost
+
+- Mesh toe directions are approximately Left `(+0.9860,0,+0.1665)` and Right `(+0.9860,0,-0.1667)` in boot-local space; Y is the local vertical axis.
+- Reverification showed that an additional Y 180-degree model-axis layer would be a double correction: it changes toe dot BodyForward from approximately `+0.999` to approximately `-0.999`. That extra layer was removed.
+- Existing side calibrations remain unchanged:
+  - Left `(0,-0.64554595,0,0.76372147)`
+  - Right `(0,-0.7637795,0,0.64547724)`
+- Those existing calibrations are the single model-axis correction. They rotate both toe vectors to `(0,0,+1)` within numerical error, so dot with preview BodyForward is approximately `1.0`.
+- `PPEBootGhostFacingPreview` uses the same calibration-only formula as runtime.
+- HMD pitch/roll remain absent: `PPEPlayerBodyReference.ComputeLowerLegWorldPose` returns `BodyYawRotation`; look-down only controls visibility.
+
+### Files / validation
+
+- Changed for this follow-up: `PPEGlovePairCoordinator.cs`, `PPEWearableVisualOnly.cs`, `PPEGloveHandTargetFollower.cs`, `PPEBootGhostFacingPreview.cs`, `Assets/Scenes/04_PPE.unity`, this handoff.
+- Inspector/Scene manual work: none beyond the six serialized stored root rotations already authored in `04_PPE`.
+- Validation: runtime and Editor C# projects compile with 0 errors. Scene YAML contains exactly six reversed physical root rotations and no extra boot-axis layer.
+- DEVICE TEST REQUIRED: second-glove Hover/Filter/Select, visual cabinet facing/clipping, both boot Ghost toes on Quest, body 90-degree turn, looking farther down without tilt, and Reset returning all six items to new rotations.
+- Integration request: none.
+
+## Glove target-hand presentation + authoritative wearable + second-side grab (2026-08-24)
+
+Scope is limited to InnerGloves / ProtectiveGloves target-hand visual presentation, ChemicalGloves per-side wearable state, and the ProtectiveGloves second-side XRI select-distance path. Sequence, pair completion conditions, Release-to-Equip, Ghost calibration, cabinet, scale, XR Origin, reset architecture, and other PPE were not changed.
+
+### Visual state
+
+- `ChemicalGlovesWearableVisual` owns the exact scene visual roots `PPE_DefaultHand_Left`, `PPE_DefaultHand_Right`, `PPE_VrHand_Left_Wearable`, and `PPE_VrHand_Right_Wearable`.
+- The ChemicalGloves coordinator applies its authoritative false/false state in `Start`, so PPE IDLE begins bare/bare even though the App callback correctly defers to the coordinator.
+- A valid opposite-hand glove grab sets a transient target-side presentation flag. Only `Renderer.enabled` below the target `PPE_DefaultHand_*` root is changed; the root, `Hand`, `Animator`, controller tracking, NearFar/Direct interactor, select input, attach transform, and target resolver stay active.
+- Wrong-hand grabs never enter the transient state. Tracking loss, invalid release, interaction cancellation, placement-manager disable, and Reset clear it. InnerGloves have no dedicated worn visual, so successful InnerGlove equip restores the bare renderer after the Ghost is removed.
+- ProtectiveGlove success first applies the coordinator's side flags while the bare hand is still transiently hidden, then clears the transient flag. This produces Ghost -> solid ChemicalGlove without a bare-hand frame.
+- `ApplyAuthoritativeVisual()` now always reads `PPEGlovePairCoordinator.ChemicalGlovesInstance.LeftEquipped / RightEquipped`. It runs after each side change and again after logical pair `PPEEquipmentManager.Equip`, removing the final-side ordering gap. The PPE-stage `PPEStateController.StateChanged` callback still exits while the coordinator exists, and `ApplyPpeRoomState` also rejects stale caller booleans in favor of coordinator flags.
+- `ResetPair()` clears transient presentation, pair flags, both wearables, and restores both bare renderers while restoring physical members to their authored Stored poses. It does not disable interaction hands and remains repeat-safe.
+
+### Second-side interaction
+
+- Root cause in the current filter path: `PPEDirectGrabProximityFilter` preferred an independently valid XR Hands Palm pose over the actual selecting NearFar/Direct interactor attach. In controller-driven PPE interaction, the palm could be valid but spatially unrelated to the active XRI selection source, producing `FilterAllows=false` even when that interactor hovered the opposite physical glove.
+- Initial-select distance now uses `IXRInteractor.GetAttachTransform(target)` first. XR Hands Palm remains fallback-only when an active attach is unavailable. The authored ProtectiveGlove `MaxDirectGrabDistance` remains unchanged at `0.065 m`.
+- Wearables are still forced to Ignore Raycast and stripped of Colliders, `XRBaseInteractable`, and `XRBaseInteractor`; target resolution continues to use active XR Origin Left/Right Controller -> NearFar/Direct attach and never searches visible `Hand` meshes.
+- Development log `[ProtectiveGlove Second Grab]` is on-change only and reports interactor active/enabled, target tracking, select input state, attach validity, resolver source, remaining physical member/grabbable/collider/assist/filter/storage state, actual filter distance/max distance, exact-side Hover, FilterAllows, SelectCandidate, and Select.
+
+### Changed files / validation / remaining
+
+- Changed: `ChemicalGlovesWearableVisual.cs`, `PPEPlacementGuideManager.cs`, `PPEGlovePairCoordinator.cs`, `PPEGlovePairMember.cs`, `PPEDirectGrabProximityFilter.cs`, this handoff.
+- Inspector/Scene manual work: none.
+- Validation: `dotnet build Assembly-CSharp.csproj --no-restore` and `dotnet build Assembly-CSharp-Editor.csproj --no-restore` both completed with 0 errors.
+- DEVICE TEST REQUIRED on Quest: confirm valid-grab bare Renderer off/Ghost on; wrong-hand no hide; failed-release restoration; first side wearable with both interactors active; second side `Hover=true`, `FilterAllows=true`, `Select=true`; final pair stays true/true with both wearables; unrelated interactable remains selectable by both hands; reset twice returns bare/bare and cabinet poses.
+- Known limitation: InnerGloves still have no dedicated worn visual.
+- Integration request: none. `Assets/Scripts/App/PPEStateController.cs` was read-only verified and not changed for this task.
+
+## Glove Ghost hand alignment + outline removal (2026-08-24)
+
+Scope is limited to Left/Right InnerGlove and Left/Right ProtectiveGlove Ghost position, rotation, editor calibration, and Ghost material. Grab logic, pair completion, Release-to-Equip, sequence, cabinet, PPE scale, XR Origin, hand tracking, EquipReference placement, Boots, Suit, Respirator, FaceProtection, ResponseBag, and WasteContainer were not changed.
+
+### Runtime
+
+- The four physical glove members have independently authored, non-identity `GhostPoseCalibration` children in `04_PPE`. Saved position / Unity Euler rotation:
+  - Left Inner: `(0.0554254, 0.0010908, -0.2083801)` / `(15.6848, 357.1492, 164.1633)`
+  - Right Inner: `(-0.0601459, -0.0027404, -0.2074570)` / `(15.1093, 5.0930, 198.8746)`
+  - Left Protective: `(-0.0036303, -0.0271679, 0.0076292)` / `(301.2851, 318.6022, 36.7330)`
+  - Right Protective: `(-0.1288192, 0.0167177, 0.0275691)` / `(301.0833, 41.1191, 323.5040)`
+  The old shared manager `gloveGuidePositionOffset` / `gloveGuideRotationOffsetEuler` fields and scene values remain removed.
+- Runtime remains `TargetPalm.position + TargetPalm.rotation * calibration.localPosition` and `TargetPalm.rotation * calibration.localRotation`. The grabbed/holding hand, HMD, body yaw, and EquipReference do not affect glove Ghost pose.
+- The previous floating seed `(0,0.02,0.03)` was removed. Reset now returns a glove calibration to zero position / identity rotation.
+- Root scale still comes from the corresponding physical Visual; calibration changes pose only.
+
+### Outline/material diagnosis and fix
+
+- `PPEOutlineHighlight` legitimately appends the `PPE/Outline` runtime material to the physical glove Renderer while hovered/selected. The renderer-only Ghost builder copied the physical Renderer material array. InnerGlove appearance replaced only `sharedMaterial` slot 0, leaving the appended outline slot; other gloves could retain the duplicated material-slot count. This was the yellow/green edge/flicker path.
+- Tracked-hand glove Ghosts are sanitized before appearance: Renderer material arrays are cleared to one eventual fill slot; Colliders, Rigidbodies, `XRBaseInteractable`, LineRenderers, and MonoBehaviours named Outline/Highlight/Hover are disabled. The normal physical PPE outline remains unchanged.
+- All four glove Ghosts now use one emission-free, single-sided URP transparent fill clone: soft blue, NotReady alpha `0.26`, Ready alpha `0.40`. Ready changes fill alpha only. `_EMISSION` is disabled and emission, outline, rim, and Fresnel properties are forced off when present. Single-sided rendering avoids doubled transparent silhouettes at grazing angles.
+
+### Editor authoring
+
+- `Tools > HCl Training > PPE > Glove Ghost Calibration Preview` (also available under the previous Preview name) is off by default and editor-only.
+- Preview loads the exact `LeftHand.fbx` / `RightHand.fbx` models used by the scene's `PPE_DefaultHand_Left` / `PPE_DefaultHand_Right`. It reconstructs their actual Controller-child visual root relative to the Controller-fallback TargetPalm (`target = controller + controller.rotation * (0,0,0.07)`) instead of assuming the FBX Palm axes equal the runtime target axes. Hidden preview objects are destroyed when preview is disabled, scripts reload, or Play Mode starts.
+- Select a `GhostPoseCalibration` and use normal Move/Rotate tools; edits are converted back into Palm-local position/rotation immediately.
+- `Align Ghost To Reference Hand` is an explicit geometry-based starting helper. It uses Palm/MiddleTip bones when available and mesh bounds otherwise, then aligns palm center, finger direction, and palm normal. It never runs automatically and should be manually fine-tuned.
+- `Reset Ghost Calibration` and explicit `Copy Mirrored Calibration` remain available. Left/Right are never auto-mirrored.
+
+### Verification / remaining manual work
+
+- `dotnet build Assembly-CSharp.csproj --no-restore` and `dotnet build Assembly-CSharp-Editor.csproj --no-restore`: 0 errors (existing repository warnings remain).
+- `Align Ghost To Reference Hand` was explicitly run for each member, then each pose was independently fine-tuned against exported geometry from the same Scene Preview hand FBXs. Palm, side, and wrist projections confirm matching finger direction, palm overlap, wrist-side placement, correct thumb handedness, and no mirrored side.
+- Inner gloves required an approximately 180-degree local-Z axis correction. Protective gloves started with an approximately -90-degree local-X correction and then received side-specific palm/normal fine-tuning.
+- Scene YAML check: four unique non-identity `GhostPoseCalibration` objects, four serialized member references, unchanged local scale `(1,1,1)`, no duplicate file IDs.
+- Preview Ghosts are issued with exactly one `PreviewMaterial` draw call per mesh. The material is translucent fill only; preview objects have no Renderer component material arrays, Outline/Highlight component, edge renderer, or emission.
+- Quest runtime wrist-follow acceptance remains device-unverified. The authored Scene Preview alignment is complete; perform the four requested wrist-rotation tests on Quest before release acceptance.
+- Integration request: none.
+
+## Ghost visual policy (2026-08-24)
+
+Did not change Release-to-Equip architecture, sequence, pair completion, XR Origin, cabinet, scale, reset, or glove/boot Ghost behavior.
+
+`PPEPlacementGuideManager` now creates Ghost meshes only for pair members (InnerGloves, ProtectiveGloves, ChemicalBoots). ProtectiveSuit, Respirator, FaceProtection, and Helmet never instantiate a Ghost renderer. Their dynamic Face / Torso / Head targets remain live and invisible. Grab hint strings remain in code but the subtitle HUD is off (`PPEEquipFeedbackUI.showSubtitleHud`, `PPETTSManager.showSubtitles`) until a later wiring pass.
+
+Release validation still uses `PPEReleaseEquip` distance-on-SelectExited against those targets. Scene distances: InnerGloves pair `0.12 m`, ProtectiveGloves pair `0.15 m`, ChemicalBoots pair `0.20 m`, Respirator `0.18 m`, FaceProtection `0.20 m`, ProtectiveSuit `0.30 m`. Helmet is not in `04_PPE`; if enabled later it uses Head target and `PPEEquipable.EquipDistance` (setup default `0.18 m`).
+
+---
+
+## Ghost visual policy (2026-08-24)
+
+Did not change Release-to-Equip architecture, sequence, pair completion, XR Origin, cabinet, scale, reset, or glove/boot Ghost behavior.
+
+`PPEPlacementGuideManager` now creates Ghost meshes only for pair members (InnerGloves, ProtectiveGloves, ChemicalBoots). ProtectiveSuit, Respirator, FaceProtection, and Helmet never instantiate a Ghost renderer. Their dynamic Face / Torso / Head targets remain live and invisible. Grab hint strings remain in code but the subtitle HUD is off (`PPEEquipFeedbackUI.showSubtitleHud`, `PPETTSManager.showSubtitles`) until a later wiring pass.
+
+Release validation still uses `PPEReleaseEquip` distance-on-SelectExited against those targets. Scene distances: InnerGloves pair `0.12 m`, ProtectiveGloves pair `0.15 m`, ChemicalBoots pair `0.20 m`, Respirator `0.18 m`, FaceProtection `0.20 m`, ProtectiveSuit `0.30 m`. Helmet is not in `04_PPE`; if enabled later it uses Head target and `PPEEquipable.EquipDistance` (setup default `0.18 m`).
+
+## Ghost pose / face-suit comfort / equipped-hand grab (2026-08-24)
+
+Did not change sequence, Release-to-Equip distances, pair completion, cabinet, scale, reset, or XR Origin. Did not add missing worn visuals for Suit / Boots / Respirator / FaceProtection / InnerGloves.
+
+### Ghost pose
+
+1. **Final glove position/rotation source:** Ghost is parented to the live target palm/wrist (`PPEGlovePairMember.TargetTransform` / `PPEGloveHandTargetFollower`). World pose is `target.position + target.rotation * GhostPoseCalibration.localPosition` and `target.rotation * GhostPoseCalibration.localRotation`. That is the same resolved Palm/Wrist used by Release-to-Equip. Holding-hand rotation, HMD, body yaw, fixed world Euler, and manager-global glove Euler are not used for glove Ghost orientation. `ApplyGuideLocalPose` is reapplied every `LateUpdate` so Inspector calibration edits apply immediately in Play Mode.
+2. **GhostPoseCalibration hierarchy:** child `GhostPoseCalibration` on each physical member (`LeftInnerGlovePhysical`, `RightInnerGlovePhysical`, `LeftProtectiveGlovePhysical`, `RightProtectiveGlovePhysical`, `LeftBootPhysical`, `RightBootPhysical`) and on Face/Suit `PPEEquipable` roots. Created by `EnsureGhostPoseCalibration()` in Awake/OnValidate, or **Tools/PPE/Ensure Ghost Pose Calibration**. New glove children seed local position `(0, 0.02, 0.03)` when the old offset was zero.
+3. **Left/Right independently tunable:** each member has its own `GhostPoseCalibration`. No mirrored-axis assumption. Rotate the child in the Inspector until the Ghost sits on the mesh.
+4. **Boot rotation source:** `PPELowerLegTargetFollower` / `PPEPlayerBodyReference.ComputeLowerLegWorldPose` — **body yaw only**. Ghost world rotation = body yaw * that boot's `GhostPoseCalibration.localRotation`. Looking down only toggles visibility (`bootGuideLookDownAngle`). No HMD pitch, no XR Hand rotation.
+5. **Face/Suit pose calibration:** Ghost parented to Face or Torso target. World rotation = Face/Torso target rotation * that item's `GhostPoseCalibration.localRotation`. Extra visual offsets still apply on top of calibration (Face forward 0.15 m, Suit forward 0.12 m + down 0.08 m) and do not change Release-to-Equip.
+
+Scene View: **Tools/PPE/Preview PPE Ghost Pose** (on by default) plus per-member/per-item gizmos. Rotate `GhostPoseCalibration` without Play Mode.
+
+### Face/Suit comfort
+
+6. **Ready/NotReady visual switching removed** for Respirator / FaceProtection / ProtectiveSuit. `ApplyGuideAppearance` for those items only calls `ApplyFaceSuitStaticGhostMaterials`. Gloves/boots still use Ready/NotReady.
+7. **Static Ghost alpha:** one cached clone per live Face/Suit Ghost from the NotReady template at `faceSuitStableAlpha` **0.16** (range 0.08–0.35). No green/orange swap, no pulse, no emission, no per-frame material asset swap. Instance destroyed with the Ghost.
+8. **Face proximity fade (visual only):** full/stable beyond `faceGhostFadeStartDistance` **0.35 m**; fade 0.35→`faceGhostHiddenDistance` **0.22 m**; hidden closer than 0.22 m. `faceGhostFullVisibleDistance` 0.45 m is documented; fade start is the stable threshold. Release-to-Equip distances unchanged.
+9. **Suit HMD overlap:** Ghost stays on dynamic torso + forward/down visual offset. If HMD is inside Ghost renderer bounds, alpha scales to **0.15** of the stable value (~0.024), otherwise fades by nearest bounds distance. Does not fill the HMD with a full-size flashing suit.
+10. **Flashing remaining in code:** Face/Suit no longer swap Ready/NotReady materials. `SetGuideState` still updates an internal Ready flag for equip/dwell logic, but appearance for Face/Suit is static + proximity fade only. InnerGloves/ProtectiveGloves/Boots still swap Ready/NotReady (not in front of the HMD).
+
+Instruction text (no Ready color): Respirator `호흡보호구를 얼굴 앞으로 가져간 뒤 놓으세요.` FaceProtection `안면보호구를 얼굴 앞으로 가져간 뒤 놓으세요.` Suit `보호복을 몸 쪽으로 가져간 뒤 놓으세요.` Face/Suit hints activate the existing feedback UI.
+
+### Second glove
+
+11. **Authoritative Left/Right interaction references:** `PPEHandTargetResolver.ResolveControllerHand` caches Left/Right from the active XR Origin **Left/Right Controller** → **NearFar attach** (then Direct interactor, then controller). Wearable visuals are rejected via `PPEWearableVisualOnly`.
+12. **Active `Hand` visual search removed** from interaction resolution. No `FindObjectsByType<Hand>()` / `FindActiveHandVisual` in PPE scripts.
+13. **Left interactor after Left glove equipped (code contract, not device-verified):** bare-hand GameObject stays active; **Renderer off**; chemical glove visual on; `PPEWearableVisualOnly` strips wearable colliders / XR interactable / XR interactor and sets **Ignore Raycast**. NearFar / Direct / Select / Attach / tracking are not disabled (`disableRayInteractorsWhileWorn` remains false).
+14. **RightProtectiveGlovePhysical after left equipped (code contract):** pair completion deactivates only the equipped **physical member**. Remaining member stays active; `PPEHandGrabbable`, grab collider, NearGrabAssist, and `PPEDirectGrabProximityFilter` are not disabled. Grab distance was not increased (`maxDirectGrabDistance` default 0.06 m).
+15. **Hover result:** **UNVERIFIED** on Quest / Play Mode. Development log `[ProtectiveGlove Second-Side Grab]` fires on change after one ChemicalGlove side is equipped (`UNITY_EDITOR || DEVELOPMENT_BUILD`).
+16. **Proximity filter result:** logged as `FilterAllows` against the equipped-side interactor and remaining grab. Not device-verified.
+17. **Exact first failure if Grab still fails:** unknown until the diagnostic runs on device. Use the log fields: interactor Active/Enabled, remaining Active/Grabbable/Collider/Filter, Hovering, SelectCandidate (remaining name if hovering it, otherwise whatever the equipped interactor is hovering), DistanceToCollider, FilterAllows.
+
+### Inspector / Scene
+
+- Run **Tools/PPE/Ensure Ghost Pose Calibration** in `04_PPE`, then rotate each `GhostPoseCalibration` child.
+- **Tools/PPE/Preview PPE Ghost Pose** draws the calibration axes in Scene View.
+- Do not edit `01_App.unity`. Wearable strip is runtime in `ChemicalGlovesWearableVisual`.
+
+### Verification
+
+Compiler / Quest / Play Mode not run here. **Do not treat second-side Hover/Grab as complete.** DEVICE TEST REQUIRED:
+
+- Right hand holds Left InnerGlove / ProtectiveGlove; rotate actual left wrist → Ghost follows that palm * authored Left calibration.
+- Left boot: look down (visible), turn body 90° → Ghost yaws 90°. Head pitch does not tilt the boot.
+- Respirator / FaceProtection: one stable translucent Ghost, no orange/green, fades out near the HMD. Release near face still equips.
+- Suit: one stable low-alpha Ghost below the HMD, no Ready color, no full-screen flash.
+- Equip Left ProtectiveGlove, then with the visually gloved left hand hover/grab RightProtectiveGlovePhysical. Read `[ProtectiveGlove Second-Side Grab]` if Hover is false.
+
+### Integration request
+
+None for this pass. `01_App` XR Origin / interactors were not modified.
+
+---
+
+## Phase 3 — Scene integrity + ChemicalGloves visual ownership (2026-08-24)
+
+Did not revisit Phase 1 / 2 / 2.5 systems except where this pass required it. Did not create missing worn visuals for Suit / Boots / Respirator / FaceProtection / InnerGloves.
+
+### 1. Duplicate ChemicalSuit
+
+Both live `PPEEquipable` instances were under `PreparationRoom / SafetyLocker / SuitSlot`, source FBX `Assets/1.JSR/Models/PPE_ChemicalSuit/PPE_ChemicalSuit_01.fbx`, local scale `0.72` on slot scale `2.15` (world height ~1.548 m).
+
+| Instance | Hierarchy | Local pos | Notes |
+|---|---|---|---|
+| `PPE_ChemicalSuit_01 (1)` | SuitSlot first child | `(-0.102, 0.018, 0)` | leftover duplicate ~13 cm off hanger center |
+| `PPE_ChemicalSuit_01 (2)` | SuitSlot second child | `(0.029, 0.011, 0)` | closer to slot origin; retained |
+
+Retained `(2)` (PrefabInstance `&1656745454`, GO `&1656745456`). Deleted `(1)` (PrefabInstance `&165692668`) from `04_PPE.unity`. SuitSlot now has one child. Checklist `itemId: ChemicalSuit` row kept.
+
+Remaining live interactive ChemicalSuit count: **1**. Still has `PPEEquipable`, `PPEHandGrabbable`, `PPEStoredDisplayState`, Release-to-Equip (static `PPEReleaseEquip`), Body/Torso slot, Ghost via placement fallback, `ResetToStoredPose()`. Scale unchanged.
+
+### 2. ChemicalGloves visual authority
+
+During PPE donning, `PPEGlovePairCoordinator.ChemicalGlovesInstance` `LeftEquipped` / `RightEquipped` is the only visual authority.
+
+- **OnEnable before:** `ShowWearable()` enabled **both** gloves.
+- **OnEnable after:** `ApplyAuthoritativeVisual()` restores pair sides, or logical both-equipped outside pair context. Never both-on just because the host activated.
+- **ApplyPpeRoomState:** pair flags **replace** caller args (no OR with App).
+- **OnDisable:** skips `HideWearable()` while the pair coordinator exists, so Reset host toggles cannot hide both bare hands.
+- **Left only:** left chemical ON, right chemical OFF, left bare OFF, right bare ON.
+- **Right only:** inverse.
+- **Both:** both chemical ON, both bare OFF, logical `ChemicalGloves` Equip once.
+- **Reset:** pair flags false → both chemical OFF, both bare ON. Double Reset safe.
+
+### 3. PPEStateController (Integration-owned)
+
+`Assets/Scripts/App/PPEStateController.cs` — smallest scoped change: `OnPpeEquipmentChanged` returns while `CurrentStage == PPE` and `ChemicalGlovesInstance != null`. App logical both-or-nothing equipped flag cannot overwrite a single worn side. After Donning both sides, pair is still `true,true`; no extra visual write, no flicker.
+
+### 4. Runtime debug visuals
+
+Found: InnerGlove ready enter/exit spheres, InnerGlove debug overlay (`INNER GLOVE DEBUG`), placement HMD overlay, dynamic body target gizmos (Editor), placement change logs.
+
+Disabled by default in `04_PPE`:
+
+- `showEquipDebugVisuals: 0`
+- `showPlacementDebugOverlay: 0` (script default; overlay also requires equip debug)
+- `drawDynamicTargetGizmos: 0`
+- `logPlacementDebugOnChange: 0` (was 1)
+- InnerGlove `showDevelopmentDebug` default false
+
+Editor Gizmos kept. Runtime geometry visualizers only when Editor/Development **and** explicitly enabled.
+
+### 5. Ghost materials
+
+`renderer.materials` on every Ready/NotReady cloned ghost materials. Now: shared `PPE_GuideNotReady` / `PPE_GuideReady` for non-InnerGlove ghosts. InnerGlove Cull Off / alpha uses **cached** clones per active Ghost. HideGuides / OnDisable destroys Ghost roots **and** cached instances. No per-frame SkinnedMesh `BakeMesh` (ProtectiveGloves Ghost still uses shared bind-pose mesh; silhouette may be slightly imperfect — UX limitation).
+
+### 6. Missing worn visuals (known UX gap, not this phase)
+
+Physical hides on Equip, logical state updates, **no worn visual:** InnerGloves, ProtectiveSuit, ChemicalBoots, Respirator, FaceProtection. ProtectiveGloves worn visual exists and is now side-correct.
+
+### 7. DEVICE TEST REQUIRED
+
+A Suit grab → Ghost → torso Equip once, no duplicate in cabinet, Reset returns the same suit. B Left ProtectiveGlove only visuals. C Right side then logical complete once, no App flicker. D Reset after one outer glove. E Normal Play: no circle/sphere/zone/debug text/gizmo, only PPE Ghost. F Repeated grab/release: one Ghost, no object/material growth.
+
+Compiler / Quest / Play Mode not run here.
+
+### Integration request
+
+`PPEStateController` was edited under this Phase 3 scoped exception. No other App / XR / sequence / cabinet / scale changes.
+
+## Phase 2.5 — Integration & reset completion (2026-08-24)
+
+Did not start wearable visual / duplicate Suit cleanup.
+
+### Retry Integration
+
+App Retry entry points:
+
+- Mid-PPE / same-stage: `ScenarioFlowManager.RestartCurrentStage()` now calls `PPESequenceManager.ResetPpeRoomTraining()` when `CurrentStage` and `RestartTarget` are both PPE (in-place, no scene reload). Guarded by `resetInProgress` so overlapping calls no-op.
+- PPE-only Repeat while still in PPE: `RepeatSelectedTraining()` routes to `RestartCurrentStage()`.
+- Complete-menu "동일 훈련 다시 하기" after leaving PPE: still uses existing scene reload (`StartTraining` → `ShowStage`). After bind, `StageLifecycleAdapter.BindStage` calls `ResetPpeRoomTraining()` once so the full PPE API still runs.
+
+Reset-while-grabbing uses the existing Phase 2 order: suppress Release-to-Equip → cancel XRI select/hover → restore Stored.
+
+### WasteContainer
+
+`WasteContainerPrepareInteractable.ResetPreparedState()` restores Prepared=false, authored active/pose, interactable enabled, and selection/highlight. Called from `PPEEquipmentManager.ResetAllEquipment()` (used by `ResetPpeRoomTraining()`). Not added to `ResetSequence()`. Not wearable PPE.
+
+### ResponseBag
+
+`ResetResponseBag()` already clears prepared/equipped, inspected contents, pose, grab, and wearable visual. `ResetSequence()` clears `bagContentsChecked` (Y inspect). No ResponseBag redesign.
+
+Remaining design (unchanged): Y inspect and Grip confirm still return while `PPETTSManager.IsBusy` (`ResponseEquipmentManager.OnSharedInputPerformed`, `PPESequenceManager.NotifyBagContentsChecked`, `XRInteractionConfirmRouter.RouteConfirm`). This is bag/waste confirm, not wearable grab.
+
+### TTS
+
+`StageLifecycleAdapter` no longer ORs PPE instructional `PPETTSManager.IsBusy` into `shouldBlock`. Bind no longer disables interactables because VO is playing.
+
+Still blocks: App menu pause (`menuPaused`); LeakResponse arrival/narration; scene transition input lock. Wearable grab/release-to-equip is not `SEQUENCE_BLOCKED` by audio (`CanEquip` was already Phase 1).
+
+### Throw serialization
+
+`04_PPE.unity`: all 10 `PPEHandGrabbable` `m_ThrowOnDetach` / `m_ForceGravityOnDetach` set to 0. Editor `PPEHandGrabSetup` and `PPEPairPhysicalAuthoringSetup` now author false. Runtime `ApplyWearableThrowPolicy()` remains as defense.
+
+### Tests
+
+Retry, WasteContainer restore, grab during InnerGloves VO, throw warning: **CODE VERIFIED**, **DEVICE TEST REQUIRED**.
+
+## Phase 2 — PPE Room stability (2026-08-24)
+
+
+Did not revisit Phase 1. Invalid release still does **not** teleport PPE to the cabinet.
+
+### State model
+
+`PPEStoredDisplayState.StorageState`: **Stored / Held / Released / Equipped**.
+
+- **Stored:** authored parent/pose/scale, kinematic, no gravity, `throwOnDetach = false`, grab enabled.
+- **Held:** XRI grab. Stored pose is restored only when leaving Stored (not when re-grabbing a dropped item).
+- **Released:** failed Release-to-Equip. Non-kinematic, gravity on, no throw velocity, object stays in the world.
+- **Equipped:** kinematic, no gravity, then existing hide/deactivate. Never routed through Released.
+
+### Failed release
+
+`PPEHandGrabbable.OnSelectExited` → Release-to-Equip. On failure, after XRI `OnSelectExited`, `NotifyInvalidReleaseIfHeld()` applies Released physics. No shelf teleport.
+
+### Throw
+
+Runtime `ApplyWearableThrowPolicy()` on all cabinet wearables (InnerGloves, ProtectiveGloves, ChemicalBoots, ProtectiveSuit, Respirator, FaceProtection). `throwOnDetach = false`, `forceGravityOnDetach = false`. Editor setup tools still serialize `throwOnDetach = true`; runtime overrides. Common XR not modified.
+
+### Pair reset
+
+`PPEGlovePairCoordinator.ResetPair()`: `StopAllCoroutines`, clear Left/Right/logical flags, reactivate authored members, restore Stored pose, re-enable grab. Shared by InnerGloves, ChemicalBoots, ProtectiveGloves.
+
+### Full PPE Room reset
+
+**Entry:** `PPESequenceManager.ResetPpeRoomTraining()` (Context Menu: Reset PPE Room Training).
+
+`ResetSequence()` is still sequence-only (phase, index, completed steps, bag-checked). It does **not** move physical PPE.
+
+**Order:**
+
+1. `PPEHandGrabbable.SuppressReleaseEquip = true`
+2. Cancel XRI select/hover on wearable grabs
+3. `PPESelectionManager.ClearSelection()`
+4. Stop placement coroutines + `HideActiveGuides()` (destroys Ghosts, clears held/target/Ready)
+5. `PPEEquipmentManager.ResetAllEquipment()` (logical IDs, reactivate `PPEEquipable` roots, `ResetResponseBag()`)
+6. All `ResetPair()`
+7. `RestoreToStoredPose()` on remaining stored wearables (skip coordinator roots)
+8. `ResetSequence()` (checklist via required-step / equipment state events)
+9. `SuppressReleaseEquip = false`
+
+Reset-during-grab: cancel selection first; `OnSelectExited` does not Equip and does not apply Released physics; then Stored pose is restored. Static `SuppressReleaseEquip` is cleared in `finally` and in `OnDestroy`.
+
+### Response equipment
+
+- **ResponseBag:** `ResetResponseBag()` is called from `ResetAllEquipment()`.
+- **WasteContainer:** **no visual reset API**. Logical `preparedItemIds` is cleared. If `deactivateOnPrepare` hid the container, it may stay inactive. Do not add new waste interaction in this phase.
+
+### Tests
+
+All acceptance tests A–H: **CODE VERIFIED**, **DEVICE TEST REQUIRED**. Compiler not run here. Quest/Play Mode not run.
+
+### Integration request
+
+No App Retry UI calls `ResetPpeRoomTraining()`. `StageLifecycleAdapter` does not reset PPE. If App retry should restore the PPE Room, call `PPESequenceManager.ResetPpeRoomTraining()` (or `Resolve()?.ResetPpeRoomTraining()`).
+
+- **Stored:** authored parent/pose/scale, kinematic, no gravity, `throwOnDetach = false`, grab enabled.
+- **Held:** XRI grab. Stored pose is restored only when leaving Stored (not when re-grabbing a dropped item).
+- **Released:** failed Release-to-Equip. Non-kinematic, gravity on, no throw velocity, object stays in the world.
+- **Equipped:** kinematic, no gravity, then existing hide/deactivate. Never routed through Released.
+
+### Failed release
+
+`PPEHandGrabbable.OnSelectExited` → Release-to-Equip. On failure, after XRI `OnSelectExited`, `NotifyInvalidReleaseIfHeld()` applies Released physics. No shelf teleport.
+
+### Throw
+
+Runtime `ApplyWearableThrowPolicy()` on all cabinet wearables (InnerGloves, ProtectiveGloves, ChemicalBoots, ProtectiveSuit, Respirator, FaceProtection). `throwOnDetach = false`, `forceGravityOnDetach = false`. Editor setup tools still serialize `throwOnDetach = true`; runtime overrides. Common XR not modified.
+
+### Pair reset
+
+`PPEGlovePairCoordinator.ResetPair()`: `StopAllCoroutines`, clear Left/Right/logical flags, reactivate authored members, restore Stored pose, re-enable grab. Shared by InnerGloves, ChemicalBoots, ProtectiveGloves.
+
+### Full PPE Room reset
+
+**Entry:** `PPESequenceManager.ResetPpeRoomTraining()` (Context Menu: Reset PPE Room Training).
+
+`ResetSequence()` is still sequence-only (phase, index, completed steps, bag-checked). It does **not** move physical PPE.
+
+**Order:**
+
+1. `PPEHandGrabbable.SuppressReleaseEquip = true`
+2. Cancel XRI select/hover on wearable grabs
+3. `PPESelectionManager.ClearSelection()`
+4. Stop placement coroutines + `HideActiveGuides()` (destroys Ghosts, clears held/target/Ready)
+5. `PPEEquipmentManager.ResetAllEquipment()` (logical IDs, reactivate `PPEEquipable` roots, `ResetResponseBag()`)
+6. All `ResetPair()`
+7. `RestoreToStoredPose()` on remaining stored wearables (skip coordinator roots)
+8. `ResetSequence()` (checklist via required-step / equipment state events)
+9. `SuppressReleaseEquip = false`
+
+Reset-during-grab: cancel selection first; `OnSelectExited` does not Equip and does not apply Released physics; then Stored pose is restored. Static `SuppressReleaseEquip` is cleared in `finally` and in `OnDestroy`.
+
+### Response equipment
+
+- **ResponseBag:** `ResetResponseBag()` is called from `ResetAllEquipment()`.
+- **WasteContainer:** **no visual reset API**. Logical `preparedItemIds` is cleared. If `deactivateOnPrepare` hid the container, it may stay inactive. Do not add new waste interaction in this phase.
+
+### Tests
+
+All acceptance tests A–H: **CODE VERIFIED**, **DEVICE TEST REQUIRED**. Compiler not run here. Quest/Play Mode not run.
+
+### Integration request
+
+No App Retry UI calls `ResetPpeRoomTraining()`. `StageLifecycleAdapter` does not reset PPE. If App retry should restore the PPE Room, call `PPESequenceManager.ResetPpeRoomTraining()` (or `Resolve()?.ResetPpeRoomTraining()`).
+
+## Phase 1 stability (2026-08-24)
+
+Stopped feature work. Fixed three blocking architecture issues.
+
+### 1. Legacy Ray+Grip wearable Equip
+
+- `XRInteractionConfirmRouter.allowLegacyWearableEquipFallback` default is **false**.
+- `04_PPE.unity` serialized value is **0**.
+- Ray hover/sticky select can remain. Grip no longer Equips wearable PPE through the router.
+- Defensive guard: `PPEEquipmentManager.Equip` refuses a `PPEGlovePairCoordinator` logical root unless `BothEquipped`. Also checked in `PPESelectionManager.TryEquipCurrentSelection`.
+- Pair coordinator still Equips the logical item after both physical sides.
+
+### 2. TTS IsBusy no longer blocks Equip
+
+Removed `PPETTSManager.IsBusy` from:
+
+- `PPESequenceManager.CanEquip`
+- `PPESequenceManager.CompleteEquip`
+
+Sequence order gating is unchanged. Current required item can Equip while VO plays. Wrong-order Equip still fails.
+
+Left unchanged (ResponseBag / feedback, not wearable Equip):
+
+- `NotifyBagContentsChecked` still ignores Y while TTS is busy
+- `XRInteractionConfirmRouter.RouteConfirm` still returns while TTS is busy (bag/waste Grip)
+
+### 3. One active XR Origin
+
+New `PPEActiveXrOrigin` in `Assets/1.JSR/Scripts/PPEActiveXrOrigin.cs`.
+
+Callers:
+
+- `PPEPlayerBodyReference.ResolveTrackingSource`
+- `PPEXrHandsJointPose.ResolveOriginTransform`
+- `PPEHandTargetResolver.FindActiveOrigin` / `IsUnderActiveOrigin`
+- `PPEPreviewController.CacheCameraAndAnchor`
+
+Not migrated (not Ghost/release targets): `ResponseBagGearPanel`, `CameraGazeSelectDriver`, Editor menus.
+
+Cache invalidates when the Origin is disabled, inactive, or destroyed.
+
+### Integration request — StageLifecycleAdapter
+
+Did **not** edit `Assets/Scripts/App/StageLifecycleAdapter.cs` (App / Integration owned).
+
+`LateUpdate` still does `shouldBlock |= PPETTSManager.Instance.IsBusy` for `TrainingStage.PPE`, then disables stage interactables. That can still force-drop a held PPE while instructional VO plays.
+
+Requested PPE-stage exception: do not include instructional TTS busy in PPE grab/release blocking. Menu pause can still block.
+
+### Tests
+
+- Ray+Grip pair Equip: **CODE VERIFIED**, DEVICE TEST REQUIRED
+- Equip during InnerGloves VO: **CODE VERIFIED**, DEVICE TEST REQUIRED
+- Out-of-order Suit while InnerGloves required: **CODE VERIFIED** (CanEquip still requires current step)
+- App flow Origin: DEVICE TEST REQUIRED (expect Common XR Origin; log `[PPE XR Origin] Active = ...`)
+- Standalone `04_PPE`: DEVICE TEST REQUIRED (expect PPE local Origin)
+- Compiler: not run here (no Unity/terminal)
+
+## Wearable PPE Ghost visibility (2026-08-24)
+
+
+InnerGlove Ghost already appeared on the tracked hand. Suit / Boots / Respirator / FaceProtection Ghosts did not.
+
+### Why only glove guides appeared
+
+Glove targets live under runtime `PPE_HandTargets` in the PPE scene, so they stay active after App disables the PPE-scene XR Origin.
+
+`PPE_PlayerBodyReference` was parented under that PPE-scene `XR Origin (VR)`. When App turns that origin off:
+
+1. Grab still fires `PPEHandGrabbable.OnGrabbed` → `PPEPlacementGuideManager.ShowGuides`. Release-to-equip did **not** skip this.
+2. Guide creation runs and clones the held PPE mesh.
+3. The guide is parented to Face / Body / Foot anchors (or boot lower-leg followers parented to the body reference).
+4. Those anchors sit under the inactive origin, so `activeInHierarchy` is false. The Ghost exists but is not rendered.
+5. `LateUpdate` on the body reference also stops, so targets do not follow the current HMD.
+6. `HasLiveTarget()` then reports false (`HasTracking` needs an active camera) and `EvaluateHeldPlacement` hid the already-created Ghost as `TRACKING LOST`.
+7. Boots also require look-down, and `IsLookingDown` is false without tracking, so the Boot Ghost stayed inactive.
+
+Face / Torso / LowerLeg were already empty Transforms. Missing Ghosts were the PPE clones, not missing body meshes.
+
+### Fix
+
+- Runtime host `PPE_BodyTargets` in the PPE scene (not under XR Origin, not under Common XR).
+- If the PPE origin is inactive, `PPEPlayerBodyReference.EnsureActiveInPpeScene()` reparents onto that host and follows the **active** App XR Origin / HMD.
+- Face / Torso / LowerLeg stay empty Transforms. No torso/leg/face meshes, debug spheres, or target circles were added.
+- Suit / Respirator / FaceProtection Ghosts use the same semi-transparent clone path as gloves (`PPE_GuideNotReady`, cull off, visible alpha). Shown immediately on grab. Distance only switches NotReady → Ready.
+- Boot Ghosts still require look-down (`HMD forward.y <= -sin(30°)`). Targets keep following while hidden.
+- Guides are created once per grab, not every frame.
+- InnerGloves / ProtectiveGloves tracked-hand path is unchanged.
+
+### Per-item (code)
+
+| Item | Grab received | Guide created | Source renderer | Guide GO | Renderer enabled | Target | TargetValid after fix | Parent | Visible on grab |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ProtectiveSuit | yes `OnGrabbed` | yes `ShowGuides` | suit visual clone | yes | yes | Dynamic Torso (`Body`) | body `HasTracking` | Body anchor | yes, immediately |
+| ChemicalBoot Left | yes pair member | yes `ShowGloveMemberGuides` | left boot visual | yes | yes | Dynamic Left LowerLeg | lower-leg follower | `LeftBootEquipTarget` | only when looking down |
+| ChemicalBoot Right | yes | yes | right boot visual | yes | yes | Dynamic Right LowerLeg | lower-leg follower | `RightBootEquipTarget` | only when looking down |
+| Respirator | yes | yes | respirator visual | yes | yes | current HMD Face (respirator offset) | body `HasTracking` | Face anchor | yes, immediately |
+| FaceProtection | yes | yes | face-shield visual | yes | yes | current Face/Head (face-protection offset) | body `HasTracking` | Face anchor | yes, immediately |
+| ProtectiveGloves | yes | yes | unchanged | yes | yes | tracked hand | hand follower | `PPE_HandTargets` | unchanged |
+
+Quest still required to confirm the Ghost is visible on device.
 
 ## Release-to-equip + debug visuals (2026-08-21)
 
@@ -952,3 +1458,117 @@ Earlier uncommitted PPE STEP 2-8 files and Scene changes remain in the same work
 - Static validation found 624 declared YAML object IDs and 0 duplicate ID groups.
 - `git diff --check -- Assets/Scenes/04_PPE.unity` passed.
 - Unity Editor / Play Mode validation was not run in this cleanup pass.
+
+## Glove EquipReference alignment + unreachable dropped-PPE recovery
+
+- Updated: 2026-08-24
+- Root cause: the Ghost uses `TargetPalm * GhostPoseCalibration`, while release validation measures the separately authored physical `EquipReference`. Inner-glove references still used old mesh-relative offsets, and both protective gloves had no authored reference, so runtime generated the full visual AABB center.
+- Four independent `EquipReference` children are now authored so the physical glove pose that visually matches its calibrated Ghost maps the reference to the target Palm:
+  - Left Inner: previous `(-0.0230000, 0.0260000, -0.0440000)`, new `(0.0272355, 0.0068711, 0.0321682)`
+  - Right Inner: previous `(0.0240000, 0.0260000, -0.0440000)`, new `(-0.0269729, 0.0069609, 0.0324536)`
+  - Left Protective: previous runtime visual-center approximately `(-0.0085592, 0.1172689, -0.0101589)`, new `(-0.0155140, 0.1022527, -0.0281869)`
+  - Right Protective: previous runtime visual-center approximately `(0.0095076, 0.1172690, -0.0101588)`, new `(0.0155955, 0.1019178, -0.0280463)`
+- No `GhostPoseCalibration` position/rotation, glove scale, target tracking, sequence, pair completion, wearable visual, TTS, XR Origin, or cabinet geometry was changed.
+- Inner and Protective release distances remain `0.15 m`.
+- Editor preview now draws the reference Palm, translucent Ghost, and amber EquipReference. Selecting `EquipReference` enables a separate position handle. `Tools/HCl Training/PPE/Align EquipReference To Ghost Palm` performs only the semantic reference alignment.
+- Editor/Development release diagnostics log member, holding hand, Palm/reference world positions, distance/max, visual alignment, target validity, and result. Cyan Palm and amber EquipReference crosses plus their distance line persist for five seconds. These diagnostics are compiled out of production players.
+
+### Dropped-PPE recovery behavior
+
+- Authored point: `PPE_StorageRoot/PPE_DroppedItemRecoveryPoint`, local `(-0.95, 0.75, 0.45)` / world approximately `(0.95, 0.75, 1.99)`, outside and in front of the cabinet collider.
+- Only a PPE entering `PPEStoredDisplayState.Released` starts its own low-cost coroutine; there is no per-frame PPE scene scan.
+- The object's cached lowest non-trigger collider point is compared with `active XR Origin floor Y + 0.22 m`. If no active origin is available, the authored point's `0.75 m` floor offset is used.
+- The object must remain below the threshold and unselected for `1.75 s`. Grabbing, equipping, disabling, or resetting cancels recovery.
+- Recovery sets `StorageState.Recovered`, moves directly to the authored point, clears velocity, sets `isKinematic=true`, `useGravity=false`, keeps grab enabled, and adds no VFX/audio/UI reward.
+- Eligible: all physical pair members (InnerGloves, ProtectiveGloves, Boots) independently, plus ChemicalSuit, FaceRespirator, and ChemicalFaceShield. ResponseBag, WasteContainer, and Helmet are excluded.
+- Recovery does not call pair coordinator methods or equipment reset, so the other side's equipped state and current sequence step are preserved.
+- The original stored parent/local pose remains captured separately. `ResetPpeRoomTraining()` still calls `RestoreToStoredPose()` and returns recovered objects to their cabinet/hanger pose.
+
+### Files changed
+
+- `Assets/1.JSR/Editor/PPEGhostPosePreview.cs`
+- `Assets/1.JSR/Scripts/PPEInnerGloveDonning.cs`
+- `Assets/1.JSR/Scripts/PPEReleaseEquip.cs`
+- `Assets/1.JSR/Scripts/PPEStoredDisplayState.cs`
+- `Assets/1.JSR/Scripts/PPEDroppedItemRecoveryPoint.cs` + `.meta`
+- `Assets/Scenes/04_PPE.unity`
+- `docs/handoffs/ppe/LATEST.md`
+
+### Validation and remaining device checks
+
+- `dotnet build Assembly-CSharp.csproj --no-restore`: 0 errors.
+- `dotnet build Assembly-CSharp-Editor.csproj --no-restore`: 0 errors.
+- Unity Editor imported, authored, and saved all four explicit references and the recovery point without new compiler errors.
+- Static ideal-overlap calibration maps each EquipReference to Palm distance approximately `0 m`, inside the unchanged `0.15 m` release threshold.
+- DEVICE TEST REQUIRED: capture the new release log for all four gloves and confirm `TargetValid=true`, finite distance `<=0.15`, and side-specific equip result.
+- DEVICE TEST REQUIRED: verify reachable drops remain in place, floor drops recover after `1.75 s`, pre-delay grabs cancel, recovered items remain directly grabbable, pair progress is preserved, and full reset restores authored storage poses.
+- Integration request: none. If the active shared XR Origin's transform Y is not the tracking-floor datum on Quest, Integration must expose the shared floor datum without changing PPE's XR Origin.
+
+## Helmet head release + runtime glove palm root + boot facing
+
+- Updated: 2026-08-24
+
+### Helmet
+
+- `04_PPE` still contains no Helmet GameObject, prefab, FBX, mesh, `PPEEquipable`, grab component, EquipReference, or equipped visual. Repository search found only a title-menu icon. Therefore there is no physical Helmet release event to equip in the current scene.
+- `PPESequenceStep.Helmet` and ItemId mapping exist, but the authored/default donning order remains `InnerGloves -> ProtectiveSuit -> ChemicalBoots -> Respirator -> FaceProtection -> ProtectiveGloves`. `ContainsStep(Helmet)=false`, so a future Helmet object would currently produce `CanEquip(Helmet)=false` / `SEQUENCE_BLOCKED`.
+- No Helmet step was inserted. Product/SOP must explicitly choose its production order before sequence configuration changes.
+- The technical path remains ready for a future PPE-owned Helmet object: Head-slot release resolves the invisible `PPEEquipmentAnchorSet.Head`, which follows the active HMD using `Helmet Head Position Offset = (0, 0.08, 0.04)`.
+- After a successful Helmet-only release equip, a non-deactivating Helmet root is reparented to the live Head anchor with world pose preserved. It therefore follows subsequent HMD movement without an equip Ghost or visible target.
+- The authoring profile remains `Helmet Release Equip Distance = 0.18 m`, `deactivateOnEquip=false`. A future Helmet must author its semantic `EquipReference` and equipped visual.
+- Helmet release now has a dedicated Editor/Development-only `[PPE Helmet Release]` diagnostic with target/sequence validity, reference/Head positions, finite distance/max, and `EQUIPPED`, `TOO_FAR`, `SEQUENCE_BLOCKED`, or `TARGET_INVALID`.
+- Helmet has no Ghost or visible Head marker. Guidance text is `안전모를 머리 위로 가져간 뒤 놓으세요.`
+
+### Glove runtime position separation
+
+- Root cause: `GhostPoseCalibration.localPosition` combined two different concepts: large generated-mesh origin compensation and the small runtime XR Palm visual offset. Inner-glove values therefore appeared as approximately `0.20 m` offsets even though that distance primarily compensated the OBJ coordinate origin.
+- Runtime hierarchy now separates them:
+  - Guide root: live Target XR Palm plus `GhostPoseCalibration.localPosition`
+  - `GhostVisualOrigin`: generated-mesh origin compensation
+  - Visual rotation: `TargetPalm.rotation * GhostPoseCalibration.localRotation`
+- New independent runtime position offsets are all `(0, 0, 0)`:
+  - Left Inner, Right Inner, Left Protective, Right Protective
+- Previous large values were preserved only as non-user `ghostVisualOriginOffset` mesh-pivot compensation:
+  - Left Inner `(0.0554254, 0.0010908, -0.2083801)`
+  - Right Inner `(-0.0601459, -0.0027404, -0.2074570)`
+  - Left Protective `(-0.0036303, -0.0271679, 0.0076292)`
+  - Right Protective `(-0.1288192, 0.0167177, 0.0275691)`
+- All four authored rotation quaternions are unchanged. EquipReference, release distance, pair state, and glove scale are unchanged.
+- Development Runtime Calibration Mode is exposed per glove. In Editor/Development builds, hold that glove, select its `GhostPoseCalibration`, and tune the small local position while the tracked hand and Ghost stay visible. Cyan Target Palm and magenta semantic Ghost-palm markers show their separation. Production builds ignore the mode.
+- Static semantic Palm-root distance is `0 m`. Visible XR hand surface overlap and any final `0-3 cm` side-specific correction require Quest observation; no unmeasured device offset was invented.
+
+### Boot body-facing correction
+
+- Mesh analysis found both generated boot toes point mainly along local `+X`, with mirrored Z components:
+  - Left normalized toe `(0.9860346, 0, 0.1665409)`
+  - Right normalized toe `(0.9860046, 0, -0.1667183)`
+- Side-specific model-axis corrections are authored on the existing boot `GhostPoseCalibration`:
+  - Left yaw `-80.413241 degrees`, quaternion `(0, -0.64554595, 0, 0.76372147)`
+  - Right yaw `-99.597067 degrees`, quaternion `(0, -0.76377950, 0, 0.64547724)`
+- Runtime remains `BodyYawRotation * BootModelAxisCorrection`. `PPEPlayerBodyReference` derives Body Yaw from HMD forward projected onto XZ with smoothing, and `PPELowerLegTargetFollower` applies that yaw without HMD pitch/roll.
+- Existing left/right lower-leg positions were not changed.
+- `Tools > HCl Training > PPE > Preview Boot Ghost Facing` draws Body Forward, both boot meshes, corrected toe arrows, and allows independent rotation handles by selecting each boot `GhostPoseCalibration`.
+
+### Files changed in this pass
+
+- `Assets/1.JSR/Editor/PPEBootGhostFacingPreview.cs` + `.meta`
+- `Assets/1.JSR/Editor/PPEGhostPosePreview.cs`
+- `Assets/1.JSR/Editor/PPEGlovePairMemberEditor.cs`
+- `Assets/1.JSR/Scripts/PPEEquipGuidanceHints.cs`
+- `Assets/1.JSR/Scripts/PPEGlovePairMember.cs`
+- `Assets/1.JSR/Scripts/PPEPlacementGuideManager.cs`
+- `Assets/1.JSR/Scripts/PPEPlayerBodyReference.cs`
+- `Assets/1.JSR/Scripts/PPEReleaseEquip.cs`
+- `Assets/Scenes/04_PPE.unity`
+- `docs/handoffs/ppe/LATEST.md`
+
+### Validation / device requirements
+
+- Static mesh PCA plus independent shaft/sole heuristics agreed that both toes are local `+X`; corrected vectors map to Body Forward.
+- Static inspection confirms the existing lower-leg targets use horizontal Body Yaw only and keep their previous positions.
+- Static inspection confirms the production donning order is unchanged and excludes Helmet.
+- Unity Editor completed a current Asset Pipeline script compile/domain reload with no C# errors after importing these files. Older Editor.log entries from earlier revisions are stale.
+- `git diff --check` reaches only pre-existing scene-YAML trailing spaces outside these scoped additions; no new scoped C# whitespace issue was reported.
+- DEVICE TEST REQUIRED: use a Development Quest build to tune/confirm each glove visible palm/wrist overlap within `0-3 cm`.
+- DEVICE TEST REQUIRED: hold each boot, turn Body Yaw by 90 degrees, and confirm both toes rotate together while looking further down does not tilt them.
+- DEVICE TEST BLOCKED: Helmet cannot be physically tested until an approved PPE-owned Helmet object is authored and an explicit SOP sequence position is chosen.

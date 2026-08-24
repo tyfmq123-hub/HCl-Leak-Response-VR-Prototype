@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// <summary>
@@ -35,6 +36,8 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     bool capturedGloveRotation;
     Quaternion capturedLeftGloveRotation;
     Quaternion capturedRightGloveRotation;
+    bool leftTargetGhostPresentation;
+    bool rightTargetGhostPresentation;
     readonly Dictionary<XRRayInteractor, bool> rayEnabledBeforeWear = new();
     readonly Dictionary<XRRayInteractor, bool> rayObjectActiveBeforeWear = new();
 
@@ -52,11 +55,17 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     public bool IsVisible =>
         (leftGlove != null && leftGlove.activeSelf) ||
         (rightGlove != null && rightGlove.activeSelf);
+    public bool LeftBareVisible => HasEnabledRenderer(leftBareHand);
+    public bool RightBareVisible => HasEnabledRenderer(rightBareHand);
+    public bool LeftGloveVisible => leftGlove != null && leftGlove.activeInHierarchy;
+    public bool RightGloveVisible => rightGlove != null && rightGlove.activeInHierarchy;
 
     void Awake()
     {
         cachedInstance = this;
         CaptureGloveVisualRotations();
+        PPEWearableVisualOnly.EnsureAndStrip(leftGlove);
+        PPEWearableVisualOnly.EnsureAndStrip(rightGlove);
     }
 
     void OnEnable()
@@ -64,11 +73,15 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
         cachedInstance = this;
         if (applyingPersistentState)
             return;
-        ShowWearable();
+        ApplyAuthoritativeVisual();
     }
 
     void OnDisable()
     {
+        if (applyingPersistentState)
+            return;
+        if (PPEGlovePairCoordinator.ChemicalGlovesInstance != null)
+            return;
         HideWearable();
     }
 
@@ -115,16 +128,16 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     /// <summary>
     /// PPE always uses controller tracking with hand meshes. Before glove equipment,
     /// show the XR Hands sample FBX; afterward switch each side to its glove mesh.
-    /// Partial ChemicalGloves progress from a glove pair is preserved so App's
-    /// all-or-nothing equipped flag cannot hide a single worn glove.
+    /// While <see cref="PPEGlovePairCoordinator.ChemicalGlovesInstance"/> exists,
+    /// LeftEquipped / RightEquipped are the only visual authority.
     /// </summary>
     public void ApplyPpeRoomState(bool leftWorn, bool rightWorn)
     {
         var pair = PPEGlovePairCoordinator.ChemicalGlovesInstance;
         if (pair != null)
         {
-            leftWorn |= pair.LeftEquipped;
-            rightWorn |= pair.RightEquipped;
+            leftWorn = pair.LeftEquipped;
+            rightWorn = pair.RightEquipped;
         }
 
         applyingPersistentState = true;
@@ -132,7 +145,9 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
             gameObject.SetActive(true);
         applyingPersistentState = false;
 
-        SetBareHandsActive(!leftWorn, !rightWorn);
+        SetBareHandsActive(
+            !leftWorn && !leftTargetGhostPresentation,
+            !rightWorn && !rightTargetGhostPresentation);
         SetGlovesActive(leftWorn, rightWorn);
         AlignBareHandVisuals();
         if (leftWorn || rightWorn)
@@ -143,8 +158,34 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
 
     public void ShowPpeDirectHands() => ApplyPpeRoomState(false, false);
 
+    /// <summary>
+    /// Hides only the target bare-hand renderers during a valid glove donning
+    /// presentation. The hand root, tracking, Animator, interactor and attach
+    /// transforms remain active.
+    /// </summary>
+    public void SetTargetGhostPresentation(PPEGrabHand side, bool visible)
+    {
+        if (side == PPEGrabHand.Left)
+            leftTargetGhostPresentation = visible;
+        else if (side == PPEGrabHand.Right)
+            rightTargetGhostPresentation = visible;
+        else
+            return;
+
+        ApplyAuthoritativeVisual();
+    }
+
+    public void CancelTargetGhostPresentations()
+    {
+        leftTargetGhostPresentation = false;
+        rightTargetGhostPresentation = false;
+        ApplyAuthoritativeVisual();
+    }
+
     public void HideWearable()
     {
+        leftTargetGhostPresentation = false;
+        rightTargetGhostPresentation = false;
         SetBareHandsActive(false, false);
         SetGlovesActive(false);
         SetQuestMeshesActive(true);
@@ -153,7 +194,24 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
 
     public void ResetWearable()
     {
-        HideWearable();
+        leftTargetGhostPresentation = false;
+        rightTargetGhostPresentation = false;
+        ApplyAuthoritativeVisual();
+    }
+
+    public void ApplyAuthoritativeVisual()
+    {
+        var pair = PPEGlovePairCoordinator.ChemicalGlovesInstance;
+        if (pair != null)
+        {
+            ApplyPpeRoomState(pair.LeftEquipped, pair.RightEquipped);
+            return;
+        }
+
+        var manager = PPEEquipmentManager.Instance;
+        var bothEquipped = manager != null &&
+                           manager.IsEquipped(PPEEquipmentManager.IdChemicalGloves);
+        ApplyPpeRoomState(bothEquipped, bothEquipped);
     }
 
     /// <summary>
@@ -162,6 +220,8 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     /// </summary>
     public void ApplyPersistentState(bool leftWorn, bool rightWorn)
     {
+        leftTargetGhostPresentation = false;
+        rightTargetGhostPresentation = false;
         var anyWorn = leftWorn || rightWorn;
         applyingPersistentState = true;
         if (gameObject.activeSelf != anyWorn)
@@ -219,18 +279,83 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
 
     void SetGlovesActive(bool leftActive, bool rightActive)
     {
-        if (leftGlove != null && leftGlove.activeSelf != leftActive)
-            leftGlove.SetActive(leftActive);
-        if (rightGlove != null && rightGlove.activeSelf != rightActive)
-            rightGlove.SetActive(rightActive);
+        SetGloveRootActive(leftGlove, leftActive);
+        SetGloveRootActive(rightGlove, rightActive);
+    }
+
+    void SetGloveRootActive(GameObject glove, bool active)
+    {
+        if (glove == null)
+            return;
+        if (glove.activeSelf != active)
+            glove.SetActive(active);
+        if (active)
+            PPEWearableVisualOnly.EnsureAndStrip(glove);
     }
 
     void SetBareHandsActive(bool leftActive, bool rightActive)
     {
-        if (leftBareHand != null && leftBareHand.activeSelf != leftActive)
-            leftBareHand.SetActive(leftActive);
-        if (rightBareHand != null && rightBareHand.activeSelf != rightActive)
-            rightBareHand.SetActive(rightActive);
+        SetBareHandRenderersEnabled(leftBareHand, leftActive);
+        SetBareHandRenderersEnabled(rightBareHand, rightActive);
+    }
+
+    static void SetBareHandRenderersEnabled(GameObject root, bool enabled)
+    {
+        if (root == null)
+            return;
+
+        // Keep the hand GameObject alive so tracking / Hand / Animator stay running.
+        if (!root.activeSelf)
+            root.SetActive(true);
+
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+                renderers[i].enabled = enabled;
+        }
+    }
+
+    static bool HasEnabledRenderer(GameObject root)
+    {
+        if (root == null || !root.activeInHierarchy)
+            return false;
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+            if (renderers[i] != null && renderers[i].enabled)
+                return true;
+        return false;
+    }
+
+    static void StripWearableInteraction(GameObject root)
+    {
+        if (root == null)
+            return;
+
+        var ignoreRaycast = LayerMask.NameToLayer("Ignore Raycast");
+        if (ignoreRaycast >= 0)
+            SetLayerRecursively(root.transform, ignoreRaycast);
+
+        var colliders = root.GetComponentsInChildren<Collider>(true);
+        for (var i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+                colliders[i].enabled = false;
+        }
+
+        var interactables = root.GetComponentsInChildren<XRBaseInteractable>(true);
+        for (var i = 0; i < interactables.Length; i++)
+        {
+            if (interactables[i] != null)
+                interactables[i].enabled = false;
+        }
+    }
+
+    static void SetLayerRecursively(Transform root, int layer)
+    {
+        root.gameObject.layer = layer;
+        foreach (Transform child in root)
+            SetLayerRecursively(child, layer);
     }
 
     void SetQuestMeshesActive(bool active)

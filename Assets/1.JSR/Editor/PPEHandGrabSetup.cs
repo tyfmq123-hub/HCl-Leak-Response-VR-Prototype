@@ -100,8 +100,8 @@ public static class PPEHandGrabSetup
 
         Undo.RecordObject(rigidbody, "Configure PPE hand grab rigidbody");
         rigidbody.mass = 0.35f;
-        // Stored display owns Play Mode rest pose. Gravity is restored by XRI
-        // forceGravityOnDetach after a real grab, not while the item is on the shelf.
+        // Stored display owns Play Mode rest pose. Invalid release applies gravity
+        // through PPEStoredDisplayState.Released, not XRI throw-on-detach.
         rigidbody.useGravity = false;
         rigidbody.isKinematic = true;
         rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
@@ -129,8 +129,8 @@ public static class PPEHandGrabSetup
         grab.useDynamicAttach = true;
         grab.matchAttachPosition = true;
         grab.matchAttachRotation = true;
-        grab.throwOnDetach = true;
-        grab.forceGravityOnDetach = true;
+        grab.throwOnDetach = false;
+        grab.forceGravityOnDetach = false;
         grab.colliders.Clear();
         foreach (var collider in sourceColliders)
         {

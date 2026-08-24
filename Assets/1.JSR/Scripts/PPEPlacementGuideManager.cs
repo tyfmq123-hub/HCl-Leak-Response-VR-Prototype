@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public enum PPEPlacementGuideState
 {
@@ -34,6 +35,10 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         public GameObject Root;
         public Renderer[] Renderers;
         public PPEPlacementGuideState State;
+        public Material[] CachedNotReadyMaterials;
+        public Material[] CachedReadyMaterials;
+        public Material[] CachedStaticMaterials;
+        public float[] CachedStaticBaseAlphas;
     }
 
     const float InnerGloveReadyEnterDistance = 0.12f;
@@ -61,13 +66,45 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     [Tooltip("HMD pitch below the horizon (degrees) required to show boot ghosts. Target pose still updates while hidden.")]
     float bootGuideLookDownAngle = 30f;
 
-    [Header("Glove Ghost")]
+    [Header("Face Ghost Comfort")]
     [SerializeField]
-    [Tooltip("Hand-local offset so the InnerGlove ghost sits just outside the tracked palm, not inside the hand mesh.")]
-    Vector3 gloveGuidePositionOffset = new Vector3(0f, 0.02f, 0.03f);
+    [Tooltip("Ghost-only extra distance along the Face anchor forward (HMD forward). Release-to-Equip still uses the Face target.")]
+    float faceGhostVisualForwardOffset = 0.15f;
 
     [SerializeField]
-    Vector3 gloveGuideRotationOffsetEuler;
+    float faceGhostVisualVerticalOffset;
+
+    [Header("Face / Suit Static Ghost")]
+    [SerializeField]
+    [Tooltip("Single stable alpha for Face/Suit ghosts. No Ready/NotReady color switch.")]
+    [Range(0.08f, 0.35f)]
+    float faceSuitStableAlpha = 0.16f;
+
+    [SerializeField]
+    [Tooltip("HMD-to-ghost distance where Face ghost is fully at stable alpha.")]
+    float faceGhostFullVisibleDistance = 0.45f;
+
+    [SerializeField]
+    [Tooltip("HMD-to-ghost distance where Face ghost starts fading out.")]
+    float faceGhostFadeStartDistance = 0.35f;
+
+    [SerializeField]
+    [Tooltip("HMD-to-ghost distance where Face ghost is fully hidden.")]
+    float faceGhostHiddenDistance = 0.22f;
+
+    [Header("Suit Ghost Comfort")]
+    [SerializeField]
+    [Tooltip("Ghost-only extra distance along torso forward. Does not move the Body validation target.")]
+    float suitGhostVisualForwardOffset = 0.12f;
+
+    [SerializeField]
+    [Tooltip("Ghost-only downward shift so a full-body suit does not sit in the HMD.")]
+    float suitGhostVisualDownOffset = 0.08f;
+
+    [Header("Ready Visual Hysteresis")]
+    [SerializeField]
+    [Tooltip("Ready visual stays on until distance exceeds Equip Distance by this amount. Does not change Release-to-Equip.")]
+    float readyExitDistanceExtra = 0.03f;
 
     [Header("Ghost Materials")]
     [SerializeField] Material notReadyMaterial;
@@ -91,11 +128,15 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     [Header("Development Debug")]
     [SerializeField]
     [Tooltip("Log placement snapshot only when values change. Not every frame.")]
-    bool logPlacementDebugOnChange = true;
+    bool logPlacementDebugOnChange;
 
     [SerializeField]
     [Tooltip("Show Equip Debug Visuals. Runtime zone spheres, HMD overlay, radius rings. Editor/Development only.")]
     bool showEquipDebugVisuals;
+
+    [SerializeField]
+    [Tooltip("World-space placement debug overlay. Requires Show Equip Debug Visuals. Off for training.")]
+    bool showPlacementDebugOverlay;
 
     [SerializeField] string debugStatus = "IDLE";
     [SerializeField] string debugItem;
@@ -129,7 +170,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     PPEEquipSlot readyCandidateSlot = PPEEquipSlot.None;
     float readyCandidateSince = -1f;
     bool equipAttemptedForCandidate;
-    bool innerGloveReadyLatched;
+    bool visualReadyLatched;
     Transform debugEnterSphere;
     Transform debugExitSphere;
 
@@ -167,20 +208,29 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     {
         ResolveAnchorSet();
         ResolveBodyReference();
+        if (bodyReference != null)
+            bodyReference.EnsureActiveInPpeScene();
         BindGrabbables();
     }
 
     void OnDisable()
     {
         UnbindGrabbables();
+        ChemicalGlovesWearableVisual.FindActive()?.CancelTargetGhostPresentations();
         HideGuides();
     }
 
     void LateUpdate()
     {
+        ResolveBodyReference();
+        if (bodyReference != null)
+            bodyReference.EnsureActiveInPpeScene();
+
         if (!autoEquipEnabled || activeGrabbable == null || activeEquipable == null ||
             !activeGrabbable.IsGrabbed)
         {
+            if (activeGloveMember != null && (activeGrabbable == null || !activeGrabbable.IsGrabbed))
+                SetTargetHandGhostPresentation(activeGloveMember, false);
             ResetReadyCandidate();
             ClearDebugIfIdle();
             UpdateInnerGloveDebugSpheres();
@@ -189,6 +239,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         }
 
         EvaluateHeldPlacement();
+        RefreshActiveGuideCalibrationPoses();
         if (!IsActiveInnerGloves())
         {
             UpdateInnerGloveDebugSpheres();
@@ -222,6 +273,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
         if (wrongHand)
         {
+            SetTargetHandGhostPresentation(activeGloveMember, false);
             SetActiveGuidesVisible(false);
             SetAllGuidesReady(false);
             ResetReadyCandidate(keepDebug: true);
@@ -243,8 +295,18 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
         if (!targetValid)
         {
-            SetActiveGuidesVisible(false);
-            SetAllGuidesReady(false);
+            SetTargetHandGhostPresentation(activeGloveMember, false);
+            if (IsBodyWornGuide())
+            {
+                SetActiveGuidesVisible(ShouldShowGuideVisual());
+                SetAllGuidesReady(false);
+            }
+            else
+            {
+                SetActiveGuidesVisible(false);
+                SetAllGuidesReady(false);
+            }
+
             ResetReadyCandidate(keepDebug: true);
             PublishDebug(
                 "TRACKING LOST",
@@ -282,8 +344,11 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         }
 
         var enterDistance = IsActiveInnerGloves() ? InnerGloveReadyEnterDistance : maxDistance;
-        var exitDistance = IsActiveInnerGloves() ? InnerGloveReadyExitDistance : maxDistance;
+        var exitDistance = IsActiveInnerGloves()
+            ? InnerGloveReadyExitDistance
+            : maxDistance + readyExitDistanceExtra;
 
+        SetTargetHandGhostPresentation(activeGloveMember, true);
         SetActiveGuidesVisible(ShouldShowGuideVisual());
 
         ActiveGuide firstReady = null;
@@ -301,7 +366,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             var sampleFrom = placementRef != null ? placementRef : activeGrabbable.transform;
             var distance = Vector3.Distance(sampleFrom.position, guide.Anchor.position);
             var angle = Quaternion.Angle(sampleFrom.rotation, guide.Anchor.rotation);
-            var distanceValid = innerGloveReadyLatched
+            var distanceValid = visualReadyLatched
                 ? distance <= exitDistance
                 : distance <= enterDistance;
             var angleValid = !useRotation || angle <= maxAngle;
@@ -320,8 +385,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
                 firstReady = guide;
         }
 
-        if (IsActiveInnerGloves())
-            innerGloveReadyLatched = firstReady != null;
+        visualReadyLatched = firstReady != null;
 
         CurrentDistance = nearestDistance;
         CurrentAngle = nearestAngle;
@@ -528,7 +592,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
     bool ShouldShowDebugOverlay()
     {
-        return ShowEquipDebugVisuals;
+        return ShowEquipDebugVisuals && showPlacementDebugOverlay;
     }
 
     bool UsesReleaseToEquip()
@@ -548,6 +612,13 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         if (activeGloveMember != null)
         {
             target = activeGloveMember.TargetTransform;
+            label = BuildReleaseTargetLabel();
+            return target != null;
+        }
+
+        if (SuppressesGhostVisual(activeEquipable))
+        {
+            target = ResolveInvisibleReleaseTarget(activeEquipable);
             label = BuildReleaseTargetLabel();
             return target != null;
         }
@@ -597,7 +668,27 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         var manager = PPEEquipmentManager.Instance != null
             ? PPEEquipmentManager.Instance
             : FindAnyObjectByType<PPEEquipmentManager>();
-        manager?.Equip(item);
+        if (manager != null && manager.Equip(item))
+            AttachEquippedHelmetToHead(item);
+    }
+
+    void AttachEquippedHelmetToHead(PPEEquipable item)
+    {
+        if (item == null ||
+            item.DeactivateOnEquip ||
+            !string.Equals(item.ItemId, PPEEquipmentManager.IdHelmet, StringComparison.Ordinal))
+            return;
+
+        ResolveBodyReference();
+        ResolveAnchorSet();
+        var anchors = anchorSet != null ? anchorSet : (bodyReference != null ? bodyReference.AnchorSet : null);
+        var head = anchors != null ? anchors.Head : null;
+        if (head == null)
+            return;
+
+        // Preserve the validated release pose while making the worn Helmet follow
+        // the live HMD-driven Head target. No visible target or Helmet Ghost is created.
+        item.transform.SetParent(head, true);
     }
 
     string BuildOverlayText()
@@ -737,7 +828,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         var renderer = sphere.GetComponent<Renderer>();
         if (renderer == null || renderer.sharedMaterial == null)
             return;
-        var material = renderer.material;
+        var material = renderer.sharedMaterial;
         if (material.HasProperty("_BaseColor"))
             material.SetColor("_BaseColor", color);
         if (material.HasProperty("_Color"))
@@ -819,9 +910,16 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
     void ShowGuides(PPEHandGrabbable grabbable)
     {
+        if (activeGloveMember != null)
+            SetTargetHandGhostPresentation(activeGloveMember, false);
         HideGuides();
         if (grabbable == null)
             return;
+
+        ResolveAnchorSet();
+        ResolveBodyReference();
+        if (bodyReference != null)
+            bodyReference.EnsureActiveInPpeScene();
 
         var gloveMember = grabbable.GetComponent<PPEGlovePairMember>();
         if (gloveMember != null)
@@ -834,14 +932,18 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             return;
         }
 
-        ResolveAnchorSet();
-        ResolveBodyReference();
         if (anchorSet == null)
+        {
+            LogWearableGuideDiagnostics(grabbable, null, null, null, "anchorSet is null");
             return;
+        }
 
         var equipable = grabbable.GetComponent<PPEEquipable>();
         if (equipable == null || equipable.EquipSlots == PPEEquipSlot.None)
+        {
+            LogWearableGuideDiagnostics(grabbable, equipable, null, null, "equipable missing or EquipSlots=None");
             return;
+        }
 
         activeGrabbable = grabbable;
         activeEquipable = equipable;
@@ -850,6 +952,12 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             bodyReference.SetActiveFaceProfileFrom(equipable);
         activeEquipable.EnsurePlacementReference();
 
+        if (SuppressesGhostVisual(equipable))
+        {
+            PPEEquipGuidanceHints.NotifyGrabbed(equipable, null);
+            return;
+        }
+
         foreach (var slot in ConcreteSlots)
         {
             if (!equipable.UsesSlot(slot) || !anchorSet.TryGetAnchor(slot, out var anchor))
@@ -857,7 +965,10 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
             var root = CreateGuide(equipable, anchor, slot, null);
             if (root == null)
+            {
+                LogWearableGuideDiagnostics(grabbable, equipable, anchor, null, "CreateGuide returned null for " + slot);
                 continue;
+            }
 
             var guide = new ActiveGuide
             {
@@ -868,8 +979,11 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
                 State = PPEPlacementGuideState.NotReady,
             };
             activeGuides.Add(guide);
-            ApplyMaterial(guide.Renderers, notReadyMaterial);
+            ApplyGuideAppearance(guide, false);
+            if (root.activeSelf != true)
+                root.SetActive(true);
             GuideStateChanged?.Invoke(slot, PPEPlacementGuideState.NotReady);
+            LogWearableGuideDiagnostics(grabbable, equipable, anchor, root, null);
         }
 
         PPEEquipGuidanceHints.NotifyGrabbed(equipable, null);
@@ -881,6 +995,8 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         activeGloveMember = member;
         activeEquipable = member.LogicalEquipable;
         ResolveBodyReference();
+        if (bodyReference != null)
+            bodyReference.EnsureActiveInPpeScene();
         if (activeEquipable == null)
         {
             if (member != null && member.IsInnerGlove)
@@ -935,18 +1051,40 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             State = PPEPlacementGuideState.NotReady,
         };
         activeGuides.Add(guide);
-        ApplyMaterial(guide.Renderers, notReadyMaterial);
-        if (member.TargetKind == PPEPairTargetKind.TrackedHands)
-            MakeGloveGhostVisible(guide.Renderers);
+        ApplyGuideAppearance(guide, false);
         if (member.TargetKind == PPEPairTargetKind.BodyLowerLeg && !ShouldShowGuideVisual())
             guide.Root.SetActive(false);
+        else if (guide.Root != null && !guide.Root.activeSelf)
+            guide.Root.SetActive(true);
+        SetTargetHandGhostPresentation(member, true);
         GuideStateChanged?.Invoke(slot, PPEPlacementGuideState.NotReady);
+        if (member.TargetKind == PPEPairTargetKind.BodyLowerLeg)
+            LogWearableGuideDiagnostics(grabbable, activeEquipable, anchor, root, null);
     }
 
     void HandleReleased(PPEHandGrabbable grabbable)
     {
         if (grabbable == activeGrabbable)
+        {
+            var releasedMember = activeGloveMember;
             HideGuides();
+            SetTargetHandGhostPresentation(releasedMember, false);
+        }
+    }
+
+    static void SetTargetHandGhostPresentation(PPEGlovePairMember member, bool visible)
+    {
+        if (member == null || !member.IsTrackedHandGlove)
+            return;
+        var item = member.LogicalEquipable;
+        if (item == null)
+            return;
+        var isSupportedGlove =
+            string.Equals(item.ItemId, PPEEquipmentManager.IdInnerGloves, StringComparison.Ordinal) ||
+            string.Equals(item.ItemId, PPEEquipmentManager.IdChemicalGloves, StringComparison.Ordinal);
+        if (!isSupportedGlove)
+            return;
+        ChemicalGlovesWearableVisual.FindActive()?.SetTargetGhostPresentation(member.GloveSide, visible);
     }
 
     GameObject CreateGuide(
@@ -955,6 +1093,9 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         PPEEquipSlot slot,
         PPEGlovePairMember gloveMember)
     {
+        if (gloveMember == null && SuppressesGhostVisual(equipable))
+            return null;
+
         GameObject root;
         var dedicatedGuide = gloveMember != null ? gloveMember.GuidePrefab : null;
         if (dedicatedGuide == null && equipable != null)
@@ -970,32 +1111,43 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         else if (usePpeVisualWhenGuidePrefabMissing)
         {
             var source = gloveMember != null ? gloveMember.VisualRoot.gameObject : equipable.gameObject;
-            root = BuildRendererOnlyGhost(source, anchor, slot);
+            root = BuildRendererOnlyGhost(source, anchor, slot, gloveMember);
         }
         else
         {
             return null;
         }
 
+        ApplyGuideLocalPose(root, equipable, gloveMember);
         if (gloveMember != null && gloveMember.TargetKind == PPEPairTargetKind.TrackedHands)
-        {
-            root.transform.localPosition = gloveGuidePositionOffset;
-            root.transform.localRotation = Quaternion.Euler(gloveGuideRotationOffsetEuler);
-        }
+            SanitizeGloveGuideVisualOnly(root);
+        SanitizeGuideRenderers(root);
 
         SetLayerRecursively(root.transform, LayerMask.NameToLayer("Default") >= 0 ? 0 : anchor.gameObject.layer);
         return root;
     }
 
-    static GameObject BuildRendererOnlyGhost(GameObject source, Transform anchor, PPEEquipSlot slot)
+    static GameObject BuildRendererOnlyGhost(
+        GameObject source,
+        Transform anchor,
+        PPEEquipSlot slot,
+        PPEGlovePairMember gloveMember)
     {
         var root = new GameObject($"PPE_Guide_{source.name}_{slot}");
         root.transform.SetParent(anchor, false);
-        root.transform.localScale = source.transform.lossyScale;
-        CopyVisualComponents(source.transform, root.transform);
+        var visualParent = root.transform;
+        if (gloveMember != null && gloveMember.IsTrackedHandGlove)
+        {
+            var visualOrigin = new GameObject(PPEGlovePairMember.GhostVisualOriginName);
+            visualOrigin.transform.SetParent(root.transform, false);
+            visualParent = visualOrigin.transform;
+        }
+
+        visualParent.localScale = source.transform.lossyScale;
+        CopyVisualComponents(source.transform, visualParent);
 
         foreach (Transform child in source.transform)
-            CloneVisualHierarchy(child, root.transform);
+            CloneVisualHierarchy(child, visualParent);
         return root;
     }
 
@@ -1023,8 +1175,8 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             return;
         }
 
-        // ProtectiveGloves use SkinnedMeshRenderer. Bake bind-pose mesh so the
-        // ghost has the same world size as the held object without copying bones.
+        // ProtectiveGloves use SkinnedMeshRenderer. Copy shared bind-pose mesh so
+        // the ghost matches held size without bones or per-frame BakeMesh.
         var skin = source.GetComponent<SkinnedMeshRenderer>();
         if (skin != null && skin.sharedMesh != null)
             AddGhostMesh(destination.gameObject, skin.sharedMesh, skin.sharedMaterials);
@@ -1049,18 +1201,36 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         if (guide == null || guide.Root == null || guide.State == state)
             return;
         guide.State = state;
-        ApplyMaterial(guide.Renderers, state == PPEPlacementGuideState.Ready ? readyMaterial : notReadyMaterial);
-        if (activeGloveMember != null && activeGloveMember.TargetKind == PPEPairTargetKind.TrackedHands)
-            MakeGloveGhostVisible(guide.Renderers, state == PPEPlacementGuideState.Ready);
+        ApplyGuideAppearance(guide, state == PPEPlacementGuideState.Ready);
         GuideStateChanged?.Invoke(guide.Slot, state);
     }
 
-    static void MakeGloveGhostVisible(Renderer[] renderers, bool ready = false)
+    void ApplyGuideAppearance(ActiveGuide guide, bool ready)
     {
-        if (renderers == null)
+        if (guide == null)
             return;
 
-        var minAlpha = ready ? 0.72f : 0.55f;
+        if (activeGloveMember != null &&
+            activeGloveMember.TargetKind == PPEPairTargetKind.TrackedHands)
+        {
+            ApplyGloveGhostMaterials(guide, ready);
+            return;
+        }
+
+        ApplyMaterial(guide.Renderers, ready ? readyMaterial : notReadyMaterial);
+    }
+
+    void ApplyGloveGhostMaterials(ActiveGuide guide, bool ready)
+    {
+        if (guide.Renderers == null)
+            return;
+
+        EnsureGloveMaterialCache(guide);
+        var cached = ready ? guide.CachedReadyMaterials : guide.CachedNotReadyMaterials;
+        var renderers = guide.Renderers;
+        if (cached == null)
+            return;
+
         for (var i = 0; i < renderers.Length; i++)
         {
             var renderer = renderers[i];
@@ -1070,31 +1240,93 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             renderer.enabled = true;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            renderer.sharedMaterials = new[] { cached[i] };
+        }
+    }
 
-            var materials = renderer.materials;
-            for (var m = 0; m < materials.Length; m++)
+    void EnsureGloveMaterialCache(ActiveGuide guide)
+    {
+        if (guide.CachedNotReadyMaterials != null && guide.CachedReadyMaterials != null)
+            return;
+
+        DestroyGuideMaterials(guide);
+        var softBlue = new Color(0.32f, 0.72f, 1f, 1f);
+        guide.CachedNotReadyMaterials = CloneGhostMaterials(
+            guide.Renderers, notReadyMaterial, softBlue, 0.26f, false);
+        guide.CachedReadyMaterials = CloneGhostMaterials(
+            guide.Renderers, notReadyMaterial, softBlue, 0.40f, false);
+    }
+
+    static Material[] CloneGhostMaterials(
+        Renderer[] renderers,
+        Material template,
+        Color fillColor,
+        float alpha,
+        bool doubleSided)
+    {
+        if (renderers == null || template == null)
+            return null;
+
+        var result = new Material[renderers.Length];
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var material = new Material(template);
+            if (doubleSided && material.HasProperty("_Cull"))
+                material.SetFloat("_Cull", 0f);
+            if (material.HasProperty("_EmissionColor"))
+                material.SetColor("_EmissionColor", Color.black);
+            material.DisableKeyword("_EMISSION");
+            if (material.HasProperty("_OutlineWidth"))
+                material.SetFloat("_OutlineWidth", 0f);
+            if (material.HasProperty("_OutlineColor"))
+                material.SetColor("_OutlineColor", Color.clear);
+            if (material.HasProperty("_RimColor"))
+                material.SetColor("_RimColor", Color.clear);
+            if (material.HasProperty("_RimPower"))
+                material.SetFloat("_RimPower", 0f);
+            if (material.HasProperty("_FresnelPower"))
+                material.SetFloat("_FresnelPower", 0f);
+            if (material.HasProperty("_BaseColor"))
             {
-                var material = materials[m];
-                if (material == null)
-                    continue;
-                if (material.HasProperty("_Cull"))
-                    material.SetFloat("_Cull", 0f);
-                if (material.HasProperty("_BaseColor"))
-                {
-                    var color = material.GetColor("_BaseColor");
-                    color.a = Mathf.Max(color.a, minAlpha);
-                    material.SetColor("_BaseColor", color);
-                }
-
-                if (material.HasProperty("_Color"))
-                {
-                    var color = material.GetColor("_Color");
-                    color.a = Mathf.Max(color.a, minAlpha);
-                    material.SetColor("_Color", color);
-                }
+                var color = fillColor;
+                color.a = alpha;
+                material.SetColor("_BaseColor", color);
             }
 
-            renderer.materials = materials;
+            if (material.HasProperty("_Color"))
+            {
+                var color = fillColor;
+                color.a = alpha;
+                material.SetColor("_Color", color);
+            }
+
+            result[i] = material;
+        }
+
+        return result;
+    }
+
+    static void DestroyGuideMaterials(ActiveGuide guide)
+    {
+        if (guide == null)
+            return;
+        DestroyMaterialArray(guide.CachedNotReadyMaterials);
+        DestroyMaterialArray(guide.CachedReadyMaterials);
+        DestroyMaterialArray(guide.CachedStaticMaterials);
+        guide.CachedNotReadyMaterials = null;
+        guide.CachedReadyMaterials = null;
+        guide.CachedStaticMaterials = null;
+        guide.CachedStaticBaseAlphas = null;
+    }
+
+    static void DestroyMaterialArray(Material[] materials)
+    {
+        if (materials == null)
+            return;
+        for (var i = 0; i < materials.Length; i++)
+        {
+            if (materials[i] != null)
+                Destroy(materials[i]);
         }
     }
 
@@ -1185,6 +1417,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     {
         foreach (var guide in activeGuides)
         {
+            DestroyGuideMaterials(guide);
             if (guide.Root != null)
                 Destroy(guide.Root);
         }
@@ -1192,7 +1425,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         activeGrabbable = null;
         activeEquipable = null;
         activeGloveMember = null;
-        innerGloveReadyLatched = false;
+        visualReadyLatched = false;
         if (bodyReference != null)
             bodyReference.ClearActiveFaceProfile();
         ResetReadyCandidate();
@@ -1206,6 +1439,15 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
 
     void EvaluateInnerGloveGhostVisibilityOnly(bool wrongHand, bool targetValid)
     {
+        if (activeGloveMember != null &&
+            activeGloveMember.DevelopmentRuntimeCalibrationMode &&
+            targetValid &&
+            activeGuides.Count > 0)
+        {
+            SetActiveGuidesVisible(true);
+            return;
+        }
+
         if (wrongHand || !targetValid || activeGuides.Count == 0)
         {
             SetActiveGuidesVisible(false);
@@ -1248,6 +1490,72 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    bool IsBodyWornGuide()
+    {
+        if (activeGloveMember != null)
+            return activeGloveMember.TargetKind == PPEPairTargetKind.BodyLowerLeg;
+        return true;
+    }
+
+    void LogWearableGuideDiagnostics(
+        PPEHandGrabbable grabbable,
+        PPEEquipable equipable,
+        Transform target,
+        GameObject guideRoot,
+        string failure)
+    {
+        var itemId = equipable != null ? equipable.ItemId : "(none)";
+        var source = activeGloveMember != null && activeGloveMember.VisualRoot != null
+            ? activeGloveMember.VisualRoot.gameObject
+            : equipable != null ? equipable.gameObject : null;
+        var sourceRenderers = source != null
+            ? source.GetComponentsInChildren<Renderer>(true)
+            : Array.Empty<Renderer>();
+        var guideRenderers = guideRoot != null
+            ? guideRoot.GetComponentsInChildren<Renderer>(true)
+            : Array.Empty<Renderer>();
+        var enabledRenderers = 0;
+        for (var i = 0; i < guideRenderers.Length; i++)
+        {
+            if (guideRenderers[i] != null && guideRenderers[i].enabled)
+                enabledRenderers++;
+        }
+
+        var lookingDown = bodyReference != null && bodyReference.IsLookingDown(bootGuideLookDownAngle);
+        var targetKind = activeGloveMember != null
+            ? activeGloveMember.TargetKind.ToString()
+            : (equipable != null ? equipable.EquipSlots.ToString() : "none");
+
+        Debug.Log(
+            "[PPE Guide]\n" +
+            "1 Grab event received: " + (grabbable != null && grabbable.IsGrabbed) + "\n" +
+            "2 Guide creation called: " + (failure == null || guideRoot != null) + "\n" +
+            "3 Source visual/renderer found: " + (source != null) +
+            " count=" + sourceRenderers.Length +
+            " name=" + (source != null ? source.name : "(null)") + "\n" +
+            "4 Guide GameObject created: " + (guideRoot != null) +
+            (guideRoot != null ? " name=" + guideRoot.name : "") + "\n" +
+            "5 Guide renderer enabled: " + enabledRenderers + "/" + guideRenderers.Length + "\n" +
+            "6 Target Transform resolved: " + (target != null) +
+            (target != null ? " name=" + target.name : "") + "\n" +
+            "7 TargetValid: " + (activeGloveMember != null
+                ? activeGloveMember.IsTargetTracking.ToString()
+                : (bodyReference != null && bodyReference.HasTracking).ToString()) + "\n" +
+            "8 Guide parent/target: " + (guideRoot != null && guideRoot.transform.parent != null
+                ? guideRoot.transform.parent.name
+                : "(none)") + " kind=" + targetKind + "\n" +
+            "9 Guide world position: " + (guideRoot != null
+                ? guideRoot.transform.position.ToString("F3")
+                : "(none)") + "\n" +
+            "10 Guide active state: self=" + (guideRoot != null && guideRoot.activeSelf) +
+            " hierarchy=" + (guideRoot != null && guideRoot.activeInHierarchy) + "\n" +
+            "ItemId=" + itemId + "\n" +
+            "BodyActive=" + (bodyReference != null && bodyReference.isActiveAndEnabled) + "\n" +
+            "LookingDown=" + lookingDown + "\n" +
+            "Failure=" + (failure ?? "none"),
+            guideRoot != null ? guideRoot : this);
     }
 
     void SetActiveGuidesVisible(bool visible)
@@ -1345,7 +1653,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         readyCandidateSlot = PPEEquipSlot.None;
         readyCandidateSince = -1f;
         equipAttemptedForCandidate = false;
-        innerGloveReadyLatched = false;
+        visualReadyLatched = false;
         if (keepDebug)
             return;
         CurrentDistance = float.PositiveInfinity;
@@ -1362,6 +1670,203 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     {
         if (bodyReference == null)
             bodyReference = FindAnyObjectByType<PPEPlayerBodyReference>(FindObjectsInactive.Include);
+    }
+
+    void ApplyGuideLocalPose(GameObject root, PPEEquipable equipable, PPEGlovePairMember gloveMember)
+    {
+        if (root == null)
+            return;
+
+        var localPosition = Vector3.zero;
+        var localRotation = Quaternion.identity;
+
+        if (gloveMember != null)
+        {
+            var calib = gloveMember.EnsureGhostPoseCalibration();
+            if (gloveMember.IsTrackedHandGlove)
+            {
+                localPosition = calib.localPosition;
+                var visualOrigin = root.transform.Find(PPEGlovePairMember.GhostVisualOriginName);
+                if (visualOrigin != null)
+                {
+                    visualOrigin.localPosition = gloveMember.GhostVisualOriginOffset;
+                    visualOrigin.localRotation = calib.localRotation;
+                }
+            }
+            else
+            {
+                localPosition = calib.localPosition;
+                localRotation = calib.localRotation;
+            }
+        }
+        else if (equipable != null)
+        {
+            var calib = equipable.EnsureGhostPoseCalibration();
+            localPosition = calib.localPosition;
+            localRotation = calib.localRotation;
+            if (equipable.UsesSlot(PPEEquipSlot.Face) || equipable.UsesSlot(PPEEquipSlot.Head))
+                localPosition += new Vector3(0f, faceGhostVisualVerticalOffset, faceGhostVisualForwardOffset);
+            else if (equipable.UsesSlot(PPEEquipSlot.Body))
+                localPosition += new Vector3(0f, -suitGhostVisualDownOffset, suitGhostVisualForwardOffset);
+        }
+
+        root.transform.localPosition = localPosition;
+        root.transform.localRotation = localRotation;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (gloveMember != null &&
+            gloveMember.IsTrackedHandGlove &&
+            gloveMember.DevelopmentRuntimeCalibrationMode &&
+            root.transform.parent != null)
+        {
+            var targetPalm = root.transform.parent.position;
+            Debug.DrawLine(targetPalm, root.transform.position, Color.magenta, 0f, false);
+            Debug.DrawRay(targetPalm, Vector3.up * 0.035f, Color.cyan, 0f, false);
+            Debug.DrawRay(root.transform.position, Vector3.up * 0.035f, Color.magenta, 0f, false);
+        }
+#endif
+    }
+
+    void RefreshActiveGuideCalibrationPoses()
+    {
+        for (var i = 0; i < activeGuides.Count; i++)
+        {
+            var guide = activeGuides[i];
+            if (guide == null || guide.Root == null)
+                continue;
+            ApplyGuideLocalPose(guide.Root, activeEquipable, activeGloveMember);
+        }
+    }
+
+    static void SanitizeGuideRenderers(GameObject root)
+    {
+        if (root == null)
+            return;
+
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var renderer = renderers[i];
+            if (renderer == null)
+                continue;
+            renderer.enabled = true;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        }
+
+        var colliders = root.GetComponentsInChildren<Collider>(true);
+        for (var i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+                colliders[i].enabled = false;
+        }
+    }
+
+    static void SanitizeGloveGuideVisualOnly(GameObject root)
+    {
+        if (root == null)
+            return;
+
+        var transforms = root.GetComponentsInChildren<Transform>(true);
+        for (var i = 0; i < transforms.Length; i++)
+        {
+            var child = transforms[i];
+            if (child == null || child == root.transform)
+                continue;
+            var childName = child.name;
+            if (childName.IndexOf("HighlightVisual", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                childName.IndexOf("Outline", StringComparison.OrdinalIgnoreCase) >= 0)
+                child.gameObject.SetActive(false);
+        }
+
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var renderer = renderers[i];
+            if (renderer == null)
+                continue;
+
+            // Physical PPE can have an outline material appended while hovered or
+            // selected. Never preserve that material-slot count on a glove Ghost.
+            renderer.sharedMaterials = Array.Empty<Material>();
+        }
+
+        var colliders = root.GetComponentsInChildren<Collider>(true);
+        for (var i = 0; i < colliders.Length; i++)
+            if (colliders[i] != null)
+                colliders[i].enabled = false;
+
+        var rigidbodies = root.GetComponentsInChildren<Rigidbody>(true);
+        for (var i = 0; i < rigidbodies.Length; i++)
+        {
+            var body = rigidbodies[i];
+            if (body == null)
+                continue;
+            body.detectCollisions = false;
+            body.isKinematic = true;
+        }
+
+        var interactables = root.GetComponentsInChildren<XRBaseInteractable>(true);
+        for (var i = 0; i < interactables.Length; i++)
+            if (interactables[i] != null)
+                interactables[i].enabled = false;
+
+        var lineRenderers = root.GetComponentsInChildren<LineRenderer>(true);
+        for (var i = 0; i < lineRenderers.Length; i++)
+            if (lineRenderers[i] != null)
+                lineRenderers[i].enabled = false;
+
+        var behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+        for (var i = 0; i < behaviours.Length; i++)
+        {
+            var behaviour = behaviours[i];
+            if (behaviour == null)
+                continue;
+            var typeName = behaviour.GetType().Name;
+            if (typeName.IndexOf("Outline", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                typeName.IndexOf("Highlight", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                typeName.IndexOf("Hover", StringComparison.OrdinalIgnoreCase) >= 0)
+                behaviour.enabled = false;
+        }
+
+        // Disabling an outline component can restore its cached source
+        // materials in OnDisable, so collapse the material array last.
+        for (var i = 0; i < renderers.Length; i++)
+            if (renderers[i] != null)
+                renderers[i].sharedMaterials = Array.Empty<Material>();
+    }
+
+    static bool SuppressesGhostVisual(PPEEquipable equipable)
+    {
+        if (equipable == null)
+            return false;
+        return equipable.UsesSlot(PPEEquipSlot.Face) ||
+               equipable.UsesSlot(PPEEquipSlot.Head) ||
+               equipable.UsesSlot(PPEEquipSlot.Body);
+    }
+
+    Transform ResolveInvisibleReleaseTarget(PPEEquipable equipable)
+    {
+        if (equipable == null)
+            return null;
+
+        ResolveAnchorSet();
+        var anchors = anchorSet != null ? anchorSet : (bodyReference != null ? bodyReference.AnchorSet : null);
+        if (anchors == null)
+            return null;
+
+        for (var i = 0; i < ConcreteSlots.Length; i++)
+        {
+            var slot = ConcreteSlots[i];
+            if (!equipable.UsesSlot(slot))
+                continue;
+            if (anchors.TryGetAnchor(slot, out var anchor) && anchor != null)
+                return anchor;
+        }
+
+        return null;
     }
 
     static void SetLayerRecursively(Transform root, int layer)
@@ -1388,7 +1893,8 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         readyHoldDuration = Mathf.Max(0f, placementReadyHoldDuration > 0.16f ? placementReadyHoldDuration : 0.20f);
         bootGuideLookDownAngle = 30f;
         placementSetupVersion = 3;
-        logPlacementDebugOnChange = true;
+        logPlacementDebugOnChange = false;
+        showPlacementDebugOverlay = false;
         bodyReference = FindAnyObjectByType<PPEPlayerBodyReference>(FindObjectsInactive.Include);
     }
 #endif

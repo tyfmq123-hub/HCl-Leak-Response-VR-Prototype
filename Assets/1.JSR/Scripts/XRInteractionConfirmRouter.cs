@@ -30,8 +30,8 @@ public class XRInteractionConfirmRouter : MonoBehaviour
     [SerializeField] InputActionProperty confirmAction;
 
     [SerializeField]
-    [Tooltip("Keep the previous Ray + Grip wearable equip path available as a fallback.")]
-    bool allowLegacyWearableEquipFallback = true;
+    [Tooltip("Legacy Ray+Grip wearable Equip. Must stay off in 04_PPE. Pair PPE would skip Left/Right physical completion.")]
+    bool allowLegacyWearableEquipFallback = false;
 
     [SerializeField, Min(0f)]
     float legacyEquipConfirmDelay = 0.3f;

@@ -48,9 +48,15 @@ public sealed class PPEDirectGrabProximityFilter : MonoBehaviour, IXRSelectFilte
         if (target.isSelected && target.interactorsSelecting.Contains(interactor))
             return true;
 
+        return EvaluateDistance(interactor, target) <= maxDirectGrabDistance;
+    }
+
+    public float EvaluateDistance(IXRSelectInteractor interactor, IXRSelectInteractable target)
+    {
+        if (interactor == null || target == null)
+            return float.PositiveInfinity;
         var handPosition = GetHandPosition(interactor, target);
-        var distance = DistanceToPhysicalGrabSurface(target, handPosition);
-        return distance <= maxDirectGrabDistance;
+        return DistanceToPhysicalGrabSurface(target, handPosition);
     }
 
     public void RegisterWithInteractable()
@@ -92,18 +98,23 @@ public sealed class PPEDirectGrabProximityFilter : MonoBehaviour, IXRSelectFilte
 
     static Vector3 GetHandPosition(IXRSelectInteractor interactor, IXRSelectInteractable target)
     {
+        // Selection distance must use the actual XRI interaction source first.
+        // A visible bare/wearable Hand mesh and an independently tracked XR Hands
+        // Palm are not authoritative for a controller NearFar/Direct selection.
+        if (interactor is IXRInteractor xrInteractor)
+        {
+            var attach = xrInteractor.GetAttachTransform(target);
+            if (attach != null &&
+                attach.gameObject.activeInHierarchy &&
+                !PPEWearableVisualOnly.IsInHierarchy(attach))
+                return attach.position;
+        }
+
         var selectingHand = PPEGrabHandResolver.Resolve(interactor, target.transform);
         if (selectingHand != PPEGrabHand.Unknown &&
             PPEXrHandsJointPose.TryGetWorldPose(selectingHand, XRHandJointID.Palm, out var palmPose))
         {
             return palmPose.position;
-        }
-
-        if (interactor is IXRInteractor xrInteractor)
-        {
-            var attach = xrInteractor.GetAttachTransform(target);
-            if (attach != null)
-                return attach.position;
         }
 
         return interactor.transform.position;

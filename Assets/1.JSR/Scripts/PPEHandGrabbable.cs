@@ -56,19 +56,22 @@ public class PPEHandGrabbable : XRGrabInteractable
     public PPEGrabHand GrabSessionHoldingHand { get; private set; } = PPEGrabHand.Unknown;
     public PPEGrabHandResolver.Result LastHandResolution { get; private set; }
 
+    /// <summary>Full room reset: skip release-to-equip while XRI selection is cancelled.</summary>
+    public static bool SuppressReleaseEquip { get; set; }
+
     protected override void Awake()
     {
         EnsureProximityFilter();
         EnsureCabinetStoredDisplay();
         base.Awake();
-        ApplyInnerGloveThrowPolicy();
+        ApplyWearableThrowPolicy();
         var filter = GetComponent<PPEDirectGrabProximityFilter>();
         filter?.RegisterRuntimeSelectFilter();
     }
 
     protected override void OnSelectEntering(SelectEnterEventArgs args)
     {
-        ApplyInnerGloveThrowPolicy();
+        ApplyWearableThrowPolicy();
         GrabStarting?.Invoke();
         base.OnSelectEntering(args);
 
@@ -80,7 +83,7 @@ public class PPEHandGrabbable : XRGrabInteractable
 
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
-        ApplyInnerGloveThrowPolicy();
+        ApplyWearableThrowPolicy();
         base.OnSelectEntered(args);
 
         IsGrabbed = true;
@@ -105,15 +108,23 @@ public class PPEHandGrabbable : XRGrabInteractable
 
     protected override void OnSelectExited(SelectExitEventArgs args)
     {
-        ApplyInnerGloveThrowPolicy();
+        ApplyWearableThrowPolicy();
 
         var sessionHand = GrabSessionHoldingHand != PPEGrabHand.Unknown
             ? GrabSessionHoldingHand
             : CurrentHand;
-        if (IsInnerGloveMember())
-            PPEInnerGloveDonning.TryEquipInnerGloveOnRelease(this, sessionHand);
-        else
-            PPEReleaseEquip.TryEquipOnRelease(this, sessionHand);
+        var equippedThisRelease = false;
+        if (!SuppressReleaseEquip)
+        {
+            if (IsInnerGloveMember())
+                equippedThisRelease = PPEInnerGloveDonning.TryEquipInnerGloveOnRelease(this, sessionHand);
+            else
+                equippedThisRelease = PPEReleaseEquip.TryEquipOnRelease(this, sessionHand);
+        }
+
+        var stored = GetComponent<PPEStoredDisplayState>();
+        if (equippedThisRelease)
+            stored?.NotifyEquipped();
 
         var releasedHand = sessionHand;
         if (!IsInnerGloveMember())
@@ -124,6 +135,11 @@ public class PPEHandGrabbable : XRGrabInteractable
         }
 
         base.OnSelectExited(args);
+
+        if (equippedThisRelease)
+            stored?.NotifyEquipped();
+        else if (!SuppressReleaseEquip)
+            stored?.NotifyInvalidReleaseIfHeld();
 
         IsGrabbed = false;
         OnReleased?.Invoke(releasedHand);
@@ -137,13 +153,31 @@ public class PPEHandGrabbable : XRGrabInteractable
         return PPEGrabHandResolver.Resolve(interactor, interactableRoot);
     }
 
-    public void ApplyInnerGloveThrowPolicy()
+    public void ApplyWearableThrowPolicy()
     {
-        if (!IsInnerGloveMember())
+        if (!IsCabinetWearable())
             return;
 
         throwOnDetach = false;
         forceGravityOnDetach = false;
+    }
+
+    [System.Obsolete("Use ApplyWearableThrowPolicy.")]
+    public void ApplyInnerGloveThrowPolicy()
+    {
+        ApplyWearableThrowPolicy();
+    }
+
+    bool IsCabinetWearable()
+    {
+        if (GetComponent<PPEGlovePairCoordinator>() != null)
+            return false;
+        if (GetComponent<PPEGlovePairMember>() != null)
+            return true;
+        var equipable = GetComponent<PPEEquipable>();
+        if (equipable == null)
+            return false;
+        return !string.Equals(equipable.ItemId, "ResponseBag", StringComparison.Ordinal);
     }
 
     bool IsInnerGloveMember()

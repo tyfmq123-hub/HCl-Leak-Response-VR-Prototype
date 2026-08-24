@@ -34,6 +34,11 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     [SerializeField] [Min(0.1f)] float displayDuration = 2f;
     [SerializeField] [Min(0f)] float fadeOutDuration = 0.35f;
 
+    [Header("Display")]
+    [SerializeField]
+    [Tooltip("Temporarily hide the subtitle HUD. Keep subtitle copy and callers; turn this on when TTS/hints are wired together.")]
+    bool showSubtitleHud;
+
     Camera xrCamera;
     Coroutine hideRoutine;
     TMP_FontAsset hangulFont;
@@ -160,6 +165,9 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     /// <summary>Shows <paramref name="message"/> for <paramref name="durationSeconds"/> (e.g. TTS clip length).</summary>
     public void ShowMessage(string message, float durationSeconds)
     {
+        if (!showSubtitleHud)
+            return;
+
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
         if (!isActiveAndEnabled)

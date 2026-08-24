@@ -59,7 +59,10 @@ public sealed class PPEPrimitiveGrabVolumes : MonoBehaviour
 
         var stored = GetComponent<PPEStoredDisplayState>();
         if (stored != null)
+        {
             stored.UseAuthoredAssistCollider(assistCollider);
+            stored.IgnorePlayerLocomotionCollisions();
+        }
 
         var grab = GetComponent<PPEHandGrabbable>();
         RegisterCollider(grab, physicalCollider);

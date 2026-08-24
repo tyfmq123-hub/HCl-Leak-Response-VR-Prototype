@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Shared release-to-equip trigger for wearable PPE. InnerGloves keep their
 /// existing donning path. Other wearables use the same distance-on-SelectExited
-/// rule against the Ghost's live target.
+/// rule against the live target. Face/Suit/Helmet have no Ghost mesh.
 /// </summary>
 public static class PPEReleaseEquip
 {
@@ -16,36 +16,34 @@ public static class PPEReleaseEquip
                string.Equals(id, PPEEquipmentManager.IdChemicalBoots, System.StringComparison.Ordinal) ||
                string.Equals(id, PPEEquipmentManager.IdChemicalSuit, System.StringComparison.Ordinal) ||
                string.Equals(id, PPEEquipmentManager.IdFaceRespirator, System.StringComparison.Ordinal) ||
-               string.Equals(id, PPEEquipmentManager.IdFaceShield, System.StringComparison.Ordinal);
+               string.Equals(id, PPEEquipmentManager.IdFaceShield, System.StringComparison.Ordinal) ||
+               string.Equals(id, PPEEquipmentManager.IdHelmet, System.StringComparison.Ordinal);
     }
 
-    public static void TryEquipOnRelease(PPEHandGrabbable grabbable, PPEGrabHand capturedHolding)
+    public static bool TryEquipOnRelease(PPEHandGrabbable grabbable, PPEGrabHand capturedHolding)
     {
         if (grabbable == null)
-            return;
+            return false;
 
         var member = grabbable.GetComponent<PPEGlovePairMember>();
         if (member != null && member.IsInnerGlove)
-            return;
+            return false;
 
         if (member != null)
-        {
-            TryEquipPairMember(member, capturedHolding);
-            return;
-        }
+            return TryEquipPairMember(member, capturedHolding);
 
         var item = grabbable.GetComponent<PPEEquipable>();
         if (!IsWearableReleaseItem(item))
-            return;
+            return false;
 
-        TryEquipSingle(grabbable, item);
+        return TryEquipSingle(grabbable, item);
     }
 
-    static void TryEquipPairMember(PPEGlovePairMember member, PPEGrabHand capturedHolding)
+    static bool TryEquipPairMember(PPEGlovePairMember member, PPEGrabHand capturedHolding)
     {
         var coordinator = member != null ? member.Coordinator : null;
         if (member == null || coordinator == null)
-            return;
+            return false;
 
         var target = member.TargetTransform;
         var follower = target != null ? target.GetComponent<PPEGloveHandTargetFollower>() : null;
@@ -72,22 +70,39 @@ public static class PPEReleaseEquip
         else
             result = member.GloveSide == PPEGrabHand.Right ? "EQUIP_RIGHT" : "EQUIP_LEFT";
 
-        LogRelease(
-            ItemLabel(member),
-            TargetLabel(member),
-            targetValid,
-            distance,
-            maxDistance,
-            sequenceAllowed,
-            result);
+        if (member.IsTrackedHandGlove)
+        {
+            PPEGloveReleaseDiagnostics.Log(
+                member,
+                capturedHolding,
+                target != null ? target.position : Vector3.zero,
+                equipRef,
+                distance,
+                maxDistance,
+                targetValid,
+                result);
+        }
+        else
+        {
+            LogRelease(
+                ItemLabel(member),
+                TargetLabel(member),
+                targetValid,
+                distance,
+                maxDistance,
+                sequenceAllowed,
+                result);
+        }
 
         if (result != "EQUIP_LEFT" && result != "EQUIP_RIGHT")
-            return;
+            return false;
 
         coordinator.NotifyPairSideFromRelease(member);
+        member.GetComponent<PPEStoredDisplayState>()?.NotifyEquipped();
+        return true;
     }
 
-    static void TryEquipSingle(PPEHandGrabbable grabbable, PPEEquipable item)
+    static bool TryEquipSingle(PPEHandGrabbable grabbable, PPEEquipable item)
     {
         Transform target = null;
         var targetLabel = "None";
@@ -120,22 +135,38 @@ public static class PPEReleaseEquip
         else
             result = "EQUIPPED";
 
-        LogRelease(
-            ItemLabel(item),
-            targetLabel,
-            targetValid,
-            distance,
-            maxDistance,
-            sequenceAllowed,
-            result);
+        if (IsHelmet(item))
+        {
+            LogHelmetRelease(
+                item,
+                target,
+                equipRef,
+                targetValid,
+                sequenceAllowed,
+                distance,
+                maxDistance,
+                result);
+        }
+        else
+        {
+            LogRelease(
+                ItemLabel(item),
+                targetLabel,
+                targetValid,
+                distance,
+                maxDistance,
+                sequenceAllowed,
+                result);
+        }
 
         if (result != "EQUIPPED")
-            return;
+            return false;
 
         if (placement != null)
             placement.EquipAfterRelease(item);
         else
             PPEEquipmentManager.Instance?.Equip(item);
+        return true;
     }
 
     static bool IsSequenceAllowed(PPEEquipable item)
@@ -197,7 +228,15 @@ public static class PPEReleaseEquip
             return "FaceProtection";
         if (string.Equals(item.ItemId, PPEEquipmentManager.IdChemicalSuit, System.StringComparison.Ordinal))
             return "ProtectiveSuit";
+        if (string.Equals(item.ItemId, PPEEquipmentManager.IdHelmet, System.StringComparison.Ordinal))
+            return "Helmet";
         return item.ItemId;
+    }
+
+    static bool IsHelmet(PPEEquipable item)
+    {
+        return item != null &&
+               string.Equals(item.ItemId, PPEEquipmentManager.IdHelmet, System.StringComparison.Ordinal);
     }
 
     static string TargetLabel(PPEGlovePairMember member)
@@ -229,6 +268,38 @@ public static class PPEReleaseEquip
             "Result=" + result);
     }
 
+    static void LogHelmetRelease(
+        PPEEquipable item,
+        Transform target,
+        Transform equipReference,
+        bool targetValid,
+        bool sequenceAllowed,
+        float distance,
+        float maxDistance,
+        string result)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var equipPosition = equipReference != null
+            ? equipReference.position
+            : new Vector3(float.NaN, float.NaN, float.NaN);
+        var targetPosition = target != null
+            ? target.position
+            : new Vector3(float.NaN, float.NaN, float.NaN);
+        var diagnosticResult = result == "NO_VALID_TARGET_POSE" ? "TARGET_INVALID" : result;
+        Debug.Log(
+            "[PPE Helmet Release]\n\n" +
+            "Item = " + ItemLabel(item) + "\n" +
+            "TargetValid = " + (targetValid ? "true" : "false") + "\n" +
+            "SequenceAllowed = " + (sequenceAllowed ? "true" : "false") + "\n\n" +
+            "EquipReference = " + equipPosition.ToString("F4") + "\n" +
+            "HeadTarget = " + targetPosition.ToString("F4") + "\n\n" +
+            "Distance = " + (float.IsInfinity(distance) ? "inf" : distance.ToString("0.000")) + "\n" +
+            "MaxDistance = " + maxDistance.ToString("0.000") + "\n\n" +
+            "Result = " + diagnosticResult,
+            item);
+#endif
+    }
+
     static PPEPlacementGuideManager FindPlacement()
     {
         return Object.FindAnyObjectByType<PPEPlacementGuideManager>(FindObjectsInactive.Include);
@@ -238,4 +309,88 @@ public static class PPEReleaseEquip
     {
         return Object.FindAnyObjectByType<PPEPlayerBodyReference>(FindObjectsInactive.Exclude);
     }
+}
+
+public static class PPEGloveReleaseDiagnostics
+{
+    const float VisualPositionTolerance = 0.08f;
+    const float VisualRotationTolerance = 30f;
+    const float MarkerSize = 0.035f;
+    const float MarkerDuration = 5f;
+
+    public static void Log(
+        PPEGlovePairMember member,
+        PPEGrabHand holdingHand,
+        Vector3 targetPalmPosition,
+        Transform equipReference,
+        float distance,
+        float maxDistance,
+        bool targetValid,
+        string result)
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        var ghostVisualAligned = IsGhostVisualAligned(member, targetPalmPosition);
+        var equipPosition = equipReference != null
+            ? equipReference.position
+            : new Vector3(float.NaN, float.NaN, float.NaN);
+        Debug.Log(
+            "[PPE Glove Release Alignment]\n\n" +
+            "Member = " + MemberLabel(member) + "\n" +
+            "HoldingHand = " + holdingHand + "\n\n" +
+            "TargetPalmPosition = " + targetPalmPosition.ToString("F4") + "\n" +
+            "EquipReferencePosition = " + equipPosition.ToString("F4") + "\n\n" +
+            "Distance = " + (float.IsInfinity(distance) ? "inf" : distance.ToString("0.000")) + "\n" +
+            "MaxDistance = " + maxDistance.ToString("0.000") + "\n\n" +
+            "GhostVisualAligned = " + (ghostVisualAligned ? "true" : "false") + "\n" +
+            "TargetValid = " + (targetValid ? "true" : "false") + "\n\n" +
+            "Result = " + result,
+            member);
+
+        DrawMarker(targetPalmPosition, Color.cyan);
+        if (equipReference != null)
+        {
+            DrawMarker(equipPosition, new Color(1f, 0.8f, 0.1f, 1f));
+            Debug.DrawLine(
+                targetPalmPosition,
+                equipPosition,
+                distance <= maxDistance ? Color.green : Color.red,
+                MarkerDuration,
+                false);
+        }
+#endif
+    }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    static bool IsGhostVisualAligned(PPEGlovePairMember member, Vector3 targetPalmPosition)
+    {
+        if (member == null || member.VisualRoot == null || member.TargetTransform == null)
+            return false;
+        var calibration = member.GhostPoseCalibrationOrNull;
+        if (calibration == null)
+            return false;
+        var targetRotation = member.TargetTransform.rotation;
+        var expectedPosition = targetPalmPosition +
+                               targetRotation *
+                               (calibration.localPosition + member.GhostVisualOriginOffset);
+        var expectedRotation = targetRotation * calibration.localRotation;
+        return Vector3.Distance(member.VisualRoot.position, expectedPosition) <= VisualPositionTolerance &&
+               Quaternion.Angle(member.VisualRoot.rotation, expectedRotation) <= VisualRotationTolerance;
+    }
+
+    static void DrawMarker(Vector3 position, Color color)
+    {
+        Debug.DrawLine(position - Vector3.right * MarkerSize, position + Vector3.right * MarkerSize, color, MarkerDuration, false);
+        Debug.DrawLine(position - Vector3.up * MarkerSize, position + Vector3.up * MarkerSize, color, MarkerDuration, false);
+        Debug.DrawLine(position - Vector3.forward * MarkerSize, position + Vector3.forward * MarkerSize, color, MarkerDuration, false);
+    }
+
+    static string MemberLabel(PPEGlovePairMember member)
+    {
+        if (member == null)
+            return "(none)";
+        return member.name.EndsWith("Physical", System.StringComparison.Ordinal)
+            ? member.name.Substring(0, member.name.Length - "Physical".Length)
+            : member.name;
+    }
+#endif
 }

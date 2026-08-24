@@ -45,6 +45,11 @@ public class PPEEquipable : MonoBehaviour
     [Tooltip("Optional ghost/guide visual. STEP 3 stores the reference but does not instantiate it.")]
     GameObject guidePrefab;
 
+    [Header("Ghost Pose Calibration")]
+    [SerializeField]
+    [Tooltip("Child Transform rotated in the Inspector until the Face/Suit Ghost faces the correct way. Runtime Ghost uses this local rotation relative to the Face/Torso target.")]
+    Transform ghostPoseCalibration;
+
     [SerializeField]
     bool isEquipped;
 
@@ -84,8 +89,82 @@ public class PPEEquipable : MonoBehaviour
         return PlacementReference;
     }
 
+    public const string GhostPoseCalibrationName = "GhostPoseCalibration";
+
+    public Transform EnsureGhostPoseCalibration()
+    {
+        if (ghostPoseCalibration != null)
+            return ghostPoseCalibration;
+
+        var existing = transform.Find(GhostPoseCalibrationName);
+        if (existing != null)
+        {
+            ghostPoseCalibration = existing;
+            return ghostPoseCalibration;
+        }
+
+        var go = new GameObject(GhostPoseCalibrationName);
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.identity;
+        ghostPoseCalibration = go.transform;
+        return ghostPoseCalibration;
+    }
+
     public GameObject GuidePrefab => guidePrefab;
+    public Transform GhostPoseCalibration => ghostPoseCalibration;
     public bool IsEquipped => isEquipped;
+
+    void Awake()
+    {
+        EnsureGhostPoseCalibration();
+    }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        UnityEditor.EditorApplication.delayCall += () =>
+        {
+            if (this == null)
+                return;
+            EnsureGhostPoseCalibration();
+        };
+    }
+
+    void OnDrawGizmos()
+    {
+        var calib = ghostPoseCalibration != null
+            ? ghostPoseCalibration
+            : transform.Find(GhostPoseCalibrationName);
+        if (calib == null)
+            return;
+
+        var previewPos = calib.position;
+        var previewRot = calib.rotation;
+        Gizmos.color = new Color(0.35f, 0.85f, 1f, 0.9f);
+        Gizmos.matrix = Matrix4x4.TRS(previewPos, previewRot, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, new Vector3(0.08f, 0.08f, 0.08f));
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.08f);
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(Vector3.zero, Vector3.up * 0.08f);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(Vector3.zero, Vector3.forward * 0.08f);
+        Gizmos.matrix = Matrix4x4.identity;
+
+        var filters = GetComponentsInChildren<MeshFilter>(true);
+        Gizmos.color = new Color(0.35f, 0.9f, 1f, 0.18f);
+        for (var i = 0; i < filters.Length; i++)
+        {
+            var filter = filters[i];
+            if (filter == null || filter.sharedMesh == null)
+                continue;
+            if (filter.transform == calib)
+                continue;
+            Gizmos.DrawMesh(filter.sharedMesh, previewPos, previewRot, filter.transform.lossyScale);
+        }
+    }
+#endif
     public bool DeactivateOnEquip => deactivateOnEquip;
 
     public bool UsesSlot(PPEEquipSlot slot)

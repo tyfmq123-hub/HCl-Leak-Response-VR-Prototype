@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Unity.XR.CoreUtils;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.XR.Hands;
 
@@ -71,7 +72,10 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
     [SerializeField, Min(0.5f)] float maximumTrackedHeight = 2.20f;
 
     [Header("Head / Face (HMD local offsets)")]
-    [SerializeField] Vector3 headPositionOffset = new Vector3(0f, 0.08f, 0.04f);
+    [SerializeField]
+    [FormerlySerializedAs("headPositionOffset")]
+    [Tooltip("Helmet Head Position Offset, in active HMD-local meters. The target is invisible.")]
+    Vector3 helmetHeadPositionOffset = new Vector3(0f, 0.08f, 0.04f);
     [SerializeField] Vector3 headRotationOffsetEuler;
     [SerializeField] Vector3 respiratorPositionOffset = new Vector3(0f, -0.10f, 0.13f);
     [SerializeField] Vector3 respiratorRotationOffsetEuler;
@@ -102,6 +106,9 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
     [SerializeField] AnchorPose[] anchorPoses = Array.Empty<AnchorPose>();
     [SerializeField, HideInInspector] int bodyReferenceSetupVersion;
 
+    const string BodyTargetRootName = "PPE_BodyTargets";
+    static Transform bodyTargetRoot;
+
     Vector2 planarVelocity;
     float heightVelocity;
     float yawVelocity;
@@ -128,6 +135,7 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
     public float TorsoForwardOffset => torsoForwardOffset;
     public Vector3 RespiratorPositionOffset => respiratorPositionOffset;
     public Vector3 FaceProtectionPositionOffset => faceProtectionPositionOffset;
+    public Vector3 HelmetHeadPositionOffset => helmetHeadPositionOffset;
     public PPEFaceEquipProfile ActiveFaceProfile => activeFaceProfile;
     public bool DrawDynamicTargetGizmos => drawDynamicTargetGizmos;
 
@@ -137,6 +145,70 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
         xrCamera.gameObject.activeInHierarchy;
 
     public Quaternion BodyYawRotation => Quaternion.Euler(0f, currentYawDegrees, 0f);
+
+    /// <summary>
+    /// PPE-scene host for Face/Torso/LowerLeg targets. Never parented under XR Origin
+    /// so App can disable the PPE-scene origin without hiding placement ghosts.
+    /// Targets stay empty Transforms. No body meshes are created.
+    /// </summary>
+    public static Transform GetOrCreateBodyTargetRoot()
+    {
+        if (bodyTargetRoot != null)
+            return bodyTargetRoot;
+
+        var existing = GameObject.Find(BodyTargetRootName);
+        if (existing != null)
+        {
+            bodyTargetRoot = existing.transform;
+            return bodyTargetRoot;
+        }
+
+        var go = new GameObject(BodyTargetRootName);
+        var guideManager = FindAnyObjectByType<PPEPlacementGuideManager>(FindObjectsInactive.Include);
+        var sceneObject = guideManager != null
+            ? guideManager.gameObject
+            : FindAnyObjectByType<PPEEquipmentManager>(FindObjectsInactive.Include)?.gameObject;
+        if (sceneObject != null && go.scene != sceneObject.scene)
+            SceneManager.MoveGameObjectToScene(go, sceneObject.scene);
+
+        bodyTargetRoot = go.transform;
+        return bodyTargetRoot;
+    }
+
+    /// <summary>
+    /// Keeps this body frame alive after App disables the PPE-scene XR Origin.
+    /// Reparents to <see cref="GetOrCreateBodyTargetRoot"/> when the current parent
+    /// origin is inactive. Does not parent under Common XR.
+    /// </summary>
+    public void EnsureActiveInPpeScene()
+    {
+        var parentOrigin = GetComponentInParent<XROrigin>(true);
+        var originInactive = parentOrigin != null && !parentOrigin.gameObject.activeInHierarchy;
+        var becameActive = false;
+        if (originInactive || !gameObject.activeInHierarchy)
+        {
+            var host = GetOrCreateBodyTargetRoot();
+            if (transform.parent != host)
+            {
+                transform.SetParent(host, true);
+                becameActive = true;
+                Debug.Log(
+                    "[PPE Body Target] Reparented PPE_PlayerBodyReference to " + host.name +
+                    " because the PPE XR Origin is inactive. Face/Torso/LowerLeg stay empty Transforms.",
+                    this);
+            }
+
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+                becameActive = true;
+            }
+        }
+
+        ResolveTrackingSource();
+        if (becameActive && HasTracking)
+            SnapToTrackingSource();
+    }
 
     void OnEnable()
     {
@@ -311,7 +383,7 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
         if (!HasTracking || anchorSet == null)
             return;
 
-        ApplyHmdLocalPose(anchorSet.Head, headPositionOffset, headRotationOffsetEuler);
+        ApplyHmdLocalPose(anchorSet.Head, helmetHeadPositionOffset, headRotationOffsetEuler);
 
         if (activeFaceProfile == PPEFaceEquipProfile.FaceProtection)
             ApplyHmdLocalPose(anchorSet.Face, faceProtectionPositionOffset, faceProtectionRotationOffsetEuler);
@@ -460,10 +532,10 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
         if (xrOrigin == null)
         {
             var parentOrigin = GetComponentInParent<XROrigin>(true);
-            if (parentOrigin != null && parentOrigin.isActiveAndEnabled)
+            if (PPEActiveXrOrigin.IsUsable(parentOrigin))
                 xrOrigin = parentOrigin;
             else
-                xrOrigin = FindAnyObjectByType<XROrigin>();
+                xrOrigin = PPEActiveXrOrigin.Resolve();
         }
 
         if (xrCamera == null || (xrOrigin != null && xrOrigin.Camera != null && !xrCamera.gameObject.activeInHierarchy))

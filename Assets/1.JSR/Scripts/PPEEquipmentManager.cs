@@ -208,6 +208,15 @@ public class PPEEquipmentManager : MonoBehaviour
         if (!item.CanEquip())
             return false;
 
+        if (IsIncompletePairLogicalEquip(item))
+        {
+            Debug.LogWarning(
+                "[PPE Equipment] Refused logical pair Equip before both physical sides. Item=" +
+                item.ItemId,
+                item);
+            return false;
+        }
+
         // Sequence gate: select/preview stay allowed; only real equip is blocked.
         var sequence = PPESequenceManager.Resolve();
         if (sequence != null && !sequence.CanEquip(item.ItemId))
@@ -343,6 +352,15 @@ public class PPEEquipmentManager : MonoBehaviour
         if (response != null)
             response.ResetResponseBag();
 
+        var wasteContainers = FindObjectsByType<WasteContainerPrepareInteractable>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (var i = 0; i < wasteContainers.Length; i++)
+        {
+            if (wasteContainers[i] != null)
+                wasteContainers[i].ResetPreparedState();
+        }
+
         RaiseStateChanged();
     }
 
@@ -397,6 +415,23 @@ public class PPEEquipmentManager : MonoBehaviour
             if (preview != null && highlight != null)
                 preview.PrepareForEquipDeactivate(highlight);
         }
+    }
+
+    /// <summary>
+    /// Logical pair roots (InnerGloves, ChemicalBoots, ChemicalGloves) must not Equip
+    /// until both physical sides are on. Blocks Ray+Grip even if the legacy fallback is on.
+    /// </summary>
+    static bool IsIncompletePairLogicalEquip(PPEEquipable item)
+    {
+        if (item == null)
+            return false;
+
+        var pair = item.GetComponent<PPEGlovePairCoordinator>();
+        if (pair == null)
+            return false;
+        if (pair.LogicalItem != null && pair.LogicalItem != item)
+            return false;
+        return !pair.BothEquipped;
     }
 
     void RebuildLookupFromSerializedList()

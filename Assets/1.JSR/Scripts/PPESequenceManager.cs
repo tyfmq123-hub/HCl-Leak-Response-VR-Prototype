@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 /// <summary>
 /// Strict equip/prepare-order gate for the PPE preparation room.
@@ -63,6 +65,7 @@ public class PPESequenceManager : MonoBehaviour
     int phaseStepIndex;
     bool bagContentsChecked;
     bool sequenceComplete;
+    bool resetInProgress;
 
     readonly HashSet<PPESequenceStep> completedSteps = new HashSet<PPESequenceStep>();
 
@@ -180,6 +183,8 @@ public class PPESequenceManager : MonoBehaviour
 
         if (Instance == this)
             Instance = null;
+
+        PPEHandGrabbable.SuppressReleaseEquip = false;
     }
 
     void OnValidate()
@@ -280,9 +285,6 @@ public class PPESequenceManager : MonoBehaviour
     /// <summary>True only when this step is the current required equip/prepare target.</summary>
     public bool CanEquip(PPESequenceStep type)
     {
-        if (PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy)
-            return false;
-
         if (sequenceComplete || currentPhase == PPETrainingPhase.Complete)
             return false;
 
@@ -315,9 +317,6 @@ public class PPESequenceManager : MonoBehaviour
     /// </summary>
     public bool CompleteEquip(PPESequenceStep type)
     {
-        if (PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy)
-            return false;
-
         if (sequenceComplete || currentPhase == PPETrainingPhase.Complete)
             return false;
 
@@ -454,6 +453,97 @@ public class PPESequenceManager : MonoBehaviour
         PPELoadoutData.SyncFromScene();
         LogCurrentState();
         Debug.Log("[PPE Sequence] Sequence reset.", this);
+    }
+
+    /// <summary>
+    /// Full PPE Room training reset: physical PPE, pair flags, ghosts, equipment,
+    /// and sequence. Does not recreate authored objects. Invalid in-world drops
+    /// are restored only through this path, not on a missed release.
+    /// </summary>
+    [ContextMenu("Reset PPE Room Training")]
+    public void ResetPpeRoomTraining()
+    {
+        if (resetInProgress)
+            return;
+
+        resetInProgress = true;
+        PPEHandGrabbable.SuppressReleaseEquip = true;
+        try
+        {
+            CancelWearableSelections();
+
+            var selection = PPESelectionManager.Instance != null
+                ? PPESelectionManager.Instance
+                : FindAnyObjectByType<PPESelectionManager>(FindObjectsInactive.Include);
+            selection?.ClearSelection();
+
+            var placement = FindAnyObjectByType<PPEPlacementGuideManager>(FindObjectsInactive.Include);
+            if (placement != null)
+            {
+                placement.StopAllCoroutines();
+                placement.HideActiveGuides();
+            }
+
+            var equipment = PPEEquipmentManager.Instance != null
+                ? PPEEquipmentManager.Instance
+                : FindAnyObjectByType<PPEEquipmentManager>(FindObjectsInactive.Include);
+            equipment?.ResetAllEquipment();
+
+            var coordinators = FindObjectsByType<PPEGlovePairCoordinator>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            for (var i = 0; i < coordinators.Length; i++)
+            {
+                if (coordinators[i] != null)
+                    coordinators[i].ResetPair();
+            }
+
+            var storedStates = FindObjectsByType<PPEStoredDisplayState>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            for (var i = 0; i < storedStates.Length; i++)
+            {
+                var stored = storedStates[i];
+                if (stored == null)
+                    continue;
+                if (stored.GetComponent<PPEGlovePairCoordinator>() != null)
+                    continue;
+                stored.RestoreToStoredPose();
+            }
+
+            ResetSequence();
+        }
+        finally
+        {
+            PPEHandGrabbable.SuppressReleaseEquip = false;
+            resetInProgress = false;
+        }
+
+        Debug.Log("[PPE Sequence] Full PPE Room training reset.", this);
+    }
+
+    static void CancelWearableSelections()
+    {
+        var grabs = FindObjectsByType<PPEHandGrabbable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (var i = 0; i < grabs.Length; i++)
+        {
+            var grab = grabs[i];
+            if (grab == null)
+                continue;
+
+            var manager = grab.interactionManager;
+            if (manager == null)
+                manager = FindAnyObjectByType<XRInteractionManager>();
+            if (manager == null)
+                continue;
+
+            IXRSelectInteractable selectable = grab;
+            IXRHoverInteractable hoverable = grab;
+            if (selectable.isSelected)
+                manager.CancelInteractableSelection(selectable);
+            if (hoverable.isHovered)
+                manager.CancelInteractableHover(hoverable);
+        }
     }
 
     void LogCurrentState()

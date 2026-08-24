@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
@@ -14,6 +15,9 @@ public class PPEStoredDisplayState : MonoBehaviour
     {
         Stored,
         Held,
+        Released,
+        Recovered,
+        Equipped,
     }
 
     const string AssistVolumeName = "NearGrabAssistVolume";
@@ -39,8 +43,10 @@ public class PPEStoredDisplayState : MonoBehaviour
     Rigidbody body;
     Vector3 storedLocalPosition;
     Quaternion storedLocalRotation;
+    Vector3 storedLocalScale;
     Vector3 storedWorldPosition;
     Quaternion storedWorldRotation;
+    Transform storedParent;
     bool storedHadParent;
     bool capturedOriginalBody;
     bool originalUseGravity;
@@ -48,6 +54,9 @@ public class PPEStoredDisplayState : MonoBehaviour
     RigidbodyInterpolation originalInterpolation;
     CollisionDetectionMode originalCollisionMode;
     bool gloveMeshCollidersDisabled;
+    Collider[] recoveryColliders;
+    Renderer[] recoveryRenderers;
+    Coroutine recoveryRoutine;
 
     public StorageState State { get; private set; } = StorageState.Stored;
     public bool IsStored => State == StorageState.Stored;
@@ -76,12 +85,15 @@ public class PPEStoredDisplayState : MonoBehaviour
         CaptureOriginalBody();
         SanitizeDenseConvexMeshColliders();
         EnsureNearGrabAssistVolume();
+        CacheRecoveryBoundsSources();
 
         if (grabbable != null)
             grabbable.attachEaseInTime = 0f;
 
         if (startStored)
             ApplyStoredLock(restoreStoredPoseOnStart);
+
+        IgnorePlayerLocomotionCollisions();
     }
 
     void OnEnable()
@@ -99,6 +111,7 @@ public class PPEStoredDisplayState : MonoBehaviour
 
     void OnDisable()
     {
+        CancelRecoveryMonitor();
         if (grabbable == null)
             return;
 
@@ -116,6 +129,7 @@ public class PPEStoredDisplayState : MonoBehaviour
 
     public void ApplyStoredLock(bool restorePose)
     {
+        CancelRecoveryMonitor();
         State = StorageState.Stored;
 
         if (restorePose)
@@ -131,15 +145,80 @@ public class PPEStoredDisplayState : MonoBehaviour
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         body.constraints = RigidbodyConstraints.None;
         body.Sleep();
-        DisableThrowIfInnerGlove();
+        DisableWearableThrow();
+        IgnorePlayerLocomotionCollisions();
+    }
+
+    /// <summary>Alias for <see cref="RestoreToStoredPose"/>.</summary>
+    public void ResetToStoredPose() => RestoreToStoredPose();
+
+    /// <summary>Cabinet pose + kinematic lock. Used at start and on full room reset only.</summary>
+    public void RestoreToStoredPose()
+    {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+
+        if (grabbable == null)
+            grabbable = GetComponent<PPEHandGrabbable>();
+        if (grabbable != null)
+        {
+            grabbable.enabled = true;
+            DisableWearableThrow();
+        }
+
+        RestoreStoredHierarchy();
+        ApplyStoredLock(restorePose: true);
+    }
+
+    public void NotifyEquipped()
+    {
+        CancelRecoveryMonitor();
+        State = StorageState.Equipped;
+        DisableWearableThrow();
+        if (body == null)
+            return;
+        ClearNonKinematicVelocity(body);
+        body.useGravity = false;
+        body.isKinematic = true;
+    }
+
+    public void NotifyInvalidReleaseIfHeld()
+    {
+        if (State != StorageState.Held)
+            return;
+        ApplyReleasedPhysics();
+    }
+
+    public void ApplyReleasedPhysics()
+    {
+        CancelRecoveryMonitor();
+        State = StorageState.Released;
+        DisableWearableThrow();
+        if (body != null)
+        {
+            if (body.isKinematic)
+                body.isKinematic = false;
+            ClearNonKinematicVelocity(body);
+            body.useGravity = true;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.constraints = RigidbodyConstraints.None;
+            IgnorePlayerLocomotionCollisions();
+        }
+
+        StartRecoveryMonitor();
     }
 
     public void ReleaseStoredForGrab()
     {
-        if (State != StorageState.Stored)
+        if (State != StorageState.Stored &&
+            State != StorageState.Released &&
+            State != StorageState.Recovered)
             return;
 
-        RestoreStoredPose();
+        CancelRecoveryMonitor();
+        if (State == StorageState.Stored)
+            RestoreStoredPose();
         if (body != null)
         {
             ClearNonKinematicVelocity(body);
@@ -147,7 +226,7 @@ public class PPEStoredDisplayState : MonoBehaviour
             // without a gravity frame or pose jump.
             body.useGravity = false;
             body.isKinematic = true;
-            DisableThrowIfInnerGlove();
+            DisableWearableThrow();
             if (capturedOriginalBody)
             {
                 body.interpolation = originalInterpolation;
@@ -156,18 +235,170 @@ public class PPEStoredDisplayState : MonoBehaviour
         }
 
         State = StorageState.Held;
+        IgnorePlayerLocomotionCollisions();
     }
 
     void OnGrabbed(PPEGrabHand _)
     {
+        CancelRecoveryMonitor();
         State = StorageState.Held;
+    }
+
+    void StartRecoveryMonitor()
+    {
+        if (!SupportsUnreachableRecovery())
+            return;
+
+        var recoveryPoint = PPEDroppedItemRecoveryPoint.Resolve();
+        if (recoveryPoint == null)
+            return;
+
+        recoveryRoutine = StartCoroutine(MonitorUnreachableRelease(recoveryPoint));
+    }
+
+    void CancelRecoveryMonitor()
+    {
+        if (recoveryRoutine == null)
+            return;
+        StopCoroutine(recoveryRoutine);
+        recoveryRoutine = null;
+    }
+
+    IEnumerator MonitorUnreachableRelease(PPEDroppedItemRecoveryPoint recoveryPoint)
+    {
+        var belowThresholdSince = -1f;
+        var wait = new WaitForSeconds(recoveryPoint.CheckInterval);
+        while (State == StorageState.Released)
+        {
+            if (grabbable != null && (grabbable.IsGrabbed || grabbable.isSelected))
+            {
+                recoveryRoutine = null;
+                yield break;
+            }
+
+            if (recoveryPoint.IsBelowReachableHeight(LowestPhysicalPointY()))
+            {
+                if (belowThresholdSince < 0f)
+                    belowThresholdSince = Time.time;
+                else if (Time.time - belowThresholdSince >= recoveryPoint.RecoveryDelay)
+                {
+                    RecoverAt(recoveryPoint.transform);
+                    recoveryRoutine = null;
+                    yield break;
+                }
+            }
+            else
+            {
+                belowThresholdSince = -1f;
+            }
+
+            yield return wait;
+        }
+
+        recoveryRoutine = null;
+    }
+
+    void RecoverAt(Transform recoveryPoint)
+    {
+        if (State != StorageState.Released || recoveryPoint == null)
+            return;
+
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        if (grabbable == null)
+            grabbable = GetComponent<PPEHandGrabbable>();
+        if (grabbable != null)
+            grabbable.enabled = true;
+
+        if (body != null)
+        {
+            ClearNonKinematicVelocity(body);
+            body.useGravity = false;
+            body.isKinematic = true;
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            body.constraints = RigidbodyConstraints.None;
+        }
+
+        transform.SetPositionAndRotation(recoveryPoint.position, recoveryPoint.rotation);
+        State = StorageState.Recovered;
+        DisableWearableThrow();
+        IgnorePlayerLocomotionCollisions();
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Debug.Log(
+            "[PPE Dropped Recovery] Item=" + name +
+            " Result=RECOVERED Position=" + transform.position.ToString("F3"),
+            this);
+#endif
+    }
+
+    bool SupportsUnreachableRecovery()
+    {
+        if (GetComponent<PPEGlovePairMember>() != null)
+            return true;
+
+        var equipable = GetComponent<PPEEquipable>();
+        if (equipable == null || string.IsNullOrEmpty(equipable.ItemId))
+            return false;
+        var id = equipable.ItemId;
+        return string.Equals(id, PPEEquipmentManager.IdChemicalSuit, System.StringComparison.Ordinal) ||
+               string.Equals(id, PPEEquipmentManager.IdFaceRespirator, System.StringComparison.Ordinal) ||
+               string.Equals(id, PPEEquipmentManager.IdFaceShield, System.StringComparison.Ordinal);
+    }
+
+    float LowestPhysicalPointY()
+    {
+        if (recoveryColliders == null || recoveryRenderers == null)
+            CacheRecoveryBoundsSources();
+
+        var found = false;
+        var lowest = transform.position.y;
+        for (var i = 0; i < recoveryColliders.Length; i++)
+        {
+            var col = recoveryColliders[i];
+            if (col == null || !col.enabled || col.isTrigger)
+                continue;
+            var y = col.bounds.min.y;
+            if (!found || y < lowest)
+            {
+                lowest = y;
+                found = true;
+            }
+        }
+
+        if (found)
+            return lowest;
+
+        for (var i = 0; i < recoveryRenderers.Length; i++)
+        {
+            var renderer = recoveryRenderers[i];
+            if (renderer == null || !renderer.enabled)
+                continue;
+            var y = renderer.bounds.min.y;
+            if (!found || y < lowest)
+            {
+                lowest = y;
+                found = true;
+            }
+        }
+
+        return lowest;
+    }
+
+    void CacheRecoveryBoundsSources()
+    {
+        recoveryColliders = GetComponentsInChildren<Collider>(true);
+        recoveryRenderers = GetComponentsInChildren<Renderer>(true);
     }
 
     void CaptureStoredPose()
     {
-        storedHadParent = transform.parent != null;
+        storedParent = transform.parent;
+        storedHadParent = storedParent != null;
         storedLocalPosition = transform.localPosition;
         storedLocalRotation = transform.localRotation;
+        storedLocalScale = transform.localScale;
         if (displayAnchor != null)
         {
             storedWorldPosition = displayAnchor.position;
@@ -214,8 +445,25 @@ public class PPEStoredDisplayState : MonoBehaviour
         }
     }
 
+    void RestoreStoredHierarchy()
+    {
+        if (storedHadParent)
+        {
+            if (storedParent != null)
+                transform.SetParent(storedParent, false);
+        }
+        else if (transform.parent != null)
+        {
+            transform.SetParent(null, true);
+        }
+
+        transform.localScale = storedLocalScale == Vector3.zero ? Vector3.one : storedLocalScale;
+    }
+
     void RestoreStoredPose()
     {
+        RestoreStoredHierarchy();
+
         if (displayAnchor != null)
         {
             transform.SetPositionAndRotation(displayAnchor.position, displayAnchor.rotation);
@@ -241,16 +489,16 @@ public class PPEStoredDisplayState : MonoBehaviour
         ClearNonKinematicVelocity(body);
         if (!body.isKinematic)
             body.isKinematic = true;
-        DisableThrowIfInnerGlove();
+        DisableWearableThrow();
         if (body.useGravity)
             body.useGravity = false;
     }
 
-    void DisableThrowIfInnerGlove()
+    void DisableWearableThrow()
     {
         if (grabbable == null)
             grabbable = GetComponent<PPEHandGrabbable>();
-        grabbable?.ApplyInnerGloveThrowPolicy();
+        grabbable?.ApplyWearableThrowPolicy();
     }
 
     static void ClearNonKinematicVelocity(Rigidbody rigidbody)
@@ -260,6 +508,62 @@ public class PPEStoredDisplayState : MonoBehaviour
 
         rigidbody.linearVelocity = Vector3.zero;
         rigidbody.angularVelocity = Vector3.zero;
+    }
+
+    /// <summary>
+    /// Dropped cabinet PPE is a solid Rigidbody. The XR Origin CharacterController
+    /// would otherwise treat a ChemicalSuit-sized box as floor and walk the HMD up.
+    /// Floor collision stays so the item still lands. Common XR is not modified.
+    /// </summary>
+    public void IgnorePlayerLocomotionCollisions()
+    {
+        var excludeFromGroundProbe = State == StorageState.Held || State == StorageState.Released;
+        var ignoreRaycastLayer = LayerMask.NameToLayer("Ignore Raycast");
+        var controller = ResolvePlayerCharacterController();
+        var colliders = GetComponentsInChildren<Collider>(true);
+        for (var i = 0; i < colliders.Length; i++)
+        {
+            var col = colliders[i];
+            if (col == null || !col.enabled || col.isTrigger)
+                continue;
+
+            if (excludeFromGroundProbe && ignoreRaycastLayer >= 0)
+                col.gameObject.layer = ignoreRaycastLayer;
+            else
+                col.gameObject.layer = gameObject.layer;
+
+            if (controller != null)
+                Physics.IgnoreCollision(col, controller, true);
+        }
+    }
+
+    static CharacterController ResolvePlayerCharacterController()
+    {
+        var origin = PPEActiveXrOrigin.Resolve();
+        if (origin == null)
+            return null;
+
+        var controller = origin.GetComponent<CharacterController>();
+        if (controller != null)
+            return controller;
+        controller = origin.GetComponentInChildren<CharacterController>(true);
+        if (controller != null)
+            return controller;
+
+        if (origin.Origin != null)
+        {
+            controller = origin.Origin.GetComponent<CharacterController>();
+            if (controller != null)
+                return controller;
+            controller = origin.Origin.GetComponentInChildren<CharacterController>(true);
+            if (controller != null)
+                return controller;
+        }
+
+        var originTransform = PPEActiveXrOrigin.ResolveOriginTransform();
+        return originTransform != null
+            ? originTransform.GetComponentInChildren<CharacterController>(true)
+            : null;
     }
 
     void EnsureNearGrabAssistVolume()

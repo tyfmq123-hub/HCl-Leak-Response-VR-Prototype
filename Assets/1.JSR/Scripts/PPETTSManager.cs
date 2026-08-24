@@ -27,7 +27,7 @@ public class PPETTSManager : MonoBehaviour
     [SerializeField] bool autoHookManagers = true;
     [SerializeField]
     [Tooltip("Show Korean subtitles on PPEEquipFeedbackUI while each TTS cue plays.")]
-    bool showSubtitles = true;
+    bool showSubtitles;
 
     [SerializeField]
     PPEEquipFeedbackUI subtitleFeedback;

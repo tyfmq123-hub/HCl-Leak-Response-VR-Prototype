@@ -155,7 +155,7 @@ public class PPEPreviewController : MonoBehaviour
     {
         if (xrCamera == null)
         {
-            var origin = FindAnyObjectByType<XROrigin>();
+            var origin = PPEActiveXrOrigin.Resolve();
             if (origin != null && origin.Camera != null)
                 xrCamera = origin.Camera;
             else
