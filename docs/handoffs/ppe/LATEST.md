@@ -4,11 +4,30 @@
 
 - Role: PPE
 - Branch: `feature/ppe`
-- Commit: pending (recreated `feature/ppe`)
+- Commit: uncommitted
 - Push target: `origin/feature/ppe`
 - Base develop commit: `d445493 feat: decouple stage equipment inventory and bags`
 - Updated: 2026-08-27
-- Current focus: ResponseBag packing — desk raised 0.15 m with table items; packed items hidden.
+- Current focus: Close left-wall doorway so `Wall_Left_Back` is a solid wall like `Wall_Right`.
+
+## Solid left wall (2026-08-27)
+
+`Wall_Left_Back` was a 2.4 m door-side segment at `z=1.8`, leaving a 1.2 m gap with `Wall_Left_Front`. It now matches `Wall_Right`: position `(-3.5, 1.5, 0)`, scale `(0.15, 3, 6)`. Lower band `WallBand_Left_Back` matches `WallBand_Right` (`z=5.9` at `x=-3.4`). Door leftovers `Wall_Left_Front`, `Wall_Left_Top`, `WallBand_Left_Front`, and `PPE_RoomExitBlocker` are inactive.
+
+Did not change desk, bag, cabinets, or common XR.
+
+### Files
+
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+### Validation
+
+- SCENE VERIFIED: left wall transform matches right wall; door pieces inactive
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Desk height + hide packed items (2026-08-27)
 
 ## Desk height + hide packed items (2026-08-27)
 
