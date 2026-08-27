@@ -5,9 +5,9 @@
 ## 작업 식별
 
 - 브랜치: `feature/preentry`
-- commit: PreEntry 런타임 결함 완화 (로컬 변경, 아직 추가 commit 없음)
+- commit: PreEntry 씬용 EV 환경 자산을 `Assets/2.YJH`로 복사 (푸시 예정)
 - 기준 develop commit: `d445493` feat: decouple stage equipment inventory and bags
-- 작성자/작성일: PreEntry Codex / 2026-08-21
+- 작성자/작성일: PreEntry Codex / 2026-08-27
 
 ## 변경 목적과 동작
 
@@ -18,6 +18,7 @@
 - 측정기 꺼내기 실패 시 자막 힌트를 보여 준다. 가방 존 미스와 Inventory에 `GasDetector`가 없는 경우를 구분한다.
 - 측정기 장착 중 왼손 Grip Animator를 live `Left Controller`에서 찾아 잠근다.
 - overlay 복귀 경계 Box는 메시 크기(약 5.5m×5m)에 맞춰 폭 `6m`, 두께 `0.2m`로 줄였다. 북쪽 전체 차단은 `NorthWall`이 담당한다.
+- `05_PreEntry`가 쓰던 `Assets/3.JH` EV 프리팹/머티리얼/메시는 다른 Stage 폴더 충돌을 피하려고 PreEntry 소유 경로로 복사했다. 씬 GUID는 `Assets/2.YJH/Prefabs/EV`, `Art/Models/EV`, `Art/Materials/EV`, `Art/Textures/EV`를 가리킨다. 셰이더는 기존 `Assets/2.YJH/Art/Shaders/S_JH_BlenderCel_01.shader`를 재사용한다. `Assets/3.JH`는 커밋하지 않는다.
 - `05_PreEntry`의 `PreEntry_ResponseBag`을 Stage 가방으로 사용한다. App 공용 가방을 복제하거나 수정하지 않는다.
 - 누출 구역 앞에서 3D 누출 앰비언트를 Stage 시작부터 재생한다.
 - `SharedTrainingTelemetry`로 PreEntry 진입/완료, 패널 시작·완료·P-102 STOP 실패, 측정기 가방 사용만 전달한다. 윈드삭은 구현하지 않았다.
@@ -36,6 +37,10 @@
 - `Assets/2.YJH/Scripts/Scenario/Goal02_PtPanel/EntrySafetyGoal2PtPanelController.cs`
 - `Assets/2.YJH/Scripts/Scenario/Goal02_PtPanel/EntrySafetyPtPanelLocomotionBlocker.cs`
 - `Assets/2.YJH/Scripts/Scenario/Guidance/EntrySafetyInstructionCatalog.cs`
+- `Assets/2.YJH/Prefabs/EV/`
+- `Assets/2.YJH/Art/Models/EV/`
+- `Assets/2.YJH/Art/Materials/EV/`
+- `Assets/2.YJH/Art/Textures/EV/`
 - `Assets/Scenes/05_PreEntry.unity`
 - `docs/handoffs/preentry/LATEST.md`
 
@@ -48,7 +53,7 @@
 - 패널 4열은 환경으로 유지하지만 훈련 로직은 P-102 Inspector 참조와 P-102 이름 fallback만 사용한다.
 - `EntrySafetyLeakAmbientPlayer`, `EntrySafetyMovementBounds`는 `EntrySafetyRuntimeRoot`에 런타임 AddComponent 한다. Inspector 수동 할당은 없다.
 - `05_PreEntry`의 `Barricade`를 ScenarioController `_barricade`에 연결했다. 접근 금지 해제 단계에서 비활성, LeakResponse 핸드오프 시 복귀 경계로 다시 활성한다.
-- Prefab 변경 없음.
+- `05_PreEntry`의 EV 환경 배치는 `Assets/2.YJH` 복사본을 참조한다. `Assets/3.JH` EV 원본은 PreEntry가 커밋하지 않는다.
 
 ## 공용 계약 사용
 
