@@ -37,14 +37,14 @@ public static class PPEEquipmentSlotSetup
     static readonly Dictionary<string, PlacementProfile> PlacementProfiles =
         new Dictionary<string, PlacementProfile>(StringComparer.OrdinalIgnoreCase)
         {
-            { PPEEquipmentManager.IdHelmet, new PlacementProfile(PPEType.Helmet, PPEEquipSlot.Head, 0.18f, 35f) },
+            { PPEEquipmentManager.IdHelmet, new PlacementProfile(PPEType.Helmet, PPEEquipSlot.Head, 0.35f, 35f) },
             { "Goggles", new PlacementProfile(PPEType.Goggles, PPEEquipSlot.Face, 0.14f, 30f) },
-            { "ChemicalFaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 80f) },
-            { "FaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.18f, 80f) },
-            { "FaceRespirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 80f) },
-            { "Respirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.16f, 80f) },
-            { "ChemicalSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.25f, 45f) },
-            { "ProtectiveSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.25f, 45f) },
+            { "ChemicalFaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.35f, 80f) },
+            { "FaceShield", new PlacementProfile(PPEType.FaceShield, PPEEquipSlot.Face, 0.35f, 80f) },
+            { "FaceRespirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.35f, 80f) },
+            { "Respirator", new PlacementProfile(PPEType.Respirator, PPEEquipSlot.Face, 0.35f, 80f) },
+            { "ChemicalSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.45f, 45f) },
+            { "ProtectiveSuit", new PlacementProfile(PPEType.ProtectiveSuit, PPEEquipSlot.Body, 0.45f, 45f) },
             { "InnerGloves", new PlacementProfile(PPEType.Gloves, PPEEquipSlot.LeftHand | PPEEquipSlot.RightHand, 0.14f, 40f) },
             { "ChemicalGloves", new PlacementProfile(PPEType.Gloves, PPEEquipSlot.LeftHand | PPEEquipSlot.RightHand, 0.14f, 40f) },
             { "Gloves", new PlacementProfile(PPEType.Gloves, PPEEquipSlot.LeftHand | PPEEquipSlot.RightHand, 0.14f, 40f) },

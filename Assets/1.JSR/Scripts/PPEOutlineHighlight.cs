@@ -1,16 +1,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Filtering;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// <summary>
 /// Hover + sticky selected outline for PPE roots (XR Ray Interactor only).
-/// Selected has priority over hover. selectExited does not clear selection.
+/// Selected has priority over hover. Ray selectExited does not clear selection.
+/// Direct-hand grab hides all outlines (including required-step pulse) until release.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(XRBaseInteractable))]
-public class PPEOutlineHighlight : MonoBehaviour
+public class PPEOutlineHighlight : MonoBehaviour, IXRSelectFilter
 {
     static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
     static readonly int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
@@ -45,14 +47,21 @@ public class PPEOutlineHighlight : MonoBehaviour
     Material[][] materialsWithOutline;
     Material outlineInstance;
     int rayHoverCount;
+    int handGrabCount;
     bool isSelected;
     bool isRequiredStep;
     bool outlineVisible;
     bool cached;
+    readonly List<PPEHandGrabbable> childGrabbers = new List<PPEHandGrabbable>(4);
 
     public bool IsHovered => rayHoverCount > 0;
     public bool IsSelected => isSelected;
     public bool IsRequiredStep => isRequiredStep;
+
+    public bool canProcess =>
+        isActiveAndEnabled &&
+        childGrabbers.Count > 0 &&
+        interactable is XRSimpleInteractable;
 
     void Awake()
     {
@@ -78,7 +87,11 @@ public class PPEOutlineHighlight : MonoBehaviour
         interactable.hoverEntered.AddListener(OnHoverEntered);
         interactable.hoverExited.AddListener(OnHoverExited);
         interactable.selectEntered.AddListener(OnSelectEntered);
-        // selectExited intentionally ignored — Select is click-style sticky selection.
+        interactable.selectExited.AddListener(OnSelectExited);
+        WireChildHandGrabs(true);
+        StripChildGrabCollidersFromPairRoot();
+        PinProtectiveGloveLogicalRootColliders();
+        RegisterPairRootRayOnlySelectFilter(true);
 
         // Restore sticky selected / hover outline after disable→enable.
         RefreshOutlineState();
@@ -91,16 +104,20 @@ public class PPEOutlineHighlight : MonoBehaviour
             interactable.hoverEntered.RemoveListener(OnHoverEntered);
             interactable.hoverExited.RemoveListener(OnHoverExited);
             interactable.selectEntered.RemoveListener(OnSelectEntered);
+            interactable.selectExited.RemoveListener(OnSelectExited);
         }
 
+        RegisterPairRootRayOnlySelectFilter(false);
+        WireChildHandGrabs(false);
         rayHoverCount = 0;
+        handGrabCount = 0;
         // Keep sticky isSelected flag; only hide renderer materials while disabled.
         ApplyOutlineVisual(false);
     }
 
     void Update()
     {
-        if (!isRequiredStep || outlineInstance == null)
+        if (!isRequiredStep || outlineInstance == null || handGrabCount > 0)
             return;
 
         var pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * requiredPulseSpeed * Mathf.PI * 2f);
@@ -150,6 +167,13 @@ public class PPEOutlineHighlight : MonoBehaviour
 
     void OnSelectEntered(SelectEnterEventArgs args)
     {
+        if (IsDirectGrabInteractor(args.interactorObject))
+        {
+            RecalculateHandGrabCount();
+            RefreshOutlineState();
+            return;
+        }
+
         if (PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy)
             return;
 
@@ -162,6 +186,15 @@ public class PPEOutlineHighlight : MonoBehaviour
             PPESelectionManager.Instance.SelectPPE(this);
         else
             SetSelected(true);
+    }
+
+    void OnSelectExited(SelectExitEventArgs args)
+    {
+        if (!IsDirectGrabInteractor(args.interactorObject))
+            return;
+
+        RecalculateHandGrabCount();
+        RefreshOutlineState();
     }
 
     /// <summary>
@@ -194,6 +227,12 @@ public class PPEOutlineHighlight : MonoBehaviour
 
     void RefreshOutlineState()
     {
+        if (handGrabCount > 0)
+        {
+            ApplyOutlineVisual(false);
+            return;
+        }
+
         // The required target must remain unmistakable even when another object was
         // hovered or selected out of order. Hover -> select -> equip behavior is unchanged.
         if (isRequiredStep)
@@ -224,6 +263,202 @@ public class PPEOutlineHighlight : MonoBehaviour
     static bool IsRayInteractor(IXRInteractor interactor)
     {
         return interactor is XRRayInteractor;
+    }
+
+    static bool IsDirectGrabInteractor(IXRInteractor interactor)
+    {
+        return interactor != null && interactor is not XRRayInteractor;
+    }
+
+    public bool Process(IXRSelectInteractor interactor, IXRSelectInteractable _)
+    {
+        // Pair roots are ray-select / LED only. Hands must grab Left/Right members.
+        return IsRayInteractor(interactor);
+    }
+
+    void WireChildHandGrabs(bool subscribe)
+    {
+        if (!subscribe)
+        {
+            for (var i = 0; i < childGrabbers.Count; i++)
+            {
+                var grab = childGrabbers[i];
+                if (grab == null)
+                    continue;
+                grab.OnGrabbed -= OnChildHandGrabbed;
+                grab.OnReleased -= OnChildHandReleased;
+            }
+
+            childGrabbers.Clear();
+            return;
+        }
+
+        var grabs = GetComponentsInChildren<PPEHandGrabbable>(true);
+        for (var i = 0; i < grabs.Length; i++)
+        {
+            var grab = grabs[i];
+            // Same-object grabbers are already covered by this interactable's select events.
+            if (grab == null || grab.gameObject == gameObject)
+                continue;
+            childGrabbers.Add(grab);
+            grab.OnGrabbed += OnChildHandGrabbed;
+            grab.OnReleased += OnChildHandReleased;
+        }
+    }
+
+    void OnChildHandGrabbed(PPEGrabHand _)
+    {
+        RecalculateHandGrabCount();
+        RefreshOutlineState();
+    }
+
+    void OnChildHandReleased(PPEGrabHand _)
+    {
+        RecalculateHandGrabCount();
+        RefreshOutlineState();
+    }
+
+    void RecalculateHandGrabCount()
+    {
+        var count = CountDirectSelectors(interactable);
+        for (var i = 0; i < childGrabbers.Count; i++)
+        {
+            var grab = childGrabbers[i];
+            if (grab == null || grab.gameObject == gameObject)
+                continue;
+            count += CountDirectSelectors(grab);
+        }
+
+        handGrabCount = count;
+    }
+
+    static int CountDirectSelectors(XRBaseInteractable target)
+    {
+        if (target == null || !target.isSelected || target is XRSimpleInteractable)
+            return 0;
+
+        var count = 0;
+        var selecting = target.interactorsSelecting;
+        for (var i = 0; i < selecting.Count; i++)
+        {
+            if (IsDirectGrabInteractor(selecting[i]))
+                count++;
+        }
+
+        return count;
+    }
+
+    void StripChildGrabCollidersFromPairRoot()
+    {
+        if (interactable is not XRSimpleInteractable simple || childGrabbers.Count == 0)
+            return;
+
+        var ownedByMembers = new HashSet<Collider>();
+        for (var i = 0; i < childGrabbers.Count; i++)
+        {
+            var grab = childGrabbers[i];
+            if (grab == null)
+                continue;
+
+            var listed = grab.colliders;
+            for (var c = 0; c < listed.Count; c++)
+            {
+                if (listed[c] != null)
+                    ownedByMembers.Add(listed[c]);
+            }
+
+            var nested = grab.GetComponentsInChildren<Collider>(true);
+            for (var c = 0; c < nested.Length; c++)
+            {
+                if (nested[c] != null)
+                    ownedByMembers.Add(nested[c]);
+            }
+        }
+
+        for (var i = simple.colliders.Count - 1; i >= 0; i--)
+        {
+            var col = simple.colliders[i];
+            if (col == null || ownedByMembers.Contains(col))
+                simple.colliders.RemoveAt(i);
+        }
+    }
+
+    void PinProtectiveGloveLogicalRootColliders()
+    {
+        if (interactable is not XRSimpleInteractable simple)
+            return;
+
+        var item = GetComponent<PPEEquipable>();
+        if (item == null ||
+            !string.Equals(
+                item.ItemId,
+                PPEEquipmentManager.IdChemicalGloves,
+                System.StringComparison.Ordinal))
+            return;
+
+        var dummy = EnsureProtectiveLogicalRootDummyCollider();
+        if (!simple.colliders.Contains(dummy))
+            simple.colliders.Add(dummy);
+
+        for (var i = simple.colliders.Count - 1; i >= 0; i--)
+        {
+            if (simple.colliders[i] != dummy)
+                simple.colliders.RemoveAt(i);
+        }
+
+        dummy.enabled = false;
+        dummy.isTrigger = true;
+    }
+
+    Collider EnsureProtectiveLogicalRootDummyCollider()
+    {
+        var existing = transform.Find(PPEGlovePairCoordinator.LogicalRootColliderLockName);
+        if (existing == null)
+        {
+            var go = new GameObject(PPEGlovePairCoordinator.LogicalRootColliderLockName);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            existing = go.transform;
+        }
+
+        var box = existing.GetComponent<BoxCollider>();
+        if (box == null)
+            box = existing.gameObject.AddComponent<BoxCollider>();
+
+        box.size = Vector3.one * 0.001f;
+        box.center = Vector3.zero;
+        box.isTrigger = true;
+        box.enabled = false;
+        return box;
+    }
+
+    void RegisterPairRootRayOnlySelectFilter(bool subscribe)
+    {
+        if (interactable == null || !Application.isPlaying)
+            return;
+
+        var filters = interactable.selectFilters;
+        var already = false;
+        for (var i = 0; i < filters.count; i++)
+        {
+            if (filters.GetAt(i) == this)
+            {
+                already = true;
+                break;
+            }
+        }
+
+        if (subscribe)
+        {
+            if (!already)
+                interactable.selectFilters.Add(this);
+            return;
+        }
+
+        if (already)
+            interactable.selectFilters.Remove(this);
     }
 
     void SetOutlineAppearance(Color color, float width)

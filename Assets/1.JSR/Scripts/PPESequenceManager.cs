@@ -404,9 +404,6 @@ public class PPESequenceManager : MonoBehaviour
     /// </summary>
     public void NotifyBagContentsChecked()
     {
-        if (PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy)
-            return;
-
         if (bagContentsChecked)
             return;
 

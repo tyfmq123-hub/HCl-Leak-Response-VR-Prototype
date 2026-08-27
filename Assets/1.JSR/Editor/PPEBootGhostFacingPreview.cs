@@ -87,13 +87,13 @@ public static class PPEBootGhostFacingPreview
         if (visual == null || calibration == null)
             return;
 
-        var rotation = calibration.localRotation;
+        var visualRotation = member.GhostVisualLocalRotation;
         var filter = visual.GetComponent<MeshFilter>();
         if (filter != null && filter.sharedMesh != null && camera != null)
         {
             Graphics.DrawMesh(
                 filter.sharedMesh,
-                Matrix4x4.TRS(position, rotation, visual.lossyScale),
+                Matrix4x4.TRS(position, visualRotation, visual.lossyScale),
                 PreviewMaterial,
                 0,
                 camera);
@@ -102,7 +102,7 @@ public static class PPEBootGhostFacingPreview
         if (Selection.activeTransform == calibration)
         {
             EditorGUI.BeginChangeCheck();
-            var newRotation = Handles.RotationHandle(rotation, position);
+            var newRotation = Handles.RotationHandle(calibration.localRotation, position);
             if (EditorGUI.EndChangeCheck())
             {
                 Undo.RecordObject(calibration, "Calibrate Boot Model Axis");
@@ -112,7 +112,7 @@ public static class PPEBootGhostFacingPreview
             }
         }
 
-        var correctedToe = (rotation * toeLocal).normalized;
+        var correctedToe = (visualRotation * toeLocal).normalized;
         Handles.color = Color.cyan;
         Handles.ArrowHandleCap(
             0,

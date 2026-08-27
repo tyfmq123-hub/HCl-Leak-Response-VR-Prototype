@@ -93,6 +93,9 @@ public class PPEEquipable : MonoBehaviour
 
     public Transform EnsureGhostPoseCalibration()
     {
+        if (!ShouldOwnGhostPoseCalibration())
+            return ghostPoseCalibration;
+
         if (ghostPoseCalibration != null)
             return ghostPoseCalibration;
 
@@ -117,7 +120,13 @@ public class PPEEquipable : MonoBehaviour
 
     void Awake()
     {
-        EnsureGhostPoseCalibration();
+        if (ShouldOwnGhostPoseCalibration())
+            EnsureGhostPoseCalibration();
+    }
+
+    bool ShouldOwnGhostPoseCalibration()
+    {
+        return !string.Equals(itemId, PPEEquipmentManager.IdResponseBag, StringComparison.Ordinal);
     }
 
 #if UNITY_EDITOR
@@ -125,7 +134,7 @@ public class PPEEquipable : MonoBehaviour
     {
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this == null)
+            if (this == null || !ShouldOwnGhostPoseCalibration())
                 return;
             EnsureGhostPoseCalibration();
         };
@@ -133,6 +142,9 @@ public class PPEEquipable : MonoBehaviour
 
     void OnDrawGizmos()
     {
+        if (!ShouldOwnGhostPoseCalibration())
+            return;
+
         var calib = ghostPoseCalibration != null
             ? ghostPoseCalibration
             : transform.Find(GhostPoseCalibrationName);

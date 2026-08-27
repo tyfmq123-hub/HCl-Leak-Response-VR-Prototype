@@ -13,7 +13,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 public static class PPEPairPhysicalAuthoringSetup
 {
     const string ScenePath = "Assets/Scenes/04_PPE.unity";
-    const float GloveGrabDistance = 0.065f;
+    const float GloveGrabDistance = PPEDirectGrabProximityFilter.NearGrabHoverSelectDistance;
     const float BootGrabDistance = 0.10f;
 
     [MenuItem("Tools/HCl Training/PPE/Author Left/Right PPE Pairs", false, 28)]

@@ -98,17 +98,11 @@ public static class PPEGrabHandResolver
         string source;
         PPEGrabHand resolved;
 
-        if (fromPinch != PPEGrabHand.Unknown)
-        {
-            resolved = fromPinch;
-            source = "XRHands pinch near object";
-        }
-        else if (fromPalm != PPEGrabHand.Unknown && fromPalm != fromXri)
-        {
-            resolved = fromPalm;
-            source = "Closer XR Palm to object";
-        }
-        else if (fromXri != PPEGrabHand.Unknown)
+        // The selecting interactor is the only authoritative hand for a SelectAttempt.
+        // Pinch / closer-palm used to override it from the object's shelf position,
+        // so a second glove grabbed by the already-equipped hand was recorded as the
+        // still-bare hand until a hand-off moved the object.
+        if (fromXri != PPEGrabHand.Unknown)
         {
             resolved = fromXri;
             source = "Interactor.handedness";
@@ -127,6 +121,16 @@ public static class PPEGrabHandResolver
         {
             resolved = fromOwnName;
             source = "Interactor GameObject name";
+        }
+        else if (fromPinch != PPEGrabHand.Unknown)
+        {
+            resolved = fromPinch;
+            source = "XRHands pinch near object";
+        }
+        else if (fromPalm != PPEGrabHand.Unknown)
+        {
+            resolved = fromPalm;
+            source = "Closer XR Palm to object";
         }
         else
         {

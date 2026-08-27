@@ -206,6 +206,7 @@ public class PPEStoredDisplayState : MonoBehaviour
             IgnorePlayerLocomotionCollisions();
         }
 
+        LogPhysicsSnapshot("PPE Physics After Release");
         StartRecoveryMonitor();
     }
 
@@ -216,6 +217,7 @@ public class PPEStoredDisplayState : MonoBehaviour
             State != StorageState.Recovered)
             return;
 
+        LogPhysicsSnapshot("PPE Physics Before Grab");
         CancelRecoveryMonitor();
         if (State == StorageState.Stored)
             RestoreStoredPose();
@@ -508,6 +510,41 @@ public class PPEStoredDisplayState : MonoBehaviour
 
         rigidbody.linearVelocity = Vector3.zero;
         rigidbody.angularVelocity = Vector3.zero;
+    }
+
+    void LogPhysicsSnapshot(string title)
+    {
+        Collider col = null;
+        var colliders = GetComponentsInChildren<Collider>(true);
+        for (var i = 0; i < colliders.Length; i++)
+        {
+            var candidate = colliders[i];
+            if (candidate == null || !candidate.enabled || candidate.isTrigger)
+                continue;
+            col = candidate;
+            break;
+        }
+
+        var velocity = Vector3.zero;
+        var angular = Vector3.zero;
+        if (body != null && !body.isKinematic)
+        {
+            velocity = body.linearVelocity;
+            angular = body.angularVelocity;
+        }
+
+        Debug.Log(
+            "[" + title + "]\n" +
+            "Object=" + name + "\n" +
+            "Rigidbody.isKinematic=" + (body != null && body.isKinematic) + "\n" +
+            "UseGravity=" + (body != null && body.useGravity) + "\n" +
+            "DetectCollisions=" + (body == null || body.detectCollisions) + "\n" +
+            "CollisionDetectionMode=" + (body != null ? body.collisionDetectionMode.ToString() : "none") + "\n" +
+            "ColliderEnabled=" + (col != null && col.enabled) + "\n" +
+            "ColliderTrigger=" + (col != null && col.isTrigger) + "\n" +
+            "Velocity=" + velocity.ToString("F3") + "\n" +
+            "AngularVelocity=" + angular.ToString("F3"),
+            this);
     }
 
     /// <summary>

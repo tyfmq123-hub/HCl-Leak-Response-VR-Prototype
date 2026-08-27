@@ -1696,7 +1696,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             else
             {
                 localPosition = calib.localPosition;
-                localRotation = calib.localRotation;
+                localRotation = gloveMember.GhostVisualLocalRotation;
             }
         }
         else if (equipable != null)

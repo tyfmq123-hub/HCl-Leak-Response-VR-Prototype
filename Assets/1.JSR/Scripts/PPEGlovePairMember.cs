@@ -42,6 +42,9 @@ public sealed class PPEGlovePairMember : MonoBehaviour
     [Tooltip("Child Transform you rotate in the Inspector until the Ghost sits on the target. Runtime Ghost uses this local pose relative to the live target (palm or body yaw).")]
     Transform ghostPoseCalibration;
     [SerializeField]
+    [Tooltip("Boot Ghost only. Applied after GhostPoseCalibration as a local yaw so look-down facing is ㅗ, not ㅜ. Does not rotate XR Origin, camera, or the lower-leg target.")]
+    Vector3 bootModelAxisCorrectionEuler;
+    [SerializeField]
     [Tooltip("Seeded onto GhostPoseCalibration when that child is first created.")]
     Vector3 guidePositionOffset;
     [SerializeField]
@@ -76,6 +79,17 @@ public sealed class PPEGlovePairMember : MonoBehaviour
         ghostPoseCalibration != null ? ghostPoseCalibration.localEulerAngles : guideRotationOffsetEuler;
     public Quaternion GhostCalibrationLocalRotation =>
         ghostPoseCalibration != null ? ghostPoseCalibration.localRotation : Quaternion.Euler(guideRotationOffsetEuler);
+    public Quaternion GhostVisualLocalRotation
+    {
+        get
+        {
+            var calibration = GhostCalibrationLocalRotation;
+            if (targetKind != PPEPairTargetKind.BodyLowerLeg)
+                return calibration;
+            return calibration * Quaternion.Euler(bootModelAxisCorrectionEuler);
+        }
+    }
+    public Vector3 BootModelAxisCorrectionEuler => bootModelAxisCorrectionEuler;
     public Vector3 GhostCalibrationLocalPosition =>
         ghostPoseCalibration != null ? ghostPoseCalibration.localPosition : guidePositionOffset;
     public Vector3 GhostVisualOriginOffset => ghostVisualOriginOffset;

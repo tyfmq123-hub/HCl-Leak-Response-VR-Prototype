@@ -166,6 +166,9 @@ public class ResponseEquipmentManager : MonoBehaviour
         }
 
         contentsReveal.EnsureRuntimeConfigured(this);
+        if (GetComponent<ResponseBagPackingController>() != null)
+            return;
+
         contentsReveal.HideContentsUntilSelected();
 
         // Gear panel card UI removed — Y reveals 3D contents + name labels.
@@ -342,6 +345,8 @@ public class ResponseEquipmentManager : MonoBehaviour
     /// <summary>Show the three bag content meshes with world name labels (no card UI).</summary>
     public void ShowBagContentsInspection()
     {
+        if (GetComponent<ResponseBagPackingController>() != null)
+            return;
         if (responseBagPrepared)
             return;
 
@@ -370,6 +375,9 @@ public class ResponseEquipmentManager : MonoBehaviour
 
     public void HideBagContentsInspection()
     {
+        if (GetComponent<ResponseBagPackingController>() != null)
+            return;
+
         if (contentsReveal != null)
         {
             contentsReveal.ShowWorldItemNameLabels(false);
@@ -827,7 +835,10 @@ public class ResponseEquipmentManager : MonoBehaviour
         if (wearableCtrl != null)
             wearableCtrl.ResetBagVisual();
 
-        if (contentsReveal != null)
+        var packing = GetComponent<ResponseBagPackingController>();
+        if (packing != null)
+            packing.RestoreTableLayout();
+        else if (contentsReveal != null)
             contentsReveal.ResetContentsDisplay();
         else if (contentsPanel != null)
             contentsPanel.ResetPanelVisuals();

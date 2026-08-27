@@ -4,14 +4,319 @@
 
 - Role: PPE
 - Branch: `feature/ppe`
-- Commit: uncommitted (Ghost pose / face-suit comfort / equipped-hand grab)
+- Commit: pending (recreated `feature/ppe`)
 - Push target: `origin/feature/ppe`
 - Base develop commit: `d445493 feat: decouple stage equipment inventory and bags`
-- Updated: 2026-08-24
-- Current focus: Ghosts only for InnerGloves / ProtectiveGloves / ChemicalBoots. Face/Suit/Helmet use invisible dynamic targets. Do not start Phase 4 until requested.
+- Updated: 2026-08-27
+- Current focus: ResponseBag packing — desk raised 0.15 m with table items; packed items hidden.
+
+## Desk height + hide packed items (2026-08-27)
+
+`PPE_DeskTop` world Y `0` → `0.15`. GasDetector / AbsorbentPad / AbsorbentSock stay desk children, so they rise with the table. Rotation and XZ are unchanged. Bag transform is unchanged.
+
+Packed items `SetActive(false)` after snap. Reset/`SetPacked(false)` turns them back on.
+
+### Files
+
+- `Assets/Scenes/04_PPE.unity`
+- `Assets/1.JSR/Scripts/ResponseBagPackableItem.cs`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED: packed hide via SetActive(false)
+- SCENE VERIFIED: desk Y 0.15; item local poses unchanged
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## ResponseBag GhostPoseCalibration + table packing (2026-08-27)
+
+## ResponseBag GhostPoseCalibration + table packing (2026-08-27)
+
+Did not change desk/bag Position/Rotation/Scale, glove pair rules, ChemicalBoots Ghost, common XR, App/Stage adapters, or wearable `ResponseBag_Wearable`.
+
+### Why the bag had a GhostPoseCalibration child
+
+`ResponseBag_HardShell` carries `PPEEquipable` (`itemId: ResponseBag`) so sequence/checklist can complete the bag step. `PPEEquipable` default `ppeType` is Gloves, and `Awake`/`OnValidate` always created a `GhostPoseCalibration` child plus Scene-view mesh gizmos. That is the wearable glove/boot Ghost path. The world bag is not wearable PPE and does not need a ghost hand.
+
+Scene child `GhostPoseCalibration` is removed. `PPEEquipable` no longer creates or draws Ghost calibration for `ResponseBag`. Bag `XRSimpleInteractable` and `ResponseBagPrepareInteractable` are disabled so the bag is a packing destination, not a grab/ghost target.
+
+### Packing
+
+Table items stay on authored `PPE_DeskTop`. Play binds `GasDetectorSlot` / `AbsorbentPadSlot` / `AbsorbentSockSlot` as `ResponseBagPackableItem` grabs. Release inside the bag mouth (`BagPackingTrigger`) snaps to `HClMeterSlot` / `AbsorbentPadSlot` / `AbsorbentSockSlot`, calls `InspectResponseBagItem` + `SessionEquipmentInventory.Store`, then `TryCompleteResponseBagPreparation` when all three are in.
+
+Mouth trigger used to sit at bag-root `(0, 0.14, 0)` size `(0.28, 0.18, 0.18)`. The visual is `ResponseBag_HardShell_Visual` at local `y=-0.9` / scale `0.63`, and the fitted root collider is `(0.83, 1.12, 0.40)` centered at `y=0.56`. Putting an item into the visible case missed that small origin box. Trigger, open-shell walls, and snap slots now fit the visual renderer bounds (90% interior, 8 cm slack). Fall-in watch is 2 s.
+
+### Files
+
+- `Assets/1.JSR/Scripts/PPEEquipable.cs`
+- `Assets/1.JSR/Scripts/ResponseBagPackingController.cs`
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED: ResponseBag skips GhostPoseCalibration; packing trigger + fall-in watch
+- SCENE VERIFIED: bag children are `BagContentsRoot` + visual only; `ghostPoseCalibration` none; bag Simple/Prepare disabled
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+- DEVICE TEST REQUIRED: after donning, grab HCl meter / absorbent pad / absorbent sock from the desk, put each into `ResponseBag_HardShell`, confirm snap + all-three completion. Desk/bag transforms must stay as authored.
+
+## ProtectiveGloves Controller Grab ownership + near-cast origin (2026-08-27)
+
+Did not change NearFar radius, Interaction Layer, ChemicalBoots, InnerGloves grab distance, sequence, WrongHand, ResponseBag, table, XR Interaction Manager, or App. Select allowed distance remains **0.06 m**. Assist 0.16 m is still hover-only.
 - Follow-up: Phase 3 scene integrity + ChemicalGloves visual ownership remains in place.
 - Follow-up: Dropped cabinet PPE no longer acts as walkable ground for CharacterController / GravityProvider (IgnoreCollision + Ignore Raycast while Held/Released).
 - Follow-up: `PPESequenceManager.CancelWearableSelections` uses `IXRSelectInteractable` / `IXRHoverInteractable` (XRI 3 obsolete `XRBaseInteractable` overloads).
+
+## ProtectiveGloves Controller Grab ownership + near-cast origin (2026-08-27)
+
+Did not change NearFar radius, Interaction Layer, ChemicalBoots, InnerGloves grab distance, sequence, WrongHand, ResponseBag, table, XR Interaction Manager, or App. Select allowed distance remains **0.06 m**. Assist 0.16 m is still hover-only.
+
+`04_PPE` standalone has no active NearFar on its local controllers (Ray Interactor inactive). Controller Grab validation is `01_App → 04_PPE`. Standalone Controller Select failure is not treated as a ProtectiveGloves code bug.
+
+### Fix 1 — Logical root collider ownership
+
+`PPE_Gloves` `XRSimpleInteractable` had `m_Colliders: []`, so XRI auto-collected `Left/RightProtectiveGlovePhysical` colliders. NearFar then hovered the logical root; `PPEOutlineHighlight.Process` rejects non-ray Select.
+
+Scene now has disabled trigger child `LogicalRootColliderLock` (1 mm) assigned as the only root collider. Coordinator Awake (`-300`) pins that dummy before `XRSimpleInteractable` Awake so the list is never empty. PhysicalCollider and NearGrabAssist stay on each `PPEHandGrabbable`. Dummy is disabled and does not physics-grab.
+
+### Fix 2 — Repair toggle removed
+
+`RepairProtectiveGloveColliderOwnership` and `grab.enabled` / `simple.enabled` toggles are gone. Root collider list is edited in place. Inner/Boots `EnsureHoverOnlyInteractable` still clears as before.
+
+### Fix 3 — Protective Controller distance origin (0.06 m kept)
+
+ProtectiveGlove NearFar Select now measures PhysicalCollider distance from `nearInteractionCaster.effectiveCastOrigin` (fallback `castOrigin`), not generic attach / interactor root. Allowed distance stays 0.06 m. Assist is not a Select volume.
+
+`[First Glove SelectAttempt]` logs `OriginSource=NearCaster|Attach`.
+
+### Files
+
+- `Assets/1.JSR/Scripts/PPEGlovePairCoordinator.cs`
+- `Assets/1.JSR/Scripts/PPEOutlineHighlight.cs`
+- `Assets/1.JSR/Scripts/PPEDirectGrabProximityFilter.cs`
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED: ownership pin + dummy lock; no grab.enabled toggle; Protective origin uses near caster; 0.06 m unchanged
+- SCENE VERIFIED: `PPE_Gloves` colliders = `LogicalRootColliderLock` only; members still list PhysicalCollider + NearGrabAssist
+- PLAY MODE VERIFIED: NOT TESTED (`01_App → 04_PPE` required)
+- QUEST VERIFIED: NOT TESTED
+
+## PPE grab / ResponseBag regression correction (2026-08-27)
+
+Did not change table or cabinet Position/Rotation/Scale/Parent/Prefab transform, pair hand order, WrongHand, proximity distances, ChemicalBoots Ghost, Release-to-Equip, common XR, App/Stage adapters, or other scenes.
+
+### ProtectiveGloves physical collider ownership
+
+Component-by-component comparison found no grab-blocking serialized mismatch in the physical members: both pairs are active on Default, use enabled solid CapsuleCollider + enabled trigger NearGrabAssist, kinematic/no-gravity Rigidbody, Interaction Layer bit 1, Single Select, Attach None, Dynamic Attach/Match Position/Match Rotation/Snap on, and one `PPEDirectGrabProximityFilter`. Protective left/right Coordinator, side, collider, assist, and EquipReference references are valid.
+
+The meaningful runtime difference was XRI collider registration ownership. The Unity log records both Protective `PhysicalCollider`s remaining associated with parent `PPE_Gloves (XRSimpleInteractable)`, which registered before `Left/RightProtectiveGlovePhysical (PPEHandGrabbable)`. The working Inner pair records the reverse order: each physical member remains the owner and the parent root loses the duplicate registration. Consequently Protective hover could target the logical root, whose ray-only filter rejects XR Hands before the member proximity filter is reached.
+
+`PPEOutlineHighlight` now waits until initial XRI registration is complete, then only for `ChemicalGloves` unregisters the logical root, strips its auto-collected member colliders, re-registers the two existing physical member grabs first, and finally re-enables the collider-free logical root. No distance, layer, collider geometry, hand resolver, attach pose, or shared interactor setting changed.
+
+### Glove rotation
+
+The previous follow-up added `PPEHandGrabbable.EnsureTrackedGloveGrabAttach()`. It assigned the placement-only `EquipReference` as the XRI attach, then forced `useDynamicAttach = false`. Because Match Rotation is enabled, Select immediately replaced the authored world orientation with the hand/EquipReference orientation.
+
+That override was removed. InnerGloves and ProtectiveGloves retain the authored XRI configuration: Attach Transform None, Dynamic Attach on, Match Position/Rotation on, Snap To Collider Volume on. XRI therefore creates the attach pose from the contact pose and preserves the visible pre-Select orientation on the first frame. Pair-root `XRSimpleInteractable` remains non-ray-select rejected so actual hand Grab is owned by the left/right physical members.
+
+### ResponseBag collider
+
+`ResponseBag_HardShell` had one enabled, solid root BoxCollider: center `(0.0595, 0.5623, -0.0122)`, size `(0.8280, 1.1245, 0.3964)`, Default layer. It enclosed the mouth and surrounding empty space.
+
+The legacy root collider is disabled in `04_PPE` and at packing initialization. Runtime creates compact open-shell `PhysicalColliders/Bottom`, `LeftSide`, `RightSide`, `Back`; there is no front/top wall. `BagPackingTrigger` remains a separate `IsTrigger=true` mouth volume `(0.22, 0.12, 0.16)` and cannot physically block a hand or item.
+
+### General equipment Grab
+
+No ProtectiveGloves equip path changes either hand Interactor, interaction layer, or global Select filter. The apparent post-glove failure occurred because the equipment-preparation setup runs after donning and `ResponseBagPackableItem.IgnorePlayerLocomotionCollisions()` changed each equipment collider's Physics layer to `Ignore Raycast`. Near/Far could no longer discover HCl meter, pad, or sock.
+
+Packable items now keep their authored Physics layer and Interaction Layer. Only `Physics.IgnoreCollision(itemCollider, playerCharacterController)` is applied, so locomotion does not climb the item while both left and right Near/Far interactors can still select it. PPE pair filters remain attached only to PPE wearable grab objects.
+
+### Packing / completion
+
+Packing remains Allowed Item + `BagPackingTrigger` occupancy + Release. Successful release snaps to the existing per-item slot, records Inventory once, allows any item order, and completes the existing ResponseBag sequence step only after all three items are packed. The protected sequence still contains its existing WasteContainer step after ResponseBag; this task did not change the stage-completion event contract.
+
+Integration request: if the product requirement is to remove WasteContainer and fire `OnPPESequenceCompleted` immediately after the three packed items, Integration must approve that protected completion-condition change.
+
+### Files
+
+- `Assets/1.JSR/Scripts/PPEOutlineHighlight.cs`
+- `Assets/1.JSR/Scripts/PPEHandGrabbable.cs` (uncommitted attach override removed; resulting file matches branch baseline)
+- `Assets/1.JSR/Scripts/ResponseBagPackableItem.cs`
+- `Assets/1.JSR/Scripts/ResponseBagPackingController.cs`
+- `Assets/Scenes/04_PPE.unity` (legacy ResponseBag root collider disabled only)
+- this handoff
+
+### Validation
+
+- CODE VERIFIED (`dotnet build Assembly-CSharp.csproj --no-restore`: 0 errors; existing warnings only)
+- SCENE VERIFIED (Protective/Inner member references valid; four glove grabs retain Dynamic Attach; oversized bag root collider disabled; table transform unchanged)
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Required-step outline hides while held (2026-08-27)
+
+Did not change glove pair rules, ChemicalBoots Ghost, Release-to-Equip, common XR, App/Stage adapters, desk/bag transforms, or packing pose.
+
+Direct-hand Grab (Near-Far / non-ray) turns off all outlines on that PPE — including the cyan/yellow required-step pulse — until Release. If it is still the current sequence step after release, the pulse comes back. Ray sticky select does not hide the required LED. Pair-root SimpleInteractable select no longer counts as a hand grab.
+
+### Files
+
+- `Assets/1.JSR/Scripts/PPEOutlineHighlight.cs`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED
+- SCENE VERIFIED: not required (script-only)
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Response equipment table packing (2026-08-27)
+
+Did not change glove pair rules, ChemicalBoots Ghost, Release-to-Equip, common XR, or App/Stage adapters.
+
+Packing no longer overwrites authored item position/rotation/scale on Play. Grab wiring and bag snap still run. Desk Transform is not written.
+
+### Files
+
+- `ResponseBagPackableItem.cs`, `ResponseBagPackingController.cs`
+- `PPEResponseEquipmentTablePackingSetup.cs`
+- `ResponseEquipmentManager.cs` (skip hide-until-Y and Y-inspect while packing is present; restore table on bag reset)
+- `PPESequenceManager.cs` (`NotifyBagContentsChecked` no longer skipped while TTS is busy)
+- `04_PPE.unity` (`ResponseBagPackingController` on `Response_EquipmentManager`, `PPE_DeskTop` FBX instance)
+- this handoff
+
+### Validation
+
+- CODE VERIFIED
+- SCENE VERIFIED (packing component + desk instance)
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Body/head Release-to-Equip range (2026-08-27)
+
+Suit / Face / Respirator / Helmet-class items used a tight EquipReference-to-target distance. Face Ghost also hides below `0.22 m` while Face/Respirator equip was `0.18–0.20 m`, so the guide could disappear before Release succeeded. Grab range, glove pair rules, and boot Ghost were not changed.
+
+Scene `PPEEquipable.equipDistance`: FaceShield `0.20` → `0.35`, Respirator `0.18` → `0.35`, Suit `0.30` → `0.45`. Authoring profiles match, including Helmet `0.18` → `0.35` (Helmet is still not in `04_PPE`). Inner/Protective gloves and boots keep previous placement distances.
+
+### Validation
+
+- CODE VERIFIED (authoring profiles)
+- SCENE VERIFIED (three wearable equipDistance values)
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Glove grab range aligned with other PPE (2026-08-27)
+
+Did not change pair hand order, opposite-hand rule, ChemicalBoots Ghost, common XR, or cabinet physics.
+
+InnerGloves and ProtectiveGloves Select used `0.16 m` against PhysicalCollider **or** the large `NearGrabAssist` trigger, so the remaining glove could be grabbed from farther than suit / respirator / face (`0.06 m`, physical only). Select now uses the same `0.06 m` physical-collider distance. Assist stays a hover trigger only. Far-ray still fails above `0.5 m`. `HAND_UNRESOLVED` / `WRONG_HAND` remain log-only, not Select rejects.
+
+### Files / Inspector
+
+- `PPEDirectGrabProximityFilter.cs`: `NearGrabHoverSelectDistance = 0.06`; glove Select is physical-only.
+- `04_PPE.unity`: four glove `maxDirectGrabDistance` `0.16` → `0.06`. Boots stay `0.10`. Other PPE stay `0.06`.
+- Authoring already reads the filter constant.
+
+### Validation
+
+- CODE VERIFIED
+- SCENE VERIFIED (four glove filter distances `0.06`)
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Cabinet shelf drop after Grab/Release (2026-08-27)
+
+Did not change glove pair logic, ChemicalBoots Ghost rotation, common XR, App/Stage flow, throw policy, or PPE Rigidbody restore.
+
+### Root cause
+
+Start placement is a kinematic stored pose, not shelf collision. `PPE_Storage` FBX has `addColliders: 0` and no added colliders. `PPE_StorageRoot` only had FitCabinet's thin **back-panel** BoxCollider (`1.7 × 2.05 × 0.04`, `IsTrigger=0`, Default layer). There were no shelf/floor/side BoxColliders. After Grab, `ApplyReleasedPhysics` correctly sets `isKinematic=false`, `useGravity=true`, `ContinuousDynamic`, clears velocity, and leaves physical colliders enabled/non-trigger. Gravity then had nothing to land on, so items fell through the visual shelves.
+
+Collision matrix still allows Default vs Default and Default vs Ignore Raycast. Layer move on Held/Released is not why items fell through shelves.
+
+### Fix
+
+Authored `PPE_StorageRoot/Physics` BoxColliders (non-trigger, enabled, Default): Left/Right/Back walls, five shelves under slot Y, and an invisible Catch under the cabinet footprint only. `PPECabinetPhysics` keeps those colliders in sync and disables the duplicate root back panel. Grab/Release physics restore was already correct; throw velocity was not clamped.
+
+### Files / Inspector
+
+- `Assets/1.JSR/Scripts/PPECabinetPhysics.cs` + `.meta`
+- `Assets/1.JSR/Scripts/PPEStoredDisplayState.cs` (one-shot Before Grab / After Release logs)
+- `Assets/1.JSR/Editor/PPECabinetFitSetup.cs` (`Ensure Cabinet Shelf Physics` menu; FitCabinet also ensures Physics)
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+Scene objects: `PPE_StorageRoot` (`PPECabinetPhysics`), `Physics/LeftWallCollider`, `RightWallCollider`, `BackWallCollider`, `Shelf_01`–`Shelf_05_Collider`, `CatchCollider`. Root back-panel BoxCollider `Enabled=0`. Shelf BoxColliders `IsTrigger=0`, thickness `0.06`. Catch `IsTrigger=0` at local Y `0`, cabinet footprint only.
+
+### Validation
+
+- CODE VERIFIED: missing shelf colliders; PPE release already restores gravity/colliders/ContinuousDynamic and zeros velocity.
+- SCENE VERIFIED: Physics children and BoxCollider YAML authored; PPE_Storage FBX `addColliders: 0`.
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+- DEVICE TEST REQUIRED: Grab each of InnerGloves, ProtectiveGloves, ChemicalBoots, Respirator, FaceProtection, ProtectiveSuit, move onto a shelf, slow Release, confirm rest. Ghost Release-to-Equip must still equip. Dropped recovery still fires if an item reaches the floor.
+
+### Integration request
+
+none
+
+## First-glove XR Hands select regression (2026-08-27)
+
+`ProcessGloveSelectAttempt` rejected Select when `ResolvedHand == Unknown`, same-hand, or attach was null. That ran on the first glove too. XR Hands Direct/Near often has `handedness = None` at filter time, so Inner/Protective first-glove Select died with `HAND_UNRESOLVED` even when distance was valid. HEAD only checked distance; hand belonged to Release-to-Equip.
+
+Select again allows `physical <= 0.16 OR assist <= 0.16`. `HAND_UNRESOLVED` / `WRONG_HAND` / `NO_ATTACH_TRANSFORM` are logged, not reject reasons. Far ray still fails at `> 0.5 m`. ChemicalBoots Ghost files were not changed in this pass.
+
+## Second glove SelectAttempt + ChemicalBoots Ghost yaw (2026-08-27)
+
+Did not change App NearFar, Release-to-Equip structure, BothEquipped, logical Equip-once, PPE donning order, or other Stage files.
+
+### Glove SelectAttempt
+
+Hand-off was required because `PPEGrabHandResolver` treated XR Hands pinch / closer palm to the **object** as more authoritative than the selecting interactor. After Left was equipped, grabbing remaining Right with the Left NearFar still recorded `ResolvedHand=Right` (bare hand nearer the shelf glove). Release-to-Equip then saw WRONG_HOLDING_HAND and the piece returned to the cabinet. Grabbing with the bare hand and handing off moved the object, so pinch/palm finally agreed with the equipped interactor.
+
+Fix: Resolve uses `Interactor.handedness` first. Pinch/palm are fallback only when handedness is unknown. Glove SelectAttempt logs `[First Glove SelectAttempt]` / `[Glove SelectAttempt]` on change. Same-hand and unresolved hand are **not** Select rejects. `GrabSessionHoldingHand` is still written on SelectEntered from Resolve. There is no left-first / right-first pair order in the coordinator.
+
+### ChemicalBoots Ghost
+
+Look-down facing used `BodyYaw * GhostPoseCalibration.localRotation`. Scene already stored `bootModelAxisCorrectionEuler (0,180,0)` on both boot members, but the C# field had been removed so the 180 yaw never applied. The field is restored and multiplied after calibration for BodyLowerLeg Ghost visuals only. EquipReference / Release-to-Equip distance is unchanged. XR Origin, camera, and lower-leg targets are not rotated.
+
+### Files / validation
+
+- Changed: `PPEGrabHandResolver.cs`, `PPEDirectGrabProximityFilter.cs`, `PPEGlovePairMember.cs`, `PPEPlacementGuideManager.cs`, `PPEBootGhostFacingPreview.cs`, this handoff.
+- Inspector/Scene: no new boot calibration YAML; existing `(0,180,0)` now binds again.
+- DEVICE TEST REQUIRED: ProtectiveGloves and InnerGloves start either side, second glove direct grab without hand-off, WrongHand reject, far-ray reject, BothEquipped once. ChemicalBoots Ghost look-down ㅗ, stable when turning, equip distance unchanged.
+- Integration request: none.
+
+## Second ProtectiveGlove select after one side equipped (2026-08-27)
+
+Scope is limited to tracked-hand glove pair Select distance (InnerGloves + ProtectiveGloves). Sequence, pair completion, WrongHand/Release-to-Equip, Ghost calibration, cabinet, scale, XR Origin, TTS, boots/suit/respirator/face, ResponseBag, WasteContainer, and App NearFar/Direct interactors were not changed.
+
+### Cause
+
+Hover used `NearGrabAssist` plus the NearFar near cast radius (`0.16 m`). Select used `PPEDirectGrabProximityFilter` against the tight `PhysicalCollider` only, at `0.065 m`, and could fall back to an XR Hands Palm that disagreed with the selecting interactor attach. After one glove was worn, the remaining glove could highlight and still reject Grip (`Hovering=true`, `FilterAllows=false`).
+
+### Fix
+
+- Tracked-hand glove pairs share one distance: `PPEDirectGrabProximityFilter.NearGrabHoverSelectDistance` (`0.16 m`). That value must stay consistent with the PPE NearFar hover/assist range. Highlighted gloves stay directly selectable.
+- Glove Select measures PhysicalCollider **and** NearGrabAssist. Assist remains a trigger; it is not a physics grab collider.
+- Distance uses only the current selecting interactor `GetAttachTransform`. Far-ray Grip stays rejected because distance is from the hand attach, not the ray hit. Other PPE keep their serialized physical-only distances (`0.06` / `0.10`).
+- InnerGloves and ProtectiveGloves scene `maxDirectGrabDistance` are `0.16`. Runtime also forces the shared constant on tracked-hand pair members so a stale `0.065` cannot return.
+- Authoring `GloveGrabDistance` reads the same constant. Boot authoring stays `0.10`.
+- Second-glove on-change logs (`[Second ProtectiveGlove Grab]` / `[Second InnerGlove Grab]`) report Interactor, Hand, CorrectHand, NearGrab, Distance, AllowedDistance, FilterAllows, SelectSucceeded, FirstFailure (`TOO_FAR` / `WRONG_HAND` / `NOT_NEAR_INTERACTOR` / `PAIR_STATE_INVALID`).
+
+### Files / validation
+
+- Changed: `PPEDirectGrabProximityFilter.cs`, `PPEGlovePairCoordinator.cs`, `PPEPairPhysicalAuthoringSetup.cs`, `Assets/Scenes/04_PPE.unity` (four glove filter distances), this handoff.
+- Inspector/Scene manual work: none beyond the four serialized glove distances.
+- Validation: InnerGloves + ProtectiveGloves YAML distances are `0.16`; suit/respirator/face stay `0.06`; boots stay `0.10`. Runtime C# was not compiled in this pass. Play Mode and Quest were not run.
+- DEVICE TEST REQUIRED: first and second InnerGlove/ProtectiveGlove grabs with the opposite hand, Highlight-edge Grip, far-ray Grip rejected, WrongHand does not equip, BothEquipped logical Equip once.
+- Integration request: none.
 
 ## Second ProtectiveGlove grab + reversed stored Gloves/Boots + Boot Ghost facing (2026-08-24)
 
