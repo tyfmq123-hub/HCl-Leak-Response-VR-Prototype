@@ -16,7 +16,12 @@ namespace JH.EntrySafety
         private const string Goal2SafetyCheckCompleteText =
             "염화수소 농도와 풍향, {0} 정지와 압력 감소까지 확인했습니다.";
         private const string Goal2CheckAccessRestrictionText =
-            "빨간 접근 금지 표시가 해제되면 오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
+            "오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
+        private const string EquipDetectorZoneHintText =
+            "왼손을 대응가방에 대고 왼손 Y를 눌러 염화수소 측정기를 꺼내십시오.";
+        private const string EquipDetectorMissingHintText =
+            "대응가방에 염화수소 측정기가 없습니다. 준비 단계에서 측정기를 수납했는지 확인하십시오.";
+        private const float TransientHintSeconds = 2.75f;
 
         [SerializeField] private EntrySafetyCameraGazeAdapter _gazeAdapter;
         [SerializeField] private EntrySafetyInputAdapter _inputAdapter;
@@ -32,6 +37,7 @@ namespace JH.EntrySafety
         [SerializeField] private EntrySafetyGoal02TtsPlayer _goal02TtsPlayer;
         [SerializeField] private EntrySafetyGoal2PtPanelController _goal2PtPanel;
         [SerializeField] private EntrySafetyNoAccessOverlayController _noAccessOverlay;
+        [SerializeField] private GameObject _barricade;
         [SerializeField, FormerlySerializedAs("_initialResultSeconds"), Min(1f)]
         private float _resultConfirmationSeconds = 1f;
         [SerializeField, Min(0f)]
@@ -54,6 +60,8 @@ namespace JH.EntrySafety
         private int _panelRejectedCount;
         private SessionEquipmentInventory _sessionInventory;
         private bool _detectorCheckedOut;
+        private bool _clearAccessStarted;
+        private float _transientHintUntil;
 
         public EntrySafetyStateMachine StateMachine => _stateMachine;
         public bool LeakResponseHandoffAllowed => _allowLeakResponseHandoff;
@@ -87,6 +95,8 @@ namespace JH.EntrySafety
             _windsockGazeTarget.SetTargetId(EntrySafetyGazeTargetId.InitialWindsock);
             _goal2PtPanel?.ResetPresentation();
             _noAccessOverlay?.RestoreImmediate();
+            SetBarricadeActive(true);
+            _clearAccessStarted = false;
         }
 
         private void OnDestroy()
@@ -110,7 +120,10 @@ namespace JH.EntrySafety
         {
             _allowLeakResponseHandoff = allowed;
             if (!allowed)
+            {
                 _noAccessOverlay?.RestoreImmediate();
+                SetBarricadeActive(true);
+            }
         }
 
         public void DeactivateForLeakResponseHandoff()
@@ -120,6 +133,7 @@ namespace JH.EntrySafety
             // LeakResponse keeps the PreEntry environment loaded, so restore the
             // authored visible collider as the physical return boundary.
             _noAccessOverlay?.RestoreImmediate();
+            SetBarricadeActive(true);
             if (_inputAdapter != null)
                 _inputAdapter.enabled = false;
             enabled = false;
@@ -207,7 +221,8 @@ namespace JH.EntrySafety
 
             // Match the other stages: guidance text is a TTS subtitle, not a persistent
             // objective panel. Once narration has finished, remove both text and backdrop.
-            _guidanceView.SetVisible(false);
+            if (Time.unscaledTime >= _transientHintUntil)
+                _guidanceView.SetVisible(false);
 
             var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.CheckInitialWind || step == EntrySafetyStep.CheckChangedWind)
@@ -295,6 +310,7 @@ namespace JH.EntrySafety
             if (_equipmentTransferZone == null || !_equipmentTransferZone.EvaluateEquipAttempt())
             {
                 SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, false);
+                ShowTransientHint(EquipDetectorZoneHintText);
                 return;
             }
 
@@ -308,6 +324,7 @@ namespace JH.EntrySafety
                     SharedTrainingTelemetry.Current.BagItemRequested(
                         SharedEquipmentIds.GasDetector,
                         false);
+                    ShowTransientHint(EquipDetectorMissingHintText);
                     return;
                 }
                 _detectorCheckedOut = true;
@@ -381,6 +398,8 @@ namespace JH.EntrySafety
             _goal01TtsPlayer?.Stop();
             _goal02TtsPlayer?.Stop();
             yield return _goal2PtPanel.MoveToPanelWithFade();
+            if (_goal2PtPanel != null)
+                yield return _goal2PtPanel.ShowArrivalContext();
             if (_stateMachine != null && _stateMachine.CurrentStep == EntrySafetyStep.MoveToPT)
                 Advance(EntrySafetyStep.MoveToPT);
             _isMovingToPtPanel = false;
@@ -462,6 +481,8 @@ namespace JH.EntrySafety
             if (_stateMachine == null || _guidanceCoordinator == null)
                 return;
 
+            _transientHintUntil = 0f;
+
             // TryCompleteStep raises SectionCompleted synchronously. The App handoff listener
             // disables this controller during that callback, then control returns to Advance.
             // Never rebuild/play the terminal MoveToNextArea instruction after completion.
@@ -490,6 +511,12 @@ namespace JH.EntrySafety
                 _goal2PtPanel.BeginPressureDecrease(duration);
             }
 
+            if (step == EntrySafetyStep.ClearAccessRestriction && !_clearAccessStarted)
+            {
+                _clearAccessStarted = true;
+                StartCoroutine(ClearAccessRestrictionRoutine());
+            }
+
             ApplyInstruction(instruction);
             _stepVisuals?.SetStep(step);
             _ttsRequestHook?.Request(instruction);
@@ -512,14 +539,11 @@ namespace JH.EntrySafety
 
             if (!_allowLeakResponseHandoff)
             {
-                _noAccessOverlay?.RestoreImmediate();
                 _goal2OutroPlaying = false;
                 Advance(EntrySafetyStep.MoveToNextArea);
                 yield break;
             }
 
-            if (_noAccessOverlay != null)
-                yield return _noAccessOverlay.FadeOutAndClear();
             yield return PlayTemporaryGoal2Line(
                 Goal2CheckAccessRestrictionText,
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlayCheckAccessRestriction() : 0f);
@@ -578,8 +602,19 @@ namespace JH.EntrySafety
         {
             StopAllTts();
             _goal2OutroPlaying = false;
+            _transientHintUntil = 0f;
             if (_guidanceView != null)
                 _guidanceView.SetVisible(false);
+        }
+
+        private void ShowTransientHint(string message)
+        {
+            _transientHintUntil = Time.unscaledTime + TransientHintSeconds;
+            if (_guidanceView == null)
+                return;
+
+            _guidanceView.SetVisible(true);
+            _guidanceView.ShowInstruction(EntrySafetyInstruction.NoTts(message));
         }
 
         private bool IsGuidanceTtsBlocking()
@@ -602,6 +637,7 @@ namespace JH.EntrySafety
                    step == EntrySafetyStep.VerifyStopIndicator ||
                    step == EntrySafetyStep.WaitPressureDecrease ||
                    step == EntrySafetyStep.VerifyPressureDecrease ||
+                   step == EntrySafetyStep.ClearAccessRestriction ||
                    step == EntrySafetyStep.MoveToNextArea;
         }
 
@@ -653,6 +689,7 @@ namespace JH.EntrySafety
                    step == EntrySafetyStep.CheckTemperature || step == EntrySafetyStep.CheckRunState ||
                    step == EntrySafetyStep.StopPump || step == EntrySafetyStep.VerifyStopIndicator ||
                    step == EntrySafetyStep.WaitPressureDecrease || step == EntrySafetyStep.VerifyPressureDecrease ||
+                   step == EntrySafetyStep.ClearAccessRestriction ||
                    step == EntrySafetyStep.MoveToNextArea;
         }
 
@@ -699,6 +736,32 @@ namespace JH.EntrySafety
                 gameObject.AddComponent<EntrySafetyLeakAmbientPlayer>();
             if (GetComponent<EntrySafetyMovementBounds>() == null)
                 gameObject.AddComponent<EntrySafetyMovementBounds>();
+        }
+
+        private IEnumerator ClearAccessRestrictionRoutine()
+        {
+            SetBarricadeActive(false);
+            if (_noAccessOverlay != null)
+                yield return _noAccessOverlay.FadeOutAndClear();
+            else
+                yield return null;
+
+            if (_stateMachine != null &&
+                _stateMachine.CurrentStep == EntrySafetyStep.ClearAccessRestriction)
+                Advance(EntrySafetyStep.ClearAccessRestriction);
+        }
+
+        private void SetBarricadeActive(bool active)
+        {
+            if (_barricade == null)
+            {
+                var named = GameObject.Find("Barricade");
+                if (named != null)
+                    _barricade = named;
+            }
+
+            if (_barricade != null)
+                _barricade.SetActive(active);
         }
 
         private void SkipAutoCompletePanelSteps()

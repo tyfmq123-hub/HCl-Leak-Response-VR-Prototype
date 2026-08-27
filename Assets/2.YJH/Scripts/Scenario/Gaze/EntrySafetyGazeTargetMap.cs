@@ -39,7 +39,7 @@ namespace JH.EntrySafety
         /// <summary>지정한 값이 EntrySafetyStep에 정의된 범위이면 true를 반환합니다.</summary>
         public static bool IsDefinedStep(EntrySafetyStep step)
         {
-            return step >= EntrySafetyStep.SceneIntro && step <= EntrySafetyStep.WaitPressureDecrease;
+            return step >= EntrySafetyStep.SceneIntro && step <= EntrySafetyStep.ClearAccessRestriction;
         }
 
         /// <summary>지정한 값이 EntrySafetyGazeTargetId에 정의된 범위이면 true를 반환합니다.</summary>

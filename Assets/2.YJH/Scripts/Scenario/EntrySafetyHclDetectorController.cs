@@ -7,13 +7,14 @@ namespace JH.EntrySafety
     {
         [SerializeField] private GameObject _detectorInstance;
         [SerializeField] private EntrySafetyHclDetectorView _view;
-        [SerializeField, Range(-1f, 1f)] private float _minimumDisplayGazeDot = 0.95f;
+        [SerializeField, Range(-1f, 1f)] private float _minimumDisplayGazeDot = 0.75f;
         [SerializeField, Min(0.01f)] private float _requiredHoldSeconds = 3f;
         [SerializeField, Min(0f)] private float _initialResultPpm = 3f;
         [SerializeField, Min(0f)] private float _reducedResultPpm = 0.8f;
 
         private EntrySafetyTriggerHoldTimer _initialTriggerTimer;
         private EntrySafetyTriggerHoldTimer _reducedTriggerTimer;
+        private Camera _gazeCamera;
 
         public bool IsEquipped { get; private set; }
         public bool IsMeasuring => IsInitialMeasuring || IsReducedMeasuring;
@@ -40,12 +41,14 @@ namespace JH.EntrySafety
             get
             {
                 var displayTransform = _view == null ? null : _view.DisplayTransform;
-                if (displayTransform == null || Camera.main == null)
+                _gazeCamera = EntrySafetyAppXrResolve.PreferLiveMainCamera(_gazeCamera);
+                if (displayTransform == null || _gazeCamera == null)
                     return false;
 
-                var directionToDisplay = displayTransform.position - Camera.main.transform.position;
+                var cameraTransform = _gazeCamera.transform;
+                var directionToDisplay = displayTransform.position - cameraTransform.position;
                 return directionToDisplay.sqrMagnitude > Mathf.Epsilon &&
-                       Vector3.Dot(Camera.main.transform.forward, directionToDisplay.normalized) >= _minimumDisplayGazeDot;
+                       Vector3.Dot(cameraTransform.forward, directionToDisplay.normalized) >= _minimumDisplayGazeDot;
             }
         }
 

@@ -102,8 +102,12 @@ namespace JH.EntrySafety
                         "압력 감소가 끝났습니다. 감소한 압력 표시를 2초간 확인하십시오.")
                 },
                 {
+                    EntrySafetyStep.ClearAccessRestriction,
+                    EntrySafetyInstruction.NoTts("접근 금지 표시와 방호벽을 해제합니다.")
+                },
+                {
                     EntrySafetyStep.MoveToNextArea,
-                    Same("빨간 접근 금지 표시가 해제되면 오른손 A를 눌러 누출 대응 구역으로 이동하십시오.")
+                    Same("오른손 A를 눌러 누출 대응 구역으로 이동하십시오.")
                 },
             };
 

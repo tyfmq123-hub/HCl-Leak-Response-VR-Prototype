@@ -17,9 +17,9 @@ namespace JH.EntrySafety
         [SerializeField] private Renderer _renderer;
         [SerializeField] private Collider _collider;
         [Header("LeakResponse Return Boundary")]
-        [SerializeField, Min(1f)] private float _returnBoundaryWorldWidth = 16f;
+        [SerializeField, Min(1f)] private float _returnBoundaryWorldWidth = 6f;
         [SerializeField, Min(1f)] private float _returnBoundaryWorldHeight = 5f;
-        [SerializeField, Min(0.05f)] private float _returnBoundaryWorldDepth = 0.35f;
+        [SerializeField, Min(0.05f)] private float _returnBoundaryWorldDepth = 0.2f;
 
         private Material _materialInstance;
         private BoxCollider _returnBoundaryCollider;
