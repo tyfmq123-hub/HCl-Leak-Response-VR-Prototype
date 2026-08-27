@@ -57,6 +57,14 @@ namespace JH.EntrySafety
             if (main != null && main.isActiveAndEnabled && main.gameObject.activeInHierarchy)
                 return main;
 
+            var named = FindActiveByName("Main Camera");
+            if (named != null)
+            {
+                var namedCamera = named.GetComponent<Camera>();
+                if (namedCamera != null && namedCamera.isActiveAndEnabled)
+                    return namedCamera;
+            }
+
             var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             for (var i = 0; i < cameras.Length; i++)
             {

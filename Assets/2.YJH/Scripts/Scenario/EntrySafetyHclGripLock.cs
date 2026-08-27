@@ -14,15 +14,20 @@ namespace JH.EntrySafety
 
         private void Update()
         {
+            ResolveLiveGripAnimator();
             var shouldLock = _detectorController != null && _detectorController.IsEquipped;
-            if (_wasLocked == shouldLock || _leftHandGripAnimator == null)
+            if (_leftHandGripAnimator == null)
+                return;
+            if (_wasLocked == shouldLock)
                 return;
 
             _leftHandGripAnimator.enabled = !shouldLock;
 
             if (shouldLock)
             {
-                var handAnimator = _leftHandGripAnimator.GetComponent<Animator>();
+                var handAnimator = _leftHandGripAnimator as Animator;
+                if (handAnimator == null)
+                    handAnimator = _leftHandGripAnimator.GetComponent<Animator>();
                 if (handAnimator != null)
                     handAnimator.SetFloat(GripParameterId, 0f);
             }
@@ -36,6 +41,27 @@ namespace JH.EntrySafety
                 _leftHandGripAnimator.enabled = true;
 
             _wasLocked = false;
+        }
+
+        private void ResolveLiveGripAnimator()
+        {
+            if (_leftHandGripAnimator != null && _leftHandGripAnimator.gameObject.activeInHierarchy)
+                return;
+
+            var left = EntrySafetyAppXrResolve.FindActiveByName("Left Controller");
+            if (left == null)
+                return;
+
+            var animators = left.GetComponentsInChildren<Animator>(true);
+            for (var i = 0; i < animators.Length; i++)
+            {
+                var animator = animators[i];
+                if (animator == null || !animator.gameObject.activeInHierarchy)
+                    continue;
+
+                _leftHandGripAnimator = animator;
+                return;
+            }
         }
     }
 }

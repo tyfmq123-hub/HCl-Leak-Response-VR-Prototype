@@ -57,6 +57,9 @@ namespace JH.EntrySafety
             CreateWall("SouthWall", new Vector3(0f, 0f, -half.z), new Vector3(size.x + thickness, size.y, thickness));
             CreateWall("WestWall", new Vector3(-half.x, 0f, 0f), new Vector3(thickness, size.y, size.z));
             CreateWall("EastWall", new Vector3(half.x, 0f, 0f), new Vector3(thickness, size.y, size.z));
+            // Keep the north edge closed even after the no-access overlay fades.
+            // Full-mode A still teleports into LeakResponse; this wall is the return boundary.
+            CreateWall("NorthWall", new Vector3(0f, 0f, half.z), new Vector3(size.x + thickness, size.y, thickness));
         }
 
         private void CreateWall(string wallName, Vector3 localPosition, Vector3 size)

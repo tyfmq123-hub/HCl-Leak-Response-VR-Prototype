@@ -27,6 +27,7 @@ namespace JH.EntrySafety
         [SerializeField, Min(0.00001f)] private float _subtitleWorldScale = 0.00042f;
 
         public Transform RootTransform => _instructionText == null ? null : _instructionText.transform.root;
+        private Camera _subtitleCamera;
 
         private void Awake()
         {
@@ -95,13 +96,13 @@ namespace JH.EntrySafety
                 return;
 
             var root = RootTransform;
-            var mainCamera = Camera.main;
-            if (root == null || mainCamera == null)
+            _subtitleCamera = EntrySafetyAppXrResolve.PreferLiveMainCamera(_subtitleCamera);
+            if (root == null || _subtitleCamera == null)
                 return;
 
             var rootRect = root as RectTransform;
             var canvas = root.GetComponent<Canvas>();
-            ApplyCameraLayout(canvas, rootRect, mainCamera);
+            ApplyCameraLayout(canvas, rootRect, _subtitleCamera);
         }
 
         private void FitBackgroundToText()

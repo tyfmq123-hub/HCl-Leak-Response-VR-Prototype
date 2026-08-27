@@ -22,6 +22,9 @@ namespace JH.EntrySafety
         private static readonly Color StopNeonColor = new Color(1f, 0.12f, 0.25f, 1f);
         private static readonly Color StopZoneOutsideColor = new Color(0.20f, 0.50f, 1.00f, 0.28f);
         private static readonly Color StopZoneInsideColor = new Color(0.35f, 0.70f, 1.00f, 0.42f);
+        private const float MinStopZoneRadiusMeters = 0.04f;
+        private const float MaxStopZoneRadiusMeters = 0.40f;
+        private const float StopButtonWorldSizeMeters = 0.08f;
         private const string P102PressureName = "PressureMesh_P-102";
         private const string P102TemperatureName = "TemperatureMesh_P-102";
         private const string P102StatusName = "StatusMesh_P-102";
@@ -163,6 +166,7 @@ namespace JH.EntrySafety
             SetTargets(EntrySafetyGazeTargetId.None);
             UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
             RefreshReadouts();
+            EnsurePanelLocomotionBlocker();
             _hasInitialized = true;
         }
 
@@ -496,24 +500,22 @@ namespace JH.EntrySafety
 
         private Vector3 GetStopZoneCenter()
         {
-            if (_p102Press != null)
-                return _p102Press.position + GetPanelForward() * _stopZoneForwardOffsetMeters;
-
             if (_stopZoneAnchor != null)
                 return _stopZoneAnchor.position;
 
-            if (_p102Press == null)
-                return transform.position;
+            if (_p102Press != null)
+                return _p102Press.position + GetPanelForward() * _stopZoneForwardOffsetMeters;
 
-            return GetReleasedPressPosition() + GetPanelForward() * _stopZoneForwardOffsetMeters;
+            return transform.position;
         }
 
         private float GetStopZoneRadius()
         {
-            if (_useAnchorScaleAsRadius && _p102Press != null)
-                return Mathf.Max(0.12f, _p102Press.lossyScale.x * 0.5f);
+            var radius = _stopZoneRadiusMeters;
+            if (_useAnchorScaleAsRadius && _stopZoneAnchor != null)
+                radius = _stopZoneAnchor.lossyScale.x * 0.5f;
 
-            return Mathf.Max(0.12f, _stopZoneRadiusMeters);
+            return Mathf.Clamp(radius, MinStopZoneRadiusMeters, MaxStopZoneRadiusMeters);
         }
 
         private Vector3 GetReleasedPressPosition()
@@ -693,13 +695,37 @@ namespace JH.EntrySafety
             if (box == null)
                 box = press.gameObject.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            if (box.size.sqrMagnitude < 0.0001f)
-                box.size = Vector3.one;
-            var size = box.size;
-            size.x = Mathf.Max(size.x, 0.18f);
-            size.y = Mathf.Max(size.y, 0.12f);
-            size.z = Mathf.Max(size.z, 0.18f);
-            box.size = size;
+
+            var worldScale = press.lossyScale;
+            box.size = new Vector3(
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.x),
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.y),
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.z));
+        }
+
+        private void EnsurePanelLocomotionBlocker()
+        {
+            var panel = FindPanelRoot(_p102Press);
+            if (panel == null)
+                panel = FindNamedTransform("PT_Panel");
+            if (panel == null)
+                return;
+
+            EnsureStopCollider(_p102Press);
+            EntrySafetyPtPanelLocomotionBlocker.Ensure(panel, GetPanelForward());
+        }
+
+        private static Transform FindPanelRoot(Transform start)
+        {
+            var current = start;
+            while (current != null)
+            {
+                if (current.name == "PT_Panel")
+                    return current;
+                current = current.parent;
+            }
+
+            return null;
         }
 
         private static T FindNamed<T>(string objectName) where T : Component
