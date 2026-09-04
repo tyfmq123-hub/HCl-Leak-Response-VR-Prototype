@@ -26,9 +26,10 @@ public static class PPEWearableChemicalGlovesSetup
     const string RightWearableName = "PPE_VrHand_Right_Wearable";
     const string LegacyLeftWearableName = "ChemicalGlove_Left_Wearable";
     const string LegacyRightWearableName = "ChemicalGlove_Right_Wearable";
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
-    static readonly Vector3 WearableScale = Vector3.one;
+    // Match shelf world size: ProtectiveGloves visual 0.38 under PPE_Storage 2.15.
+    static readonly Vector3 WearableScale = new Vector3(0.817f, 0.817f, 0.817f);
 
     // Keep Controller/Visuals at identity so Quest XR Controller meshes (Y=180 under
     // Visuals) stay aligned with tracking. Step_13 put the grip calibration on Left
@@ -52,25 +53,21 @@ public static class PPEWearableChemicalGlovesSetup
     // is owned by App SharedXRAimPoseDriver and must never copy this rotation.
     static readonly Vector3 WearableModelEulerCorrection = new Vector3(70f, 0f, 0f);
 
-    [MenuItem("Tools/PPE/Setup Wearable Chemical Gloves on Controllers", false, 27)]
     public static void SetupWearableChemicalGloves()
     {
         SetupWearablesFromPaths(LeftAssetPath, RightAssetPath, "VR Hands");
     }
 
-    [MenuItem("Tools/PPE/Replace PPE Wearable With VR Hands", false, 26)]
     public static void ReplacePpeWearableWithVrHands()
     {
         SetupWearablesFromPaths(LeftAssetPath, RightAssetPath, "VR Hands");
     }
 
-    [MenuItem("Tools/PPE/Restore Wearable Chemical Glove FBX", false, 27)]
     public static void RestoreWearableChemicalGloveFbx()
     {
         SetupWearablesFromPaths(LeftChemicalGlovePath, RightChemicalGlovePath, "Chemical Glove FBX");
     }
 
-    [MenuItem("Tools/PPE/Align Wearable Gloves To XR Hands", false, 28)]
     public static void AlignWearableGlovesToXrHands()
     {
         EnsurePreferredSceneLoaded();
@@ -125,7 +122,6 @@ public static class PPEWearableChemicalGlovesSetup
         Debug.Log(report.ToString(), leftGlove);
     }
 
-    [MenuItem("Tools/PPE/Verify Shared Controller Aim Ownership", false, 29)]
     public static void AlignControllerRaysForNaturalGrip()
     {
         EnsurePreferredSceneLoaded();
@@ -280,7 +276,7 @@ public static class PPEWearableChemicalGlovesSetup
         if (!System.IO.File.Exists(PreferredScenePath))
             return;
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);
     }

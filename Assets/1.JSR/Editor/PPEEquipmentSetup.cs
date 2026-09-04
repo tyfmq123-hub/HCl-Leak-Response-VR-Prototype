@@ -28,6 +28,7 @@ public static class PPEEquipmentSetup
     // More specific patterns first (PPE_ChemicalGloves before PPE_Gloves).
     static readonly EquipIdentity[] Identities =
     {
+        new EquipIdentity("PPE_Helmet", PPEEquipmentManager.IdHelmet, "안전모"),
         new EquipIdentity("PPE_ChemicalSuit", "ChemicalSuit", "내산성 화학보호복"),
         new EquipIdentity("PPE_ChemicalSafetyBoots", "ChemicalSafetyBoots", "내산성 화학보호 장화"),
         new EquipIdentity("PPE_FaceRespirator", "FaceRespirator", "전면형 호흡보호구"),
@@ -37,7 +38,6 @@ public static class PPEEquipmentSetup
         new EquipIdentity("PPE_Gloves", "ChemicalGloves", "내화학 보호장갑"),
     };
 
-    [MenuItem("Tools/PPE/Setup Equipment System", false, 25)]
     public static void SetupEquipmentSystem()
     {
         var scene = SceneManager.GetActiveScene();
@@ -77,6 +77,8 @@ public static class PPEEquipmentSetup
 
             Undo.RecordObject(equipable, "Configure PPEEquipable");
             equipable.EditorApplyIdentity(identity.ItemId, identity.DisplayName);
+            if (identity.ItemId == PPEEquipmentManager.IdHelmet)
+                equipable.EditorSetDeactivateOnEquip(false);
             EditorUtility.SetDirty(equipable);
             EditorUtility.SetDirty(root);
         }

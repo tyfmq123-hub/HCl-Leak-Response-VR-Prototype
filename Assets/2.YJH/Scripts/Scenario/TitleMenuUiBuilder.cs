@@ -30,7 +30,6 @@ namespace JH.EntrySafety
         [SerializeField] bool buildOnAwake = true;
 
         TitleMenuController _controller;
-        GameObject _comingSoonOverlay;
 
         void Awake()
         {
@@ -156,7 +155,7 @@ namespace JH.EntrySafety
             CreateText(
                 canvasGo.transform,
                 "Subtitle",
-                "HCl 누출 비상대응 훈련",
+                "HCl 누출 비상대응 교육",
                 new Vector2(0f, 230f),
                 new Vector2(860f, 52f),
                 40f,
@@ -166,27 +165,13 @@ namespace JH.EntrySafety
 
             var eduFrame = BuildModeButton(
                 canvasGo.transform,
-                "EducationButton",
-                new Vector2(0f, 70f),
-                "교육 모드",
-                "절차 안내와 함께",
+                "StartEducationButton",
+                new Vector2(0f, 20f),
+                "교육 시작",
+                "전체 교육 또는 단계별 교육을 선택합니다",
                 hangul,
                 display,
                 () => _controller.SelectEducation());
-
-            var trainFrame = BuildModeButton(
-                canvasGo.transform,
-                "TrainingButton",
-                new Vector2(0f, -80f),
-                "훈련 모드",
-                "안내 없이 수행",
-                hangul,
-                display,
-                () =>
-                {
-                    _controller.SelectTraining();
-                    ShowTrainingComingSoon();
-                });
 
             CreateExitButton(canvasGo.transform, hangul);
             CreateText(
@@ -200,65 +185,9 @@ namespace JH.EntrySafety
                 display,
                 TextAlignmentOptions.Right);
 
-            _controller.BindVisuals(eduFrame, trainFrame, null, null);
-
-            BuildComingSoonOverlay(canvasGo.transform, hangul, display);
+            _controller.BindVisuals(eduFrame, null, null, null);
             WorldBoardUiPlacement.TryPlace(
                 canvasGo.transform, Camera.main, "Board", new Vector2(1000f, 900f));
-        }
-
-        void BuildComingSoonOverlay(Transform canvas, TMP_FontAsset body, TMP_FontAsset display)
-        {
-            _comingSoonOverlay = Create("TrainingComingSoonOverlay", canvas);
-            StretchFull(_comingSoonOverlay.GetComponent<RectTransform>());
-            var blocker = _comingSoonOverlay.AddComponent<Image>();
-            blocker.color = new Color(0f, 0f, 0f, 0.72f);
-            blocker.raycastTarget = true;
-
-            var panel = Create("Panel", _comingSoonOverlay.transform);
-            var panelRt = panel.GetComponent<RectTransform>();
-            panelRt.anchorMin = panelRt.anchorMax = new Vector2(0.5f, 0.5f);
-            panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(700f, 330f);
-            var panelImage = panel.AddComponent<Image>();
-            panelImage.sprite = backgroundPanelSprite != null ? backgroundPanelSprite : GetUiSprite();
-            panelImage.type = Image.Type.Sliced;
-            panelImage.color = new Color(0.13f, 0.13f, 0.13f, 0.98f);
-
-            CreateText(panel.transform, "Heading", "훈련 모드", new Vector2(0f, 85f),
-                new Vector2(620f, 65f), 42f, FontStyles.Bold, display, TextAlignmentOptions.Center);
-            CreateText(panel.transform, "Message", "준비 중입니다", new Vector2(0f, 20f),
-                new Vector2(620f, 52f), 30f, FontStyles.Normal, body, TextAlignmentOptions.Center);
-
-            var close = Create("CloseButton", panel.transform);
-            var closeRt = close.GetComponent<RectTransform>();
-            closeRt.anchorMin = closeRt.anchorMax = new Vector2(0.5f, 0.5f);
-            closeRt.pivot = new Vector2(0.5f, 0.5f);
-            closeRt.anchoredPosition = new Vector2(0f, -90f);
-            closeRt.sizeDelta = new Vector2(300f, 70f);
-            var closeImage = close.AddComponent<Image>();
-            closeImage.sprite = buttonFrameSprite != null ? buttonFrameSprite : GetUiSprite();
-            closeImage.type = Image.Type.Sliced;
-            closeImage.color = Color.white;
-            var closeButton = close.AddComponent<Button>();
-            closeButton.targetGraphic = closeImage;
-            closeButton.onClick.AddListener(HideTrainingComingSoon);
-            CreateText(close.transform, "Label", "확인", Vector2.zero, new Vector2(260f, 60f),
-                28f, FontStyles.Bold, body, TextAlignmentOptions.Center);
-
-            _comingSoonOverlay.SetActive(false);
-        }
-
-        void ShowTrainingComingSoon()
-        {
-            if (_comingSoonOverlay != null)
-                _comingSoonOverlay.SetActive(true);
-        }
-
-        void HideTrainingComingSoon()
-        {
-            if (_comingSoonOverlay != null)
-                _comingSoonOverlay.SetActive(false);
         }
 
         Image BuildModeButton(
@@ -384,7 +313,7 @@ namespace JH.EntrySafety
             tmp.alignment = align;
             tmp.color = Color.white;
             tmp.raycastTarget = false;
-            tmp.enableWordWrapping = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;
             tmp.richText = false;
             tmp.characterSpacing = 0f;

@@ -12,7 +12,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 /// </summary>
 public static class GloveGrabPoseSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string PrefabPath = "Assets/1.JSR/Prefabs/PPE_ChemicalGloves_Grab.prefab";
     const string GripPointName = "GripPoint";
 
@@ -20,7 +20,6 @@ public static class GloveGrabPoseSetup
     // edge and does not sink into the opening / overlap the glove palm.
     const float CuffOutsideOffsetMeters = 0.08f;
 
-    [MenuItem("Tools/PPE/Fix Chemical Gloves Grab Pose", false, 29)]
     public static void FixChemicalGlovesGrabPose()
     {
         EnsurePreferredSceneLoaded();
@@ -125,7 +124,7 @@ public static class GloveGrabPoseSetup
         if (!System.IO.File.Exists(PreferredScenePath))
             return;
         if (active.IsValid() && !string.IsNullOrEmpty(active.path) &&
-            active.path.IndexOf("PPE_PreparationRoom", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            active.path.IndexOf("04_PPE", System.StringComparison.OrdinalIgnoreCase) >= 0)
             return;
         EditorSceneManager.OpenScene(PreferredScenePath, OpenSceneMode.Single);
     }

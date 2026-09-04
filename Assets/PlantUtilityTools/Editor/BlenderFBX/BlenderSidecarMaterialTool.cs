@@ -7,8 +7,6 @@ namespace PlantUtilityTools.Editor.BlenderFBX
 {
     internal static class BlenderSidecarMaterialTool
     {
-        private const string UrpMenu = "Tools/Plant Utility Tools/Blender FBX/Apply Sidecar Materials - URP Lit";
-        private const string CelMenu = "Tools/Plant Utility Tools/Blender FBX/Apply Sidecar Materials - Cel Shader";
         private const string GeneratedRoot = "Assets/PlantUtilityTools/Generated/BlenderFBX";
 
         [Serializable]
@@ -34,25 +32,21 @@ namespace PlantUtilityTools.Editor.BlenderFBX
             CelShader
         }
 
-        [MenuItem(UrpMenu)]
         private static void ApplyUrpLit()
         {
             Apply(MaterialMode.UrpLit);
         }
 
-        [MenuItem(UrpMenu, true)]
         private static bool ValidateApplyUrpLit()
         {
             return TryGetSelectedFbxPath(out _);
         }
 
-        [MenuItem(CelMenu)]
         private static void ApplyCelShader()
         {
             Apply(MaterialMode.CelShader);
         }
 
-        [MenuItem(CelMenu, true)]
         private static bool ValidateApplyCelShader()
         {
             return TryGetSelectedFbxPath(out _);

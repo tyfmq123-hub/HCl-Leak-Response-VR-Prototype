@@ -30,7 +30,8 @@ namespace JH.EntrySafety
                 { EntrySafetyStep.StopPump,               EntrySafetyStep.VerifyStopIndicator },
                 { EntrySafetyStep.VerifyStopIndicator,    EntrySafetyStep.WaitPressureDecrease },
                 { EntrySafetyStep.WaitPressureDecrease,   EntrySafetyStep.VerifyPressureDecrease },
-                { EntrySafetyStep.VerifyPressureDecrease, EntrySafetyStep.MoveToNextArea },
+                { EntrySafetyStep.VerifyPressureDecrease, EntrySafetyStep.ClearAccessRestriction },
+                { EntrySafetyStep.ClearAccessRestriction, EntrySafetyStep.MoveToNextArea },
                 // MoveToNextArea는 전이표에 없는 터미널 단계입니다.
             };
 
@@ -78,7 +79,7 @@ namespace JH.EntrySafety
 
         /// <summary>
         /// 목표 2 완료 여부입니다.
-        /// VerifyPressureDecrease 완료 후 MoveToNextArea에 진입한 시점부터 true입니다.
+        /// VerifyPressureDecrease 이후 접근 금지를 해제한 다음 MoveToNextArea에 진입한 시점부터 true입니다.
         /// </summary>
         public bool IsGoal2Completed { get; private set; }
 
@@ -200,7 +201,7 @@ namespace JH.EntrySafety
 
         private static bool IsDefinedStep(EntrySafetyStep step)
         {
-            return step >= EntrySafetyStep.SceneIntro && step <= EntrySafetyStep.WaitPressureDecrease;
+            return step >= EntrySafetyStep.SceneIntro && step <= EntrySafetyStep.ClearAccessRestriction;
         }
 
         private static bool IsDefinedCompletionMode(EntrySafetyCompletionMode mode)

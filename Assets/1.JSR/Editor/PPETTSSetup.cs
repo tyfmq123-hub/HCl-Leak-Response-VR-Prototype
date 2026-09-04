@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class PPETTSSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string ObjectName = "PPE_TTS";
     const string ClipFolder = "Assets/1.JSR/Audio/PPE/TTS";
 
@@ -21,6 +21,7 @@ public static class PPETTSSetup
         "03_WearInOrder.wav",
         "04_PointWithRay.wav",
         "05_OutlineShowsSelectable.wav",
+        // Legacy numeric slot retained for stable cue indexing; runtime no longer enqueues it.
         "06_GripSelectThenEquip.wav",
         "07_BButtonCancel.wav",
         "08_WearInnerGloves.wav",
@@ -54,7 +55,6 @@ public static class PPETTSSetup
         "36_CheckCurrentRequiredPPE.wav",
     };
 
-    [MenuItem("Tools/PPE/Setup PPE Room TTS", false, 41)]
     public static void SetupPpeTts()
     {
         EnsurePreferredSceneLoaded();

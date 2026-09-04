@@ -202,7 +202,7 @@ namespace VRProject.LeakResponse.Narration
             SetLeakMarkerVisible(true);
             SetLeakMarkerColor(MarkerIdleColor);
             UpdateListeningDisplay();
-            Debug.Log("[P102 Gaze] Flange stage entered; waiting for TTS 06 to finish.", this);
+            Debug.Log("[P102 Gaze] Flange stage entered; waiting for flow cue 06.", this);
         }
 
         void OnCueCompleted(P102LeakNarrationCue cue)
@@ -225,7 +225,7 @@ namespace VRProject.LeakResponse.Narration
                 SetLeakMarkerColor(MarkerIdleColor);
                 UpdateCountdownText(false);
                 Debug.Log(
-                    $"[P102 Gaze] Gaze activated after TTS 06. Head={P102RuntimeUtility.GetHierarchyPath(viewerCamera)}, " +
+                    $"[P102 Gaze] Gaze activated after flow cue 06. Head={P102RuntimeUtility.GetHierarchyPath(viewerCamera)}, " +
                     $"Flange={P102RuntimeUtility.GetHierarchyPath(flangeRoot)}", this);
             }
             else if (cue == P102LeakNarrationCue.LeakReductionCompleted)
@@ -633,9 +633,12 @@ namespace VRProject.LeakResponse.Narration
             Transform countdownTransform = countdownRoot.transform;
             countdownTransform.localPosition = localPosition;
             countdownTransform.localScale = Vector3.one * CanvasScale;
+            Vector3 viewerPosition = viewerCamera != null
+                ? viewerCamera.position
+                : countdownTransform.position + fixedViewerDirection;
             countdownTransform.rotation = P102RuntimeUtility.ResolveYawOnlyCanvasRotation(
                 countdownTransform.position,
-                countdownTransform.position + fixedViewerDirection,
+                viewerPosition,
                 flangeRoot.rotation);
 
             Debug.Log(

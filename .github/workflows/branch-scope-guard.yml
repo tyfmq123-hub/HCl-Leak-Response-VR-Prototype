@@ -1,0 +1,29 @@
+name: Branch and stage scope guard
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-scope:
+    name: Branch and stage scope guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR branch and changed paths
+        run: >-
+          python scripts/ci/validate_branch_scope.py
+          --base "${{ github.base_ref }}"
+          --head "${{ github.head_ref }}"
+          --base-sha "${{ github.event.pull_request.base.sha }}"
+          --head-sha "${{ github.event.pull_request.head.sha }}"

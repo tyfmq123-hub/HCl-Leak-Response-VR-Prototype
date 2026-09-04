@@ -29,6 +29,7 @@ namespace HClTraining.App
             new Dictionary<string, RuntimeBinding>(StringComparer.Ordinal);
 
         TrainingSessionState session;
+        ITrainingTelemetry telemetry;
         Transform storageRoot;
         Transform deploymentAnchor;
 
@@ -37,9 +38,16 @@ namespace HClTraining.App
             ? session.AcquiredEquipmentIds
             : Array.Empty<string>();
 
-        public void Initialize(TrainingSessionState state, Transform anchor)
+        public void Initialize(TrainingSessionState state, Transform anchor) =>
+            Initialize(state, anchor, TrainingTelemetry.Current);
+
+        public void Initialize(
+            TrainingSessionState state,
+            Transform anchor,
+            ITrainingTelemetry eventTelemetry)
         {
             session = state;
+            telemetry = eventTelemetry ?? TrainingTelemetry.Current;
             deploymentAnchor = anchor;
             var existing = transform.Find("PersistentEquipmentInventoryRoot");
             if (existing == null)
@@ -116,12 +124,14 @@ namespace HClTraining.App
             if (worldPose == null || session == null || !session.IsEquipmentAvailable(equipmentId) ||
                 !session.IsEquipmentAcquired(equipmentId))
             {
+                telemetry?.BagItemRequested(equipmentId, false);
                 return false;
             }
 
             if (!bindings.TryGetValue(equipmentId, out var binding) || binding.instance == null ||
                 binding.deployed)
             {
+                telemetry?.BagItemRequested(equipmentId, false);
                 return false;
             }
 
@@ -131,6 +141,7 @@ namespace HClTraining.App
             binding.instance.SetActive(true);
             ResetMotion(binding.instance);
             binding.deployed = true;
+            telemetry?.BagItemRequested(equipmentId, true);
             Changed?.Invoke();
             return true;
         }
@@ -151,12 +162,16 @@ namespace HClTraining.App
         {
             if (session == null || !session.IsEquipmentAvailable(equipmentId) ||
                 !session.IsEquipmentAcquired(equipmentId))
+            {
+                telemetry?.BagItemRequested(equipmentId, false);
                 return false;
+            }
 
             if (equipmentId == GasDetector)
             {
                 var detector = FindSceneComponent<JH.EntrySafety.EntrySafetyHclDetectorController>();
                 var equipped = detector != null && detector.TryEquip();
+                telemetry?.BagItemRequested(equipmentId, equipped);
                 Changed?.Invoke();
                 return equipped;
             }
@@ -165,6 +180,7 @@ namespace HClTraining.App
             {
                 Debug.LogError($"[Equipment Inventory] '{equipmentId}' 장비 참조가 없어 해당 장비만 비활성화합니다.", this);
                 session.SetEquipmentAvailable(equipmentId, false);
+                telemetry?.BagItemRequested(equipmentId, false);
                 Changed?.Invoke();
                 return false;
             }
@@ -289,6 +305,8 @@ namespace HClTraining.App
             var bodies = instance.GetComponentsInChildren<Rigidbody>(true);
             for (var i = 0; i < bodies.Length; i++)
             {
+                if (bodies[i].isKinematic)
+                    continue;
                 bodies[i].linearVelocity = Vector3.zero;
                 bodies[i].angularVelocity = Vector3.zero;
             }

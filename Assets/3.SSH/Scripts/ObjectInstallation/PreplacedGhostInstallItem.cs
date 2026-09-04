@@ -197,8 +197,11 @@ namespace VRProject.ObjectInstallation
 
             ApplyMaterials(useInstalledMaterials: false);
 
-            targetRigidbody.linearVelocity = Vector3.zero;
-            targetRigidbody.angularVelocity = Vector3.zero;
+            if (!targetRigidbody.isKinematic)
+            {
+                targetRigidbody.linearVelocity = Vector3.zero;
+                targetRigidbody.angularVelocity = Vector3.zero;
+            }
             targetRigidbody.useGravity = false;
             targetRigidbody.isKinematic = true;
             isInstalled = false;
@@ -368,11 +371,17 @@ namespace VRProject.ObjectInstallation
             for (int i = 0; i < source.Length; ++i)
             {
                 Material sourceMaterial = source[i];
-                var runtimeMaterial = new Material(sourceMaterial)
+                Material runtimeMaterial = CreateStereoSafeGhostMaterial(
+                    $"{sourceMaterial.name} (Ghost Runtime, Stereo Safe)",
+                    new Color(0.1f, 0.9f, 1f, 0.38f));
+                if (runtimeMaterial == null)
                 {
-                    name = $"{sourceMaterial.name} (Ghost Runtime, No Depth Write)",
-                    hideFlags = HideFlags.DontSave
-                };
+                    runtimeMaterial = new Material(sourceMaterial)
+                    {
+                        name = $"{sourceMaterial.name} (Ghost Runtime, No Depth Write)",
+                        hideFlags = HideFlags.DontSave
+                    };
+                }
 
                 // The current HandGhostFresnel shader is transparent in its color pass,
                 // but its separate DepthPrepass writes an opaque silhouette into depth.
@@ -386,6 +395,48 @@ namespace VRProject.ObjectInstallation
             }
 
             return materials;
+        }
+
+        static Material CreateStereoSafeGhostMaterial(string materialName, Color color)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ??
+                            Shader.Find("Unlit/Color") ??
+                            Shader.Find("Sprites/Default");
+            if (shader == null)
+                return null;
+
+            var material = new Material(shader)
+            {
+                name = materialName,
+                color = color,
+                hideFlags = HideFlags.DontSave,
+                enableInstancing = true,
+                renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent
+            };
+            if (material.HasProperty("_BaseColor"))
+                material.SetColor("_BaseColor", color);
+            if (material.HasProperty("_Color"))
+                material.SetColor("_Color", color);
+            if (material.HasProperty("_Surface"))
+                material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend"))
+                material.SetFloat("_Blend", 0f);
+            if (material.HasProperty("_SrcBlend"))
+                material.SetFloat("_SrcBlend",
+                    (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend"))
+                material.SetFloat("_DstBlend",
+                    (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite"))
+                material.SetFloat("_ZWrite", 0f);
+            if (material.HasProperty("_Cull"))
+                material.SetFloat("_Cull", 0f);
+            if (material.HasProperty("_CullMode"))
+                material.SetFloat("_CullMode", 0f);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.DisableKeyword("_SURFACE_TYPE_OPAQUE");
+            return material;
         }
 
         void ReleaseRuntimeGhostMaterials()

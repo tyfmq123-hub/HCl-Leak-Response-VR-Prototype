@@ -14,9 +14,6 @@ public class ResponseBagInteractable : MonoBehaviour
     [SerializeField] ResponseEquipmentManager equipmentManager;
     [SerializeField] ResponseBagContentsPanel contentsPanel;
 
-    [Tooltip("When false (default for this stage), select does not open contents UI.")]
-    [SerializeField] bool openContentsPanelOnSelect;
-
     XRSimpleInteractable interactable;
 
     void Awake()
@@ -64,6 +61,5 @@ public class ResponseBagInteractable : MonoBehaviour
     {
         equipmentManager = manager;
         contentsPanel = panel;
-        openContentsPanelOnSelect = false;
     }
 }

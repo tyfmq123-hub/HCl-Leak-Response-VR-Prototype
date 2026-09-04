@@ -20,12 +20,12 @@
 
 | 순서 | Unity Scene | 사용자 목적 | 음성 정책 |
 |---|---|---|---|
-| 0 | `Assets/Scenes/App/App.unity` | 공용 XR 및 전체 흐름 유지 | 음성 없음 |
-| 1 | `Assets/Scenes/App/Start.unity` | 전체 훈련 또는 개별 Stage 선택 | 음성 없음 |
-| 2 | `Assets/Scenes/PPE_PreparationRoom.unity` | PPE와 현장 대응 장비 준비 | 행동 안내 중심 |
-| 3 | `Assets/Scenes/JH_Test_Scene.unity` | 진입 전 풍향·농도·P-102 상태 확인 | 측정 결과와 행동 안내 중심 |
-| 4 | `Assets/Scenes/SSH_VR_Project.unity` | 누출 차단·흡착·오염물 회수 | 안전 상태와 행동 안내 중심 |
-| 5 | `Assets/Scenes/App/Complete.unity` | 완료 결과와 재시작 선택 | 음성 없음 |
+| 0 | `Assets/Scenes/01_App.unity` | 공용 XR 및 전체 흐름 유지 | 음성 없음 |
+| 1 | `Assets/Scenes/03_Start.unity` | 전체 훈련 또는 개별 Stage 선택 | 음성 없음 |
+| 2 | `Assets/Scenes/04_PPE.unity` | PPE와 현장 대응 장비 준비 | 행동 안내 중심 |
+| 3 | `Assets/Scenes/05_PreEntry.unity` | 진입 전 풍향·농도·P-102 상태 확인 | 측정 결과와 행동 안내 중심 |
+| 4 | `Assets/Scenes/06_LeakResponse.unity` | 누출 차단·흡착·오염물 회수 | 안전 상태와 행동 안내 중심 |
+| 5 | `Assets/Scenes/07_Complete.unity` | 완료 결과와 재시작 선택 | 음성 없음 |
 
 전체 훈련 외에도 `PPEOnly`, `PreEntryOnly`, `LeakResponseOnly` 진입이 가능하다. 따라서 각 Stage의 첫 안내는 이전 Stage를 경험하지 않은 사용자도 이해할 수 있어야 한다. 다만 공통 조작을 장황하게 전부 다시 설명하지는 않는다.
 
@@ -50,9 +50,9 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
    - 실제 시선 확인은 다음 `VerifyPressureDecrease` 단계에서 2초간 수행한다.
    - 그러나 `VerifyPressureDecrease`에는 AudioClip이 연결되어 있지 않아 자막만 나오고 음성은 나오지 않는다.
 
-2. **LeakResponse 흡착재 안내에 가방 조작이 빠져 있다.**
-   - 흡착삭과 흡착패드는 왼손을 허리 가방 영역으로 옮긴 뒤 왼손 Y로 꺼내야 한다.
-   - 현재 8번과 10번 나레이션은 “준비된 흡착재를 잡으라”고만 말한다.
+2. **LeakResponse 흡착재 안내는 현재 가방 Grip 조작과 일치해야 한다.**
+   - 흡착삭과 흡착패드는 가방 영역에서 Grip을 눌렀다 놓아 꺼낸다.
+   - 8번과 10번 나레이션은 첫 Grip 배출과 다음 Grip 잡기를 모두 말해야 한다.
    - 사용자는 물체가 어디서 나오는지 알 수 없다.
 
 3. **PPE 대응가방은 한 문장으로 설명하기 어려운 3단계 조작이다.**
@@ -161,13 +161,13 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 | 새 Cue | 발화 조건 | 권장 음성·자막 초안 | 기존 Cue 처리 |
 |---|---|---|---|
 | PPE-01 | Stage 시작, 입력 가능 전 | `보호구와 회수 장비를 순서대로 준비합니다. 노란 외곽선 장비를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 1~7번 시작 안내를 1개로 통합. B 취소는 상시 UI 힌트로 이동 |
-| PPE-02 | 속장갑 단계 활성화 | `먼저 속장갑을 착용하십시오.` | 기존 8번 사용, 9번 성공 음성 제거 |
-| PPE-03 | 보호복 단계 활성화 | `내산성 화학보호복을 착용하십시오.` | 기존 10번 사용, 11번 제거 |
-| PPE-04 | 안전장화 단계 활성화 | `내화학 안전장화를 착용하십시오.` | 기존 12번 사용, 13번 제거 |
-| PPE-05 | 호흡보호구 단계 활성화 | `전면형 호흡보호구를 착용하십시오.` | 기존 14번 사용, 15번 제거 |
+| PPE-02 | 속장갑 단계 활성화 | `속장갑을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 8번 사용, 9번 성공 음성 제거 |
+| PPE-03 | 보호복 단계 활성화 | `내산성 화학보호복을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 10번 사용, 11번 제거 |
+| PPE-04 | 안전장화 단계 활성화 | `내화학 안전장화를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 12번 사용, 13번 제거 |
+| PPE-05 | 호흡보호구 단계 활성화 | `전면형 호흡보호구를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 14번 사용, 15번 제거 |
 | PPE-06 | 대응가방 단계 활성화 | `Grip으로 대응가방을 선택하고, 왼손 Y로 내용물을 확인한 뒤 다시 Grip을 눌러 준비하십시오.` | 기존 21번 교체, 22번 제거 |
-| PPE-07 | 안면보호구 단계 활성화 | `안면보호구를 착용하십시오.` | 기존 16번 사용, 17번 제거 |
-| PPE-08 | 외부 보호장갑 단계 활성화 | `외부 보호장갑을 착용하십시오.` | 기존 18번 사용, 19·20번 제거 |
+| PPE-07 | 안면보호구 단계 활성화 | `안면보호구를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 16번 사용, 17번 제거 |
+| PPE-08 | 외부 보호장갑 단계 활성화 | `외부 보호장갑을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.` | 기존 18번 사용, 19·20번 제거 |
 | PPE-09 | 수거용기 단계 활성화 | `유해폐기물 수거용기를 바라봐 선택한 뒤, Grip으로 준비하십시오.` | 기존 23번 교체, 24번 제거 |
 | PPE-10 | 모든 준비 완료, A 입력 활성화 | `준비가 완료되었습니다. 오른손 A를 눌러 다음 단계로 이동하십시오.` | 기존 25~27번을 1개로 통합 |
 
@@ -189,7 +189,7 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 ### 7.1 실제 시나리오 흐름과 완료 조건
 
 1. 시작 안내 종료 후 자동으로 측정기 꺼내기 단계 진입
-2. 왼손을 가방 영역에 두고 왼손 Y로 염화수소 측정기 꺼내기
+2. 가방 위에서 왼손 Grip을 눌렀다 놓아 측정기를 올린 뒤 다시 왼손 Grip으로 잡기
 3. 측정기 화면을 보며 왼쪽 Trigger를 3초 유지해 초기 농도 측정
 4. `3.0 ppm` 결과 확인 후 자동으로 풍향 확인 단계 진입
 5. 초기 풍향계를 3초간 응시
@@ -197,7 +197,7 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 7. 바뀐 풍향계를 3초간 응시
 8. 측정기 화면을 보며 왼쪽 Trigger를 3초 유지해 재측정
 9. `0.8 ppm` 결과 확인
-10. 오른손 B로 측정기 수납
+10. 왼손 Grip으로 측정기 수납
 11. 오른손 A로 P-102 패널 위치로 이동
 12. 압력 표시 2초 응시
 13. 온도 표시 2초 응시
@@ -212,14 +212,15 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 
 | 새 Cue | 연결할 상태·발화 조건 | 권장 음성·자막 초안 | 구현 메모 |
 |---|---|---|---|
-| PRE-01 | `SceneIntro`, Stage 시작 | `진입 전 풍향, 염화수소 농도와 P-102 상태를 확인합니다. 가방에 왼손을 대고 Y로 측정기를 꺼내십시오.` | 기존 Intro와 EquipDetector 안내를 통합. Intro 종료 직후 EquipDetector 입력 활성화 |
+| PRE-01 | `SceneIntro`, Stage 시작 | `진입 전 풍향, 염화수소 농도와 P-102 상태를 확인합니다. 가방 위에서 왼손 Grip을 눌렀다 놓아 측정기를 올린 뒤 다시 Grip으로 잡으십시오.` | 기존 Intro와 EquipDetector 안내를 통합. Intro 종료 직후 EquipDetector 입력 활성화 |
 | PRE-02 | `MeasureInitialHcl` | `측정기 화면을 보며 왼쪽 Trigger를 3초간 눌러 농도를 측정하십시오.` | 시선과 Trigger가 모두 필요함 |
 | PRE-03 | `ConfirmInitialHcl` 종료 직전 | `염화수소 농도는 3.0 ppm으로 높게 측정되었습니다. 접근을 보류하고 풍향계를 3초간 확인하십시오.` | `CheckInitialWind`에는 별도 음성을 만들지 않음 |
 | PRE-04 | `WaitWindChange` | `현재 풍향은 접근 위치로 유해 증기를 보낼 수 있습니다. 풍향이 바뀔 때까지 대기하십시오.` | 실제 시선 완료 조건이 없으므로 “계속 바라보라”는 표현 금지 |
 | PRE-05 | `CheckChangedWind` | `풍향이 바뀌었습니다. 풍향계를 3초간 확인하십시오.` | 3초 응시 완료 후 재측정 단계 진입 |
 | PRE-06 | `MeasureReducedHcl` | `측정기 화면을 보며 왼쪽 Trigger를 3초간 눌러 농도를 다시 측정하십시오.` | `풍향이 안전하다`는 결과를 측정 전에 확정해서 말하지 않음 |
-| PRE-07 | `ConfirmReducedHcl` | `염화수소 농도는 0.8 ppm으로 낮아졌습니다. 오른손 B를 눌러 측정기를 수납하십시오.` | `StoreDetector` 별도 음성 제거 |
-| PRE-08 | `MoveToPT` | `오른손 A를 눌러 P-102 상태 확인 패널로 이동하십시오.` | A 입력 가능 시점에만 재생 |
+| PRE-07 | `ConfirmReducedHcl` | `염화수소 농도는 0.8 ppm으로 낮아졌습니다. 먼저 측정기를 가방에 수납하십시오.` | 수납보다 패널 안내가 먼저 나오지 않도록 순서를 분리 |
+| PRE-07A | `StoreDetector` | `왼손 Grip을 눌러 측정기를 가방에 수납하십시오.` | B 입력 제거, 측정기를 들고 있는 왼손 Grip 사용 |
+| PRE-08 | `MoveToPT` | `측정기 수납을 완료했습니다. 오른손 A를 눌러 P-102 상태 확인 패널로 이동한 뒤 패널을 확인하십시오.` | 수납 완료 후에만 A 입력과 패널 안내 활성화 |
 | PRE-09 | `CheckPressure` | `먼저 압력 표시를 2초간 확인하십시오.` | 기존 14초 설명을 축약 |
 | PRE-10 | `CheckTemperature` | `온도 표시를 2초간 확인하십시오.` | 압력 확인 성공 문장 제거 |
 | PRE-11 | `CheckRunState` | `P-102의 운전 상태를 2초간 확인하십시오.` | 온도 확인 성공 문장 제거 |
@@ -245,9 +246,9 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 2. 흡입측 밸브를 반복해서 Grip으로 잡고 시계 방향으로 돌려 100% 폐쇄
 3. 토출측 밸브를 같은 방식으로 100% 폐쇄
 4. 플랜지 누출 지점을 3초 연속 응시해 누출 감소 확인
-5. 왼손을 가방 영역에 두고 왼손 Y로 흡착삭 꺼내기
+5. 가방 영역에서 Grip을 눌렀다 놓아 흡착삭 꺼내기
 6. 흡착삭 공급 물체를 Grip으로 잡아 반투명 위치 근처에 놓기
-7. 왼손 Y로 흡착패드 꺼내기
+7. 가방 영역에서 Grip을 눌렀다 놓아 흡착패드 꺼내기
 8. 흡착패드 공급 물체를 Grip으로 잡아 반투명 위치 근처에 놓기
 9. 잔류 염산 흡수 완료까지 대기
 10. 수거용기 뚜껑을 열어 옆 거치 Ghost에 놓기
@@ -268,15 +269,15 @@ LeakResponse의 1~23번 진행용 파일 전체는 183.770초다. 이 중 16번�
 | LEAK-02 | 02 `SuctionValveActivated` | 흡입측 밸브 활성화 | `외곽선으로 표시된 흡입측 밸브를 Grip으로 잡아 시계 방향으로 돌리고, 게이지를 끝까지 채우십시오.` | 반복 조작과 완료 기준을 유지 |
 | LEAK-03 | 04 `DischargeValveActivated` | 흡입측 폐쇄 후 | `이어서 외곽선으로 표시된 토출측 밸브를 같은 방법으로 완전히 닫으십시오.` | 03 성공 음성은 UI·효과음으로 대체 |
 | LEAK-04 | 06 `LeakReductionStarted` | 두 밸브 폐쇄 후 | `두 밸브가 닫혔습니다. 플랜지 누출 지점을 3초간 바라보며 누출 감소를 확인하십시오.` | 05와 06을 의미상 통합. 실제 3초 조건 명시 |
-| LEAK-05 | 08 `AbsorbentSockPlacementActivated` | 누출 감소 확인 후 | `누출이 감소했습니다. 왼손을 가방으로 옮겨 Y로 흡착삭을 꺼내고, Grip으로 잡아 반투명 위치에 놓으십시오.` | 07 성공 음성 통합. 누락됐던 가방·Y 조작 추가 |
-| LEAK-06 | 10 `AbsorbentPadPlacementActivated` | 흡착삭 설치 후 | `확산 경계가 설치되었습니다. 가방에서 Y로 흡착패드를 꺼내 반투명 위치에 놓으십시오.` | 09 성공 음성 통합 |
+| LEAK-05 | 08 `AbsorbentSockPlacementActivated` | 누출 감소 확인 후 | `가방 위에서 Grip을 눌렀다 놓아 흡착삭을 올린 뒤, 다시 Grip으로 잡아 반투명 위치에 놓으십시오.` | 현재 가방 배출·잡기 입력을 모두 명시 |
+| LEAK-06 | 10 `AbsorbentPadPlacementActivated` | 흡착삭 설치 후 | `가방 위에서 Grip을 눌렀다 놓아 흡착패드를 올린 뒤, 다시 Grip으로 잡아 반투명 위치에 놓으십시오.` | 현재 가방 배출·잡기 입력을 모두 명시 |
 | LEAK-07 | 11 `AllAbsorbentPadsPlaced` | 패드 설치 완료 | `흡착패드가 배치되었습니다. 잔류 염산의 흡수가 끝날 때까지 기다리십시오.` | 흡수 대기 상태를 명확히 함 |
-| LEAK-08 | 13 `ContainerAndLidGhostActivated` | 흡수 완료 후 | `흡수가 완료되었습니다. 수거용기 뚜껑을 열어 옆의 반투명 거치 위치에 놓으십시오.` | 12와 13 통합 |
+| LEAK-08 | 13 `ContainerAndLidGhostActivated` | 흡수 완료 후 | `흡수가 완료되었습니다. 수거용기 뚜껑을 Grip으로 잡아 옆의 반투명 거치 위치에 놓으십시오.` | 12와 13 통합 |
 | LEAK-09 | 14 `ContainerLidStowed` | 뚜껑 거치 후 | `수거용기 옆의 회수용 집게를 Grip으로 잡으십시오.` | 집게를 잡는 현재 행동만 안내 |
 | LEAK-10 | 15 `RecoveryTongsPickedUp` | 집게 선택 후 | `Trigger로 오염된 흡착패드 3개를 집어 수거용기에 넣으십시오.` | Trigger와 우선 회수 수량 명시 |
-| LEAK-11 | 18 `SockRecoveryStarted` | 패드 3개 회수 후 | `흡착패드 3개를 모두 수거했습니다. 같은 방법으로 흡착삭 4개를 수거하십시오.` | 17과 18 통합 |
-| LEAK-12 | 20 `AllSocksRecovered` | 오염 흡착재 7개 회수 후 | `오염 흡착재 7개를 모두 수거했습니다. 집게를 옆 거치대에 반납하십시오.` | 수량과 다음 행동만 유지 |
-| LEAK-13 | 22 `ContainerClosureGhostActivated` | 집게 반납 후 | `거치된 뚜껑을 잡아 수거용기를 닫으십시오.` | 21 성공 음성 제거, 22의 중복 표현 축약 |
+| LEAK-11 | 18 `SockRecoveryStarted` | 패드 3개 회수 후 | `흡착패드 3개를 모두 수거했습니다. Trigger를 눌러 흡착삭 4개를 수거하십시오.` | 17과 18 통합 |
+| LEAK-12 | 20 `AllSocksRecovered` | 오염 흡착재 7개 회수 후 | `오염 흡착재 7개를 모두 수거했습니다. 오른손 Grip을 다시 눌러 집게를 옆 거치대에 반납하십시오.` | Toggle 해제 입력과 다음 행동을 명시 |
+| LEAK-13 | 22 `ContainerClosureGhostActivated` | 집게 반납 후 | `거치된 뚜껑을 Grip으로 잡아 수거용기를 닫으십시오.` | 21 성공 음성 제거, 22의 중복 표현 축약 |
 | LEAK-14 | 23 `ContainerClosedTaskCompleted` | 뚜껑 폐쇄 완료 | `수거용기가 폐쇄되었습니다. P-102 누출 차단과 오염 흡착재 회수가 완료되었습니다.` | 최종 결과는 1회만 발화 |
 
 03, 05, 07, 09, 12, 17, 21 이벤트는 코드 진행 신호로 남길 수 있지만 별도 음성을 만들 필요는 없다. 필요한 경우 짧은 효과음과 체크 표시만 사용한다.
@@ -394,7 +395,7 @@ implementation_note
 
 ### PreEntry
 
-- [ ] 측정기는 왼손 Y로 꺼내고 오른손 B로 수납하는가
+- [ ] 측정기는 왼손 Grip으로 꺼내고 다시 왼손 Grip으로 수납하는가
 - [ ] 두 농도 측정 모두 화면 응시와 왼쪽 Trigger 3초를 요구하는가
 - [ ] 풍향 응시는 각 3초인가
 - [ ] P-102 패널 응시는 각 2초인가
@@ -407,7 +408,7 @@ implementation_note
 - [ ] 흡입측 밸브가 먼저인가
 - [ ] 밸브는 시계 방향 회전과 100% 게이지 완료를 말하는가
 - [ ] 플랜지 응시는 3초인가
-- [ ] 흡착삭·패드를 가방에서 왼손 Y로 꺼낸다고 말하는가
+- [ ] 흡착삭·패드를 가방에서 Grip으로 꺼내고 다음 Grip으로 잡는다고 말하는가
 - [ ] 설치는 흡착삭 후 흡착패드 순서인가
 - [ ] 회수는 패드 3개 후 흡착삭 4개 순서인가
 - [ ] 오염 흡착재 직접 접촉 금지와 집게 사용이 유지되는가
@@ -425,9 +426,9 @@ implementation_note
 - PreEntry 상태 전이: `Assets/2.YJH/Scripts/Scenario/EntrySafetyStateMachine.cs`
 - PreEntry 현재 문구: `Assets/2.YJH/Scripts/Scenario/Guidance/EntrySafetyInstructionCatalog.cs`
 - PreEntry 실제 진행: `Assets/2.YJH/Scripts/Scenario/EntrySafetyScenarioController.cs`
-- PreEntry TTS 연결: `Assets/Scenes/JH_Test_Scene.unity`
+- PreEntry TTS 연결: `Assets/Scenes/05_PreEntry.unity`
 - LeakResponse 현재 Cue/자막: `Assets/3.SSH/Resources/P102/Unity_TTS_Map.csv`
-- LeakResponse 가방 Y 입력: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102SharedBagItemHandler.cs`
+- LeakResponse 가방 Grip 입력: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102SharedBagItemHandler.cs`
 - LeakResponse 진행 연결: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102LeakNarrationController.cs`
 - LeakResponse 회수: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102RecoveryTongsRuntime.cs`
 - 수거용기 완료: `Assets/3.SSH/Scripts/LeakResponse/Narration/P102WasteContainerRuntime.cs`

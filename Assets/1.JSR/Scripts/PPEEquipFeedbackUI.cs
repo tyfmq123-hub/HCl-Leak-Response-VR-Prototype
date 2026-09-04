@@ -25,14 +25,14 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     [Tooltip("Optional Hangul-capable TMP font. Preferred over OS/dynamic fallbacks.")]
     [SerializeField] TMP_FontAsset preferredHangulFont;
 
-    [Header("Placement (relative to XR camera)")]
-    [SerializeField] float distanceFromCamera = 1.15f;
-    [SerializeField] float verticalOffset = -0.44f;
-    [SerializeField] float canvasWorldScale = 0.0012f;
-
     [Header("Timing")]
     [SerializeField] [Min(0.1f)] float displayDuration = 2f;
     [SerializeField] [Min(0f)] float fadeOutDuration = 0.35f;
+
+    [Header("Display")]
+    [SerializeField]
+    [Tooltip("Temporarily hide the subtitle HUD. Keep subtitle copy and callers; turn this on when TTS/hints are wired together.")]
+    bool showSubtitleHud;
 
     Camera xrCamera;
     Coroutine hideRoutine;
@@ -160,6 +160,14 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     /// <summary>Shows <paramref name="message"/> for <paramref name="durationSeconds"/> (e.g. TTS clip length).</summary>
     public void ShowMessage(string message, float durationSeconds)
     {
+        if (!showSubtitleHud)
+            return;
+
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+        if (!isActiveAndEnabled)
+            return;
+
         ResolveReferences();
         EnsureHangulFont();
         CacheCamera();

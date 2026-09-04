@@ -11,7 +11,7 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 /// <summary>
 /// World-space preparation checklist. Displays manager state only -
 /// never stores its own completion flags.
-/// Rows always follow <see cref="PPESequenceManager"/> wear order (same as TTS).
+/// Rows are grouped into PPE donning and response-equipment preparation.
 /// Toggle visibility via on-panel button or left-controller X (PrimaryButton).
 /// </summary>
 [DisallowMultipleComponent]
@@ -85,71 +85,87 @@ public class PPEChecklistPanel : MonoBehaviour
         public string Label;
         public string ItemId;
         public ChecklistSource Source;
+        public bool RequireConfiguredSequenceStep;
+        public PPESequenceStep SequenceStep;
+        public bool EquipmentPreparation;
     }
 
     /// <summary>
-    /// Exact wear order used by PPESequenceManager / TTS.
-    /// Labels use Hangul already present in the room font atlas where possible.
+    /// Checklist rows grouped by training phase. Labels stay in the room Hangul atlas.
     /// </summary>
     static readonly WearOrderSpec[] WearOrderSpecs =
     {
         new WearOrderSpec
         {
+            ObjectName = "HelmetRow",
+            Label = "안전모",
+            ItemId = PPEEquipmentManager.IdHelmet,
+            Source = ChecklistSource.Equipped,
+            RequireConfiguredSequenceStep = true,
+            SequenceStep = PPESequenceStep.Helmet,
+        },
+        new WearOrderSpec
+        {
             ObjectName = "InnerGlovesRow",
-            Label = "1. \uC18D\uC7A5\uAC11",
+            Label = "속장갑",
             ItemId = PPESequenceManager.IdInnerGloves,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
             ObjectName = "ChemicalSuitRow",
-            Label = "2. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638\uBCF5",
+            Label = "화학보호복",
             ItemId = PPEEquipmentManager.IdChemicalSuit,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
             ObjectName = "ChemicalBootsRow",
-            Label = "3. \uB0B4\uC0B0\uC131 \uD654\uD559\uBCF4\uD638 \uC7A5\uD654",
+            Label = "화학보호 장화",
             ItemId = PPEEquipmentManager.IdChemicalBoots,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
             ObjectName = "FaceRespiratorRow",
-            Label = "4. \uC804\uBA74\uD615 \uD638\uD761\uBCF4\uD638\uAD6C",
+            Label = "전면형 호흡보호구",
             ItemId = PPEEquipmentManager.IdFaceRespirator,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
-            ObjectName = "ResponseBagRow",
-            Label = "5. \uD654\uD559\uBB3C\uC9C8 \uB204\uCD9C \uB300\uC751\uAC00\uBC29",
-            ItemId = PPEEquipmentManager.IdResponseBag,
-            Source = ChecklistSource.ResponseBagPrepared,
-        },
-        new WearOrderSpec
-        {
             ObjectName = "FaceShieldRow",
-            Label = "6. \uC548\uBA74\uBCF4\uD638\uAD6C",
+            Label = "안면보호구",
             ItemId = PPEEquipmentManager.IdFaceShield,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
             ObjectName = "ChemicalGlovesRow",
-            Label = "7. \uB0B4\uD654\uD559 \uBCF4\uD638\uC7A5\uAC11",
+            Label = "내화학 보호장갑",
             ItemId = PPEEquipmentManager.IdChemicalGloves,
             Source = ChecklistSource.Equipped,
         },
         new WearOrderSpec
         {
+            ObjectName = "ResponseBagRow",
+            Label = "대응가방 확인",
+            ItemId = PPEEquipmentManager.IdResponseBag,
+            Source = ChecklistSource.ResponseBagPrepared,
+            EquipmentPreparation = true,
+        },
+        new WearOrderSpec
+        {
             ObjectName = "WasteContainerRow",
-            Label = "8. \uC720\uD574\uD3D0\uAE30\uBB3C \uC218\uAC70\uC6A9\uAE30",
+            Label = "유해폐기물 수거용기 준비",
             ItemId = PPEEquipmentManager.IdWasteContainer,
             Source = ChecklistSource.Prepared,
+            EquipmentPreparation = true,
         },
     };
+
+    static readonly string DonningSectionTitle = "PPE 착용";
+    static readonly string EquipmentSectionTitle = "대응 장비 준비";
 
     public bool IsContentVisible => contentVisible;
 
@@ -254,9 +270,9 @@ public class PPEChecklistPanel : MonoBehaviour
     }
 
     /// <summary>
-    /// Force hierarchy + labels into wear-order 1..8.
+    /// Force hierarchy + labels into two phase groups.
     /// Scene rows use absolute anchored positions (no VerticalLayoutGroup), so sibling
-    /// reordering alone does nothing — we rewrite Y positions and numbered labels.
+    /// reordering alone does nothing — we rewrite Y positions and section labels.
     /// </summary>
     void ApplyWearSequenceOrder()
     {
@@ -270,31 +286,58 @@ public class PPEChecklistPanel : MonoBehaviour
             ? sectionLabelTf.GetComponent<TextMeshProUGUI>()
             : null;
         if (sectionLabel != null)
-            sectionLabel.text = "\uCC29\uC6A9 \uC21C\uC11C";
+            sectionLabel.text = DonningSectionTitle;
 
-        // Old "\uB300\uC751\uC7A5\uBE44" block — hide so only wear-order 1..8 shows.
         var equipmentSection = FindDeep(root, "EquipmentSection");
         if (equipmentSection != null)
-            equipmentSection.gameObject.SetActive(false);
-        var equipmentLabel = FindDeep(root, "EquipmentSectionLabel");
-        if (equipmentLabel != null)
-            equipmentLabel.gameObject.SetActive(false);
+            equipmentSection.gameObject.SetActive(true);
+
+        var equipmentLabelTf = FindDeep(root, "EquipmentSectionLabel");
+        if (equipmentLabelTf != null)
+        {
+            equipmentLabelTf.gameObject.SetActive(true);
+            if (equipmentLabelTf.parent != listParent)
+                equipmentLabelTf.SetParent(listParent, false);
+            var equipmentLabel = equipmentLabelTf.GetComponent<TextMeshProUGUI>();
+            if (equipmentLabel != null)
+                equipmentLabel.text = EquipmentSectionTitle;
+        }
 
         RemoveDuplicateRows(root);
 
         var built = new List<ChecklistRow>(WearOrderSpecs.Length);
-        var ordered = new List<Transform>(WearOrderSpecs.Length);
+        var donningRows = new List<Transform>();
+        var equipmentRows = new List<Transform>();
+        var sequence = PPESequenceManager.Resolve();
 
         for (var i = 0; i < WearOrderSpecs.Length; i++)
         {
             var spec = WearOrderSpecs[i];
+            var mapsToSequence = PPESequenceManager.TryGetStep(spec.ItemId, out var mappedStep);
+            var excludeOptional = spec.RequireConfiguredSequenceStep &&
+                                  (sequence == null || !sequence.ContainsStep(spec.SequenceStep));
+            var excludeFromConfiguredOrder = !spec.RequireConfiguredSequenceStep &&
+                                             mapsToSequence && sequence != null &&
+                                             !sequence.ContainsStep(mappedStep);
+            if (excludeOptional || excludeFromConfiguredOrder)
+            {
+                var unusedRow = FindDeep(root, spec.ObjectName);
+                if (unusedRow != null)
+                    unusedRow.gameObject.SetActive(false);
+                continue;
+            }
+
             var rowRoot = FindDeep(root, spec.ObjectName);
             if (rowRoot == null)
                 rowRoot = CreateRuntimeRow(listParent, spec);
             if (rowRoot == null)
                 continue;
 
-            ordered.Add(rowRoot);
+            rowRoot.gameObject.SetActive(true);
+            if (spec.EquipmentPreparation)
+                equipmentRows.Add(rowRoot);
+            else
+                donningRows.Add(rowRoot);
 
             var label = rowRoot.Find("Label")?.GetComponent<TextMeshProUGUI>();
             if (label != null)
@@ -310,29 +353,47 @@ public class PPEChecklistPanel : MonoBehaviour
             });
         }
 
-        // Title stays at top; section label then rows 1..8 stacked by Y.
         const float x = 36f;
         const float width = 708f;
         const float rowHeight = 72f;
         const float rowGap = 6f;
         var y = -100f;
+        var sibling = 1;
 
         if (sectionLabelTf != null)
         {
             if (sectionLabelTf.parent != listParent)
                 sectionLabelTf.SetParent(listParent, false);
             PlaceRect(sectionLabelTf as RectTransform, x, y, width, 40f);
-            sectionLabelTf.SetSiblingIndex(1);
+            sectionLabelTf.SetSiblingIndex(sibling++);
             y -= 48f;
         }
 
-        for (var i = 0; i < ordered.Count; i++)
+        for (var i = 0; i < donningRows.Count; i++)
         {
-            var row = ordered[i];
+            var row = donningRows[i];
             if (row.parent != listParent)
                 row.SetParent(listParent, false);
             PlaceRect(row as RectTransform, x, y, width, rowHeight);
-            row.SetSiblingIndex(sectionLabelTf != null ? i + 2 : i + 1);
+            row.SetSiblingIndex(sibling++);
+            y -= rowHeight + rowGap;
+        }
+
+        y -= 12f;
+        if (equipmentLabelTf != null)
+        {
+            PlaceRect(equipmentLabelTf as RectTransform, x, y, width, 40f);
+            equipmentLabelTf.SetSiblingIndex(sibling++);
+            y -= 48f;
+        }
+
+        for (var i = 0; i < equipmentRows.Count; i++)
+        {
+            var row = equipmentRows[i];
+            if (row.parent != listParent)
+                row.SetParent(listParent, false);
+            PlaceRect(row as RectTransform, x, y, width, rowHeight);
+            row.SetSiblingIndex(sibling++);
             y -= rowHeight + rowGap;
         }
 
@@ -659,8 +720,10 @@ public class PPEChecklistPanel : MonoBehaviour
     {
         ResolveManagers();
 
-        var done = 0;
-        var total = 0;
+        var donningDone = 0;
+        var donningTotal = 0;
+        var equipmentDone = 0;
+        var equipmentTotal = 0;
 
         if (rows != null)
         {
@@ -677,14 +740,40 @@ public class PPEChecklistPanel : MonoBehaviour
                 var complete = IsRowComplete(row);
                 ApplyRowVisual(row, complete);
 
-                total++;
-                if (complete)
-                    done++;
+                if (IsEquipmentPreparationRow(row))
+                {
+                    equipmentTotal++;
+                    if (complete)
+                        equipmentDone++;
+                }
+                else
+                {
+                    donningTotal++;
+                    if (complete)
+                        donningDone++;
+                }
             }
         }
 
         if (statusText != null)
-            statusText.text = string.Format("\uCC29\uC6A9 \uC21C\uC11C {0}/{1}", done, total);
+        {
+            statusText.text = string.Format(
+                "{0} {1}/{2}  |  {3} {4}/{5}",
+                DonningSectionTitle,
+                donningDone,
+                donningTotal,
+                EquipmentSectionTitle,
+                equipmentDone,
+                equipmentTotal);
+        }
+    }
+
+    static bool IsEquipmentPreparationRow(ChecklistRow row)
+    {
+        if (row == null)
+            return false;
+        return row.source == ChecklistSource.ResponseBagPrepared
+               || row.source == ChecklistSource.Prepared;
     }
 
     bool IsRowComplete(ChecklistRow row)
@@ -736,7 +825,8 @@ public class PPEChecklistPanel : MonoBehaviour
         var needed = new StringBuilder(256);
         needed.Append("0123456789. ");
         needed.Append(LabelHide).Append(LabelShow);
-        needed.Append("\uCC29\uC6A9 \uC21C\uC11C");
+        needed.Append(DonningSectionTitle).Append(EquipmentSectionTitle);
+        needed.Append(" | ");
         for (var i = 0; i < WearOrderSpecs.Length; i++)
             needed.Append(WearOrderSpecs[i].Label);
         needed.Append(incompleteMark).Append(completeMark);

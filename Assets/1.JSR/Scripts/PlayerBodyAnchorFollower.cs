@@ -18,7 +18,6 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
 
     [Header("Smoothing")]
     [SerializeField] [Min(0f)] float positionSmoothTime = 0.08f;
-    [SerializeField] [Min(0.1f)] float rotationSmoothSpeed = 12f;
 
     [Header("Options")]
     [SerializeField] bool followCameraHeight = true;
@@ -33,6 +32,7 @@ public class PlayerBodyAnchorFollower : MonoBehaviour
     bool hasLockedHeight;
 
     public Transform XrCamera => xrCamera;
+    public Vector3 LocalPositionOffset => localPositionOffset;
 
     void OnEnable()
     {

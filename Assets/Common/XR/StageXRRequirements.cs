@@ -2,6 +2,14 @@ using UnityEngine;
 
 namespace HClTraining.SharedXR
 {
+    public enum StageXRHandVisualMode
+    {
+        Controllers = 0,
+        LeftHand = 1,
+        RightHand = 2,
+        BothHands = 3,
+    }
+
     /// <summary>
     /// Stage-owned declaration of the shared XR capabilities it needs.
     /// Store the asset below that Stage's own Resources folder. The App consumes
@@ -21,6 +29,7 @@ namespace HClTraining.SharedXR
         [SerializeField] bool movement;
         [SerializeField] bool turning;
         [SerializeField] bool comfortVignette;
+        [SerializeField] StageXRHandVisualMode handVisualMode;
 
         public string ScenePath => scenePath;
         public Vector3 SpawnPosition => spawnPosition;
@@ -33,6 +42,7 @@ namespace HClTraining.SharedXR
         public bool Movement => movement;
         public bool Turning => turning;
         public bool ComfortVignette => comfortVignette;
+        public StageXRHandVisualMode HandVisualMode => handVisualMode;
 
         /// <summary>
         /// Near/Far already includes far casting. Activating both visual systems
@@ -53,7 +63,8 @@ namespace HClTraining.SharedXR
             bool useHaptics,
             bool allowMovement = true,
             bool allowTurning = true,
-            bool useComfortVignette = false)
+            bool useComfortVignette = false,
+            StageXRHandVisualMode visualMode = StageXRHandVisualMode.Controllers)
         {
             scenePath = valueScenePath;
             spawnPosition = position;
@@ -66,6 +77,7 @@ namespace HClTraining.SharedXR
             movement = allowMovement;
             turning = allowTurning;
             comfortVignette = useComfortVignette;
+            handVisualMode = visualMode;
         }
 #endif
     }

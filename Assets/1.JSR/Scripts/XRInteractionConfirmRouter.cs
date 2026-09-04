@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 /// <summary>
-/// Single owner of the shared confirm InputAction.
-/// Routes one press to either response-bag prepare or PPE equip — never both.
+/// Owns PPE-room Grip routing. Placement is primary for wearable PPE, while an
+/// Inspector-controlled legacy button fallback remains available during rollout.
 /// </summary>
 [DefaultExecutionOrder(-50)]
 [DisallowMultipleComponent]
@@ -30,8 +30,11 @@ public class XRInteractionConfirmRouter : MonoBehaviour
     [SerializeField] InputActionProperty confirmAction;
 
     [SerializeField]
-    [Min(0f)]
-    float equipConfirmDelay = 0.3f;
+    [Tooltip("Legacy Ray+Grip wearable Equip. Must stay off in 04_PPE. Pair PPE would skip Left/Right physical completion.")]
+    bool allowLegacyWearableEquipFallback = false;
+
+    [SerializeField, Min(0f)]
+    float legacyEquipConfirmDelay = 0.3f;
 
     InputAction ownedConfirmAction;
     bool confirmSubscribed;
@@ -49,7 +52,6 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
         Instance = this;
         ResolveRefs();
-        BorrowConfirmPropertyFromSelectionIfEmpty();
         EnsureConfirmAction();
     }
 
@@ -57,17 +59,12 @@ public class XRInteractionConfirmRouter : MonoBehaviour
     {
         ResolveRefs();
         ConfigurePpeRayTargeting();
-        BorrowConfirmPropertyFromSelectionIfEmpty();
         EnsureConfirmAction();
         sharedInput = SharedXRInputContract.Instance;
         if (sharedInput != null)
             sharedInput.Performed += OnSharedInputPerformed;
         else
             WireConfirm(true);
-
-        // Prevent parallel Grip subscriptions on the same action.
-        if (ppeSelectionManager != null)
-            ppeSelectionManager.SetEquipConfirmInputOwnedByRouter(true);
 
         if (responseBagPrepareInteractable != null)
             responseBagPrepareInteractable.SetConfirmInputOwnedByRouter(true);
@@ -82,9 +79,6 @@ public class XRInteractionConfirmRouter : MonoBehaviour
             sharedInput.Performed -= OnSharedInputPerformed;
         sharedInput = null;
         WireConfirm(false);
-
-        if (ppeSelectionManager != null)
-            ppeSelectionManager.SetEquipConfirmInputOwnedByRouter(false);
 
         if (responseBagPrepareInteractable != null)
             responseBagPrepareInteractable.SetConfirmInputOwnedByRouter(false);
@@ -118,8 +112,6 @@ public class XRInteractionConfirmRouter : MonoBehaviour
         responseBagPrepareInteractable = bag;
         ppeSelectionManager = selection;
         wasteContainerPrepareInteractable = waste;
-        if (selection != null)
-            confirmAction = selection.EquipConfirmActionProperty;
     }
 
     void ResolveRefs()
@@ -144,26 +136,12 @@ public class XRInteractionConfirmRouter : MonoBehaviour
         }
     }
 
-    void BorrowConfirmPropertyFromSelectionIfEmpty()
-    {
-        if (GetAssignedConfirmAction() != null || ppeSelectionManager == null)
-            return;
-
-        var fromSelection = ppeSelectionManager.EquipConfirmActionProperty;
-        if (fromSelection.reference != null
-            || (fromSelection.action != null && fromSelection.action.bindings.Count > 0))
-        {
-            confirmAction = fromSelection;
-        }
-    }
-
     void EnsureConfirmAction()
     {
         if (GetConfirmAction() != null)
             return;
 
-        // Fallback only when no InputActionProperty is assigned on router or selection.
-        // Uses the same historical bindings as PPESelectionManager (not a new button mapping).
+        // PPE-room Grip remains useful for ray selection and non-wearable bag/container preparation.
         ownedConfirmAction = new InputAction(
             name: "XR Shared Confirm",
             type: InputActionType.Button);
@@ -238,6 +216,16 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
         ResolveRefs();
 
+        // Response bag is a physical one-step action after all three items are
+        // packed. Near/Far hand interactors are not XRRayInteractor instances, so
+        // route their hovered Grip before the generic sticky PPE selection flow.
+        if (responseBagPrepareInteractable != null
+            && responseBagPrepareInteractable.TryPrepareFromPackingGripHover())
+        {
+            lastRoutedAt = Time.unscaledTime;
+            return;
+        }
+
         // First Grip while hovering a *different* outline = switch sticky select (never equip that press).
         if (TrySelectHoveredOutline(inputHand))
         {
@@ -267,12 +255,14 @@ public class XRInteractionConfirmRouter : MonoBehaviour
             return;
         }
 
-        // Priority 3: PPE equip.
-        if (ppeSelectionManager != null
-            && ppeSelectionManager.HasValidEquipSelection(equipConfirmDelay))
+        // Priority 3: legacy wearable fallback. It calls the same Equip method as
+        // placement and can be disabled after headset validation is complete.
+        if (allowLegacyWearableEquipFallback
+            && ppeSelectionManager != null
+            && ppeSelectionManager.HasValidEquipSelection(legacyEquipConfirmDelay)
+            && ppeSelectionManager.TryEquipCurrentSelection())
         {
-            if (ppeSelectionManager.TryEquipCurrentSelection())
-                lastRoutedAt = Time.unscaledTime;
+            lastRoutedAt = Time.unscaledTime;
         }
     }
 
@@ -285,7 +275,7 @@ public class XRInteractionConfirmRouter : MonoBehaviour
         if (hovered == null)
             return false;
 
-        // Already sticky-selected — let confirm/equip path handle this Grip.
+        // Already sticky-selected — repeated Grip does not equip wearable PPE.
         if (hovered.IsSelected && ppeSelectionManager.CurrentSelectedPPE == hovered)
             return false;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using JH.EntrySafety;
 using Unity.XR.CoreUtils;
 using UnityEngine;
@@ -12,14 +13,13 @@ namespace HClTraining.App
     [DisallowMultipleComponent]
     public sealed class SceneFlowController : MonoBehaviour
     {
-        public const string AppScenePath = "Assets/Scenes/App/App.unity";
-        public const string TitleScenePath = "Assets/3.JH/Scenes/Prototype/TitleScene.unity";
-        public const string StartScenePath = "Assets/Scenes/App/Start.unity";
-        public const string LoadingScenePath = "Assets/Scenes/App/Loading.unity";
-        public const string PpeScenePath = "Assets/Scenes/PPE_PreparationRoom.unity";
-        public const string PreEntryScenePath = "Assets/Scenes/JH_Test_Scene.unity";
-        public const string LeakResponseScenePath = "Assets/Scenes/SSH_VR_Project.unity";
-        public const string CompleteScenePath = "Assets/Scenes/App/Complete.unity";
+        public const string AppScenePath = "Assets/Scenes/01_App.unity";
+        public const string TitleScenePath = "Assets/Scenes/02_Title.unity";
+        public const string StartScenePath = "Assets/Scenes/03_Start.unity";
+        public const string PpeScenePath = "Assets/Scenes/04_PPE.unity";
+        public const string PreEntryScenePath = "Assets/Scenes/05_PreEntry.unity";
+        public const string LeakResponseScenePath = "Assets/Scenes/06_LeakResponse.unity";
+        public const string CompleteScenePath = "Assets/Scenes/07_Complete.unity";
 
         TransitionInputLock inputLock;
         ScreenFadeController fade;
@@ -28,6 +28,8 @@ namespace HClTraining.App
         TrainingSessionState session;
         PPEStateController ppeState;
         PersistentEquipmentInventory inventory;
+        SharedPlayerEquipment sharedEquipment;
+        ITrainingTelemetry telemetry;
         CommonErrorUI errorUI;
         Scene contentScene;
         readonly List<Scene> contentScenes = new List<Scene>();
@@ -45,6 +47,8 @@ namespace HClTraining.App
             TrainingSessionState state,
             PPEStateController ppe,
             PersistentEquipmentInventory equipment,
+            SharedPlayerEquipment playerEquipment,
+            ITrainingTelemetry trainingTelemetry,
             CommonErrorUI errors)
         {
             inputLock = transitionLock;
@@ -54,13 +58,17 @@ namespace HClTraining.App
             session = state;
             ppeState = ppe;
             inventory = equipment;
+            sharedEquipment = playerEquipment;
+            telemetry = trainingTelemetry ?? TrainingTelemetry.Current;
             errorUI = errors;
         }
 
         public bool ShowStart() => RequestTransition(StartScenePath, TrainingStage.None);
         public bool ShowTitle() => RequestTransition(TitleScenePath, TrainingStage.None);
         public bool ShowStage(TrainingStage stage) => RequestTransition(PathFor(stage), stage);
-        public bool ShowComplete() => RequestTransition(CompleteScenePath, TrainingStage.Complete);
+        public bool ShowComplete() =>
+            session != null && session.HasEndedSelectedTraining &&
+            RequestTransition(CompleteScenePath, TrainingStage.Complete);
 
         bool RequestTransition(string scenePath, TrainingStage stage)
         {
@@ -74,23 +82,13 @@ namespace HClTraining.App
         {
             errorUI?.Hide();
             var isCompletionTransition = stage == TrainingStage.Complete;
-            var shouldRunControllerGuide =
-                stage != TrainingStage.None &&
-                stage != TrainingStage.Complete &&
-                session.CurrentStage == TrainingStage.None;
             yield return fade.FadeOut(isCompletionTransition ? 0.8f : 0.25f);
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
+            sharedEquipment?.RestoreBodyRelativePlacement();
             yield return null;
             yield return UnloadContentScenes();
-
-            if (shouldRunControllerGuide)
-            {
-                yield return RunControllerGuide();
-                if (transitionRoutine == null)
-                    yield break;
-            }
 
             var plan = BuildLoadPlan(scenePath, stage);
             var loadOrder = plan.BuildLoadOrder();
@@ -180,8 +178,10 @@ namespace HClTraining.App
             {
                 if (!xrProfiles.ApplyCompleteProfile(out var completeXrError))
                     errorUI?.Show(completeXrError);
+                telemetry?.CompletionScreenShown();
+                telemetry?.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
             }
-            else if (stage != TrainingStage.Complete)
+            else
             {
                 if (!xrProfiles.ApplyStageProfile(contentScene, stage, out var xrError))
                     errorUI?.Show(xrError);
@@ -201,8 +201,10 @@ namespace HClTraining.App
                 }
                 if (stage == TrainingStage.LeakResponse)
                     P102LeakStageActivation.Apply(contentScene, true);
+                sharedEquipment?.TryPlaceAtStageAnchor(contentScene);
                 yield return lifecycle.BindStage(contentScene, stage);
                 ppeState.ApplyPersistentState();
+                telemetry?.StageEntered(stage);
             }
 
             // Unloading a legacy Stage rig can disable the shared XRI asset after
@@ -212,85 +214,9 @@ namespace HClTraining.App
 
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);
+            if (stage != TrainingStage.None && stage != TrainingStage.Complete)
+                lifecycle.NotifyTransitionReadyForInteraction();
             transitionRoutine = null;
-        }
-
-        IEnumerator RunControllerGuide()
-        {
-            if (!Application.CanStreamedLevelBeLoaded(LoadingScenePath))
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene is not in Build Settings; continuing without it.", this);
-                yield break;
-            }
-
-            Scene titleBackgroundScene = default;
-            if (Application.CanStreamedLevelBeLoaded(TitleScenePath))
-            {
-                var backgroundLoad = SceneManager.LoadSceneAsync(TitleScenePath, LoadSceneMode.Additive);
-                if (backgroundLoad != null)
-                {
-                    while (!backgroundLoad.isDone)
-                        yield return null;
-                    titleBackgroundScene = SceneManager.GetSceneByPath(TitleScenePath);
-                    if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
-                    {
-                        ConfigureTitleAsBackground(titleBackgroundScene);
-                        if (!xrProfiles.PrepareDependencyScene(titleBackgroundScene, out var backgroundError))
-                            Debug.LogWarning($"[Scene Flow] Title background XR cleanup failed: {backgroundError}", this);
-                    }
-                }
-            }
-
-            var load = SceneManager.LoadSceneAsync(LoadingScenePath, LoadSceneMode.Additive);
-            if (load == null)
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene load could not be started; continuing to the Stage.", this);
-                yield break;
-            }
-            while (!load.isDone)
-                yield return null;
-
-            var loadingScene = SceneManager.GetSceneByPath(LoadingScenePath);
-            if (!loadingScene.IsValid() || !loadingScene.isLoaded)
-            {
-                Debug.LogWarning("[Scene Flow] Controller Guide Scene was not found after load; continuing to the Stage.", this);
-                yield break;
-            }
-
-            SceneManager.SetActiveScene(loadingScene);
-            inputLock.Unlock(true);
-            yield return fade.FadeIn();
-
-            var waitUntil = Time.realtimeSinceStartup + 5f;
-            while (ControllerTutorialManager.Active == null && Time.realtimeSinceStartup < waitUntil)
-                yield return null;
-
-            if (ControllerTutorialManager.Active == null)
-            {
-                Debug.LogError("[Scene Flow] Controller Guide manager was not created; skipping the guide to preserve Stage flow.", this);
-            }
-            else
-            {
-                while (!ControllerTutorialManager.Active.ContinueRequested)
-                    yield return null;
-            }
-
-            if (!inputLock.TryLock())
-                Debug.LogWarning("[Scene Flow] Could not reacquire the transition input lock after Controller Guide.", this);
-            yield return fade.FadeOut();
-
-            var unload = SceneManager.UnloadSceneAsync(loadingScene);
-            if (unload != null)
-                while (!unload.isDone)
-                    yield return null;
-
-            if (titleBackgroundScene.IsValid() && titleBackgroundScene.isLoaded)
-            {
-                var backgroundUnload = SceneManager.UnloadSceneAsync(titleBackgroundScene);
-                if (backgroundUnload != null)
-                    while (!backgroundUnload.isDone)
-                        yield return null;
-            }
         }
 
         static void ConfigureTitleAsBackground(Scene titleScene)
@@ -326,8 +252,8 @@ namespace HClTraining.App
                 return;
             }
 
-            // Education enters the existing guided course selection. Training is
-            // intentionally kept on the Title screen and shows its coming-soon UI.
+            // Title has one learner-facing entry point. Full-course versus single-Stage
+            // execution is selected on the following Start screen.
             menu.OnEducationSelected.AddListener(() => ShowStart());
             menu.OnExitClicked.AddListener(RequestApplicationExit);
         }
@@ -376,13 +302,33 @@ namespace HClTraining.App
 
             lifecycle.Unbind();
             inventory.ReturnAllToStorage();
+            sharedEquipment?.RestoreBodyRelativePlacement();
             var preEntryScene = SceneManager.GetSceneByPath(PreEntryScenePath);
             if (preEntryScene.IsValid() && preEntryScene.isLoaded)
                 EntrySafetyStageActivation.Apply(preEntryScene, false);
-            if (!session.MarkCurrentStageComplete())
+            if (!session.EndCurrentStage())
             {
-                yield return RecoverToStart("PreEntry 완료 상태를 기록하지 못했습니다.");
+                yield return RecoverToStart("PreEntry 종료 상태를 기록하지 못했습니다.");
                 yield break;
+            }
+            var preEntryResult = session.GetStageResult(TrainingStage.PreEntry);
+            telemetry?.StageEnded(
+                TrainingStage.PreEntry,
+                preEntryResult != null && preEntryResult.StageCompleted,
+                preEntryResult);
+            if (preEntryResult != null && preEntryResult.StageCompleted)
+                telemetry?.StageCompleted(TrainingStage.PreEntry);
+
+            // Keep PreEntry loaded as LeakResponse's additive environment. Its activation
+            // contract hides stage-owned interaction objects (including the local bag),
+            // while the dependency preparation releases legacy XR/input ownership.
+            if (preEntryScene.IsValid() && preEntryScene.isLoaded)
+            {
+                if (!xrProfiles.PrepareDependencyScene(preEntryScene, out var dependencyError))
+                {
+                    yield return RecoverToStart(dependencyError);
+                    yield break;
+                }
             }
 
             session.EnterStage(TrainingStage.LeakResponse);
@@ -403,11 +349,14 @@ namespace HClTraining.App
             // Leak-owned runtime objects created during activation must be authored
             // into the Leak Scene, never into the still-loaded PreEntry primary Scene.
             P102LeakStageActivation.Apply(leakScene, true);
+            sharedEquipment?.TryPlaceAtStageAnchor(leakScene);
             yield return lifecycle.BindStage(leakScene, TrainingStage.LeakResponse);
             ppeState.ApplyPersistentState();
+            telemetry?.StageEntered(TrainingStage.LeakResponse);
 
             yield return fade.FadeIn();
             inputLock.Unlock(false);
+            lifecycle.NotifyTransitionReadyForInteraction();
             transitionRoutine = null;
         }
 
@@ -462,6 +411,10 @@ namespace HClTraining.App
         {
             Debug.LogError("[Scene Flow] " + message, this);
             errorUI?.Show(message + "\n시작 화면으로 안전하게 복귀합니다.");
+            telemetry?.EndSession(
+                TrainingSessionStatus.Interrupted,
+                TrainingExitReason.SystemError,
+                message);
 
             yield return UnloadContentScenes();
 
@@ -552,16 +505,19 @@ namespace HClTraining.App
         TrainingSessionState session;
         SceneFlowController scenes;
         PersistentEquipmentInventory inventory;
+        ITrainingTelemetry telemetry;
         bool completionQueued;
 
         public void Initialize(
             TrainingSessionState state,
             SceneFlowController sceneController,
-            PersistentEquipmentInventory equipment)
+            PersistentEquipmentInventory equipment,
+            ITrainingTelemetry trainingTelemetry)
         {
             session = state;
             scenes = sceneController;
             inventory = equipment;
+            telemetry = trainingTelemetry ?? TrainingTelemetry.Current;
         }
 
         public bool StartTraining(TrainingMode mode)
@@ -570,19 +526,35 @@ namespace HClTraining.App
                 return false;
 
             session.Begin(mode);
+            telemetry?.StartSession(mode);
             completionQueued = false;
             if (mode == TrainingMode.Full || mode == TrainingMode.PPEOnly)
                 PPELoadoutPresets.BeginNewFullTrainingClear();
             else
                 PPELoadoutPresets.BeginFieldStandaloneWithOfficialPreset();
             inventory.SyncFromLoadout();
-            return scenes.ShowStage(TrainingSessionState.FirstStageFor(mode));
+            if (scenes.ShowStage(TrainingSessionState.FirstStageFor(mode)))
+                return true;
+
+            telemetry?.EndSession(
+                TrainingSessionStatus.Interrupted,
+                TrainingExitReason.SystemError,
+                "initial_stage_transition_rejected");
+            return false;
         }
 
         public void CompleteCurrentStage()
         {
-            if (completionQueued || scenes.IsTransitioning || !session.MarkCurrentStageComplete())
+            var endedStage = session.CurrentStage;
+            if (completionQueued || scenes.IsTransitioning || !session.EndCurrentStage())
                 return;
+            var stageResult = session.GetStageResult(endedStage);
+            telemetry?.StageEnded(
+                endedStage,
+                stageResult != null && stageResult.StageCompleted,
+                stageResult);
+            if (stageResult != null && stageResult.StageCompleted)
+                telemetry?.StageCompleted(endedStage);
             completionQueued = true;
             StartCoroutine(ContinueAfterCompletion());
         }
@@ -603,10 +575,17 @@ namespace HClTraining.App
             yield return new WaitForSecondsRealtime(0.65f);
             var next = session.GetNextStage();
             completionQueued = false;
-            if (next == TrainingStage.Complete)
-                scenes.ShowComplete();
-            else
-                scenes.ShowStage(next);
+
+            var transitionStarted = next == TrainingStage.Complete
+                ? scenes.ShowComplete()
+                : scenes.ShowStage(next);
+            if (!transitionStarted)
+            {
+                telemetry?.EndSession(
+                    TrainingSessionStatus.Interrupted,
+                    TrainingExitReason.SystemError,
+                    "next_stage_transition_rejected");
+            }
         }
 
         public bool RestartCurrentStage()
@@ -619,13 +598,79 @@ namespace HClTraining.App
 
         public bool RepeatSelectedTraining() => StartTraining(session.SelectedMode);
 
+        public bool RestartFullTrainingFromPpe()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            telemetry?.CompletionRestartRequested();
+            return StartTraining(TrainingMode.Full);
+        }
+
+        public bool RestartSelectedTrainingFromResult()
+        {
+            if (scenes.IsTransitioning || session.SelectedMode == TrainingMode.None)
+                return false;
+            var mode = session.SelectedMode;
+            telemetry?.CompletionRestartRequested();
+            return StartTraining(mode);
+        }
+
+        public bool ExitCompletedTraining()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+
+            completionQueued = false;
+            telemetry?.CompletionExitRequested();
+            telemetry?.EndSession(
+                TrainingSessionStatus.Completed,
+                TrainingExitReason.UserRequested,
+                "completion_screen_exit");
+            session.ReturnToStart();
+            return scenes.ShowStart();
+        }
+
         public bool ReturnToStart()
         {
             if (scenes.IsTransitioning)
                 return false;
             completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.NotProvided,
+                "returned_to_start");
             session.ReturnToStart();
             return scenes.ShowStart();
+        }
+
+        public bool ReturnToTitle()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.UserRequested,
+                "returned_to_title");
+            session.ReturnToStart();
+            return scenes.ShowTitle();
+        }
+
+        public bool ExitApplication()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.UserRequested,
+                "pause_menu_exit");
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+            return true;
         }
     }
 }

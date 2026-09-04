@@ -13,7 +13,6 @@ public static class PPEEquipFeedbackSetup
     const string CanvasName = "PPE_EquipFeedbackCanvas";
     const string LiberationSansGuid = "8f586378b4e144a9851e7b34d9b748ee";
 
-    [MenuItem("Tools/PPE/Setup Equip Feedback UI", false, 26)]
     public static void SetupEquipFeedbackUI()
     {
         var scene = SceneManager.GetActiveScene();
@@ -84,7 +83,7 @@ public static class PPEEquipFeedbackSetup
         tmp.fontSize = 42f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
         tmp.raycastTarget = false;
 
         var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(

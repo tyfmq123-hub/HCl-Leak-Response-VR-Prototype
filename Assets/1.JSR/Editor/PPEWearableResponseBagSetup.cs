@@ -16,16 +16,15 @@ public static class PPEWearableResponseBagSetup
     const string AnchorName = "PlayerBodyAnchor";
     const string WearableName = "ResponseBag_Wearable";
     const string VisualChildName = "BagVisual";
-    const string UnityReadyName = "ResponseBag_UnityReady";
+    const string UnityReadyName = "ResponseBag_HardShell";
     const string UnityReadyAssetPath =
-        "Assets/Common/Equipment/ResponseBag_UnityReady_basecolor/ResponseBag_UnityReady.fbx";
+        "Assets/Common/Equipment/ResponseBag_HardShell/ResponseBag_HardShell.fbx";
 
     static readonly Vector3 DefaultAnchorOffset = new Vector3(-0.58f, -1.08f, 0.16f);
     static readonly Vector3 DefaultWearableLocalPos = Vector3.zero;
     static readonly Vector3 DefaultWearableLocalEuler = new Vector3(0f, 90f, 8f);
     static readonly Vector3 DefaultWearableLocalScale = new Vector3(0.85f, 0.85f, 0.85f);
 
-    [MenuItem("Tools/PPE/Setup Wearable Response Bag", false, 34)]
     public static void SetupWearableResponseBag()
     {
         var scene = SceneManager.GetActiveScene();
@@ -200,13 +199,13 @@ public static class PPEWearableResponseBagSetup
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(UnityReadyAssetPath);
             if (model == null)
             {
-                report.AppendLine("WARNING: No ResponseBag_UnityReady source — wearable has no mesh yet.");
+                report.AppendLine("WARNING: No ResponseBag_HardShell source — wearable has no mesh yet.");
                 return;
             }
 
             copy = (GameObject)PrefabUtility.InstantiatePrefab(model);
             Undo.RegisterCreatedObjectUndo(copy, "Instantiate bag visual");
-            report.AppendLine("Instantiated visual from ResponseBag_UnityReady.fbx (scene instance untouched).");
+            report.AppendLine("Instantiated visual from ResponseBag_HardShell.fbx (scene instance untouched).");
         }
 
         copy.name = VisualChildName;

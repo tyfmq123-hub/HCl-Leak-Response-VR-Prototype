@@ -1,14 +1,18 @@
 /// <summary>
-/// PPE room TTS cue ids (English filenames in Assets/1.JSR/Audio/PPE/TTS).
+/// PPE room TTS cue ids. Final-course clips are loaded by numeric prefix from
+/// Resources/TrainingNarration/PPE; legacy scene-assigned clips remain fallback-only.
 /// </summary>
 public enum PPETTSCue
 {
     EmergencyIntro = 1,
     WearEssentialPPE = 2,
     WearInOrder = 3,
+    // Name retained for serialized compatibility; the final narration teaches direct hand selection.
     PointWithRay = 4,
     OutlineShowsSelectable = 5,
-    GripSelectThenEquip = 6,
+    // Numeric slot retained so the existing 36-clip mapping does not shift.
+    // This legacy button-equip instruction is no longer enqueued.
+    LegacyGripButtonEquipInstruction = 6,
     BButtonCancel = 7,
     WearInnerGloves = 8,
     InnerGlovesEquipped = 9,
@@ -39,4 +43,5 @@ public enum PPETTSCue
     MissingPPE = 34,
     PrepareResponseBagFirst = 35,
     CheckCurrentRequiredPPE = 36,
+    GripPackedResponseBag = 37,
 }

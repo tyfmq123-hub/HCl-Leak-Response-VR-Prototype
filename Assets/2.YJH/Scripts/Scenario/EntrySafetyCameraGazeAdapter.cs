@@ -143,7 +143,7 @@ namespace JH.EntrySafety
 
             var markerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             markerObject.name = "EntrySafetyGazeGuidePoint";
-            DestroyObject(markerObject.GetComponent<Collider>());
+            DestroyRuntimeObject(markerObject.GetComponent<Collider>());
             markerObject.transform.localScale = Vector3.one * 0.035f;
             markerObject.transform.SetParent(guideObject.transform, true);
             _guideMarkerRenderer = markerObject.GetComponent<Renderer>();
@@ -155,10 +155,10 @@ namespace JH.EntrySafety
         private void OnDestroy()
         {
             if (_guideMaterial != null)
-                DestroyObject(_guideMaterial);
+                DestroyRuntimeObject(_guideMaterial);
         }
 
-        private static void DestroyObject(Object target)
+        private static void DestroyRuntimeObject(Object target)
         {
             if (target == null)
                 return;

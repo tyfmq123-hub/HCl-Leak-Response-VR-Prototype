@@ -15,7 +15,7 @@ using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
 /// </summary>
 public static class PPERoomLocomotionSetup
 {
-    const string PreferredScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+    const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
     const string SampleRigPath =
         "Assets/Samples/XR Interaction Toolkit/3.4.1/Starter Assets/Prefabs/XR Origin (XR Rig).prefab";
     const string TunnelingVignettePath =
@@ -41,7 +41,6 @@ public static class PPERoomLocomotionSetup
         "Jump",
     };
 
-    [MenuItem("Tools/PPE/Setup Room Locomotion + Comfort", false, 40)]
     public static void SetupRoomLocomotion()
     {
         EnsurePreferredSceneLoaded();
@@ -127,7 +126,7 @@ public static class PPERoomLocomotionSetup
                 return child.gameObject;
         }
 
-        var origins = Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var origins = Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Include);
         return origins.Length > 0 ? origins[0].gameObject : null;
     }
 

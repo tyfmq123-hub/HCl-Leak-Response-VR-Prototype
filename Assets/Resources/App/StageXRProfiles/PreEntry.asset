@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PreEntry
   m_EditorClassIdentifier: Assembly-CSharp::HClTraining.App.StageXRProfile
   stage: 2
-  sourceScenePath: Assets/Scenes/JH_Test_Scene.unity
+  sourceScenePath: Assets/Scenes/05_PreEntry.unity
   spawnPosition: {x: 0.407, y: 0, z: -16.27}
   spawnEulerAngles: {x: -0, y: 0, z: 0}
   componentStates:
@@ -49,10 +49,6 @@ MonoBehaviour:
     typeName: UnityEngine.Animator, UnityEngine.AnimationModule, Version=0.0.0.0,
       Culture=neutral, PublicKeyToken=null
     enabled: 1
-  - relativePath: Camera Offset/Left Controller/Visual/VRHandPoseTool_VisualOffset_Left/LeftHand
-    typeName: VRHandPoseTool.ControllerHandGripAnimator, Senghwan.VRHandPoseTool.Runtime,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    enabled: 0
   - relativePath: Camera Offset/Left Controller/Visual/JH_HClDetector_Prototype
     typeName: JH.EntrySafety.EntrySafetyHclDetectorView, JH.EntrySafety.Runtime,
       Version=0.0.0.0, Culture=neutral, PublicKeyToken=null

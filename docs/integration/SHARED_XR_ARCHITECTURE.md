@@ -16,7 +16,9 @@ App
 ├─ XR Interaction Manager
 ├─ Input Action Manager
 ├─ SharedXRInputContract
-└─ StageXRProfileController
+├─ StageXRProfileController
+├─ SessionEquipmentInventory (data only)
+└─ TrainingTelemetryService
 ```
 
 Stage scenes own gameplay, interactables, handlers, UI, and completion logic. Their
@@ -42,8 +44,8 @@ Each Stage owns one `StageXRRequirements` asset under its own Resources folder:
 | Stage | Asset | Pointer policy |
 |---|---|---|
 | PPE | `Assets/1.JSR/Resources/SharedXR/PPE.asset` | Standard Ray |
-| PreEntry | `Assets/2.YJH/Resources/SharedXR/PreEntry.asset` | None (existing policy) |
-| LeakResponse | `Assets/3.SSH/Resources/SharedXR/LeakResponse.asset` | Near/Far |
+| PreEntry | `Assets/2.YJH/Resources/SharedXR/PreEntry.asset` | No pointer; movement/turning enabled |
+| LeakResponse | `Assets/3.SSH/Resources/SharedXR/LeakResponse.asset` | Near only; far ray hidden |
 
 The App selects the declaration by Scene path. It does not compare a Stage name to
 choose Ray/Near-Far behavior. A future Stage supplies its own asset and does not
@@ -116,23 +118,33 @@ assembly and can use the same API directly.
 Simulator actions remain available in Editor. Standalone execution without the App
 retains the existing direct-input fallbacks.
 
-## Shared player equipment
+## Session equipment and Stage bags
 
-The App owns one body-relative bag under `Common XR Origin/PlayerBodyAnchor`.
-`PlayerBodyAnchorFollower` follows HMD position and horizontal yaw only, so the bag
-stays at the left waist without becoming head-locked or world-fixed.
+`SessionEquipmentInventory` persists only equipment IDs and stored/checked-out counts.
+It never owns a bag Transform, Collider, prefab instance, or Stage progression.
 
-`SharedPlayerEquipment` exposes only:
+- PPE stores equipment IDs after successful Grip-to-bag interactions.
+- PreEntry owns `PreEntry_ResponseBag`, its local access zone/anchor, and the detector object.
+- LeakResponse owns `LeakResponse_ResponseBag`, its local access zone/anchor, and its absorbent objects.
+- Standalone Stage play seeds only that Stage's development items when no resolved Inventory exists.
+- PPE or field-ready results always take priority over standalone seeds.
 
-- the shared bag transform and visible/equipped state;
-- the left-hand retrieval zone;
-- the item retrieval anchor.
+The App does not move or scale a Stage bag. Existing App-owned bag services remain only
+as a temporary compatibility layer while all Stage branches migrate; Stage gameplay uses
+the new data contract. See `docs/integration/SESSION_INVENTORY_CONTRACT.md`.
 
-`SharedEquipmentInventory` is a generic provider for existing equipment instances.
-It does not select an item from a Stage name. PreEntry keeps its detector decision in
-`EntrySafetyScenarioController`; LeakResponse keeps Sock/Pad selection in
-`P102SharedBagItemHandler` and uses its actual narration/install state. LeakResponse
-deploys the existing Sock/Pad scene objects and never creates replacement copies.
+## Shared incident state and telemetry
+
+`SharedIncidentState` exposes only the fixed P-102 run/stop state and leak
+active/isolated state. PreEntry writes the stop fact;
+LeakResponse maps them to its own Scene-local valves, effects, sound, and colliders.
+
+`SharedTrainingTelemetry` is the Stage-facing, server-independent event contract.
+Stage assemblies report only meaningful steps and content/equipment usage. The App's
+`TrainingTelemetryService` adds session metadata and writes JSON Lines below
+`Application.persistentDataPath/TrainingTelemetry`. Missing storage is a warning and
+never blocks training. A future HTTP/DB sink can replace local storage without
+changing Stage gameplay code.
 
 ### LeakResponse
 
@@ -154,7 +166,7 @@ flow for:
 
 - one active XR Origin, Main Camera, AudioListener, EventSystem,
   XR Interaction Manager, and Input Action Manager;
-- one shared player equipment contract with one bag retrieval zone and anchor;
+- one data-only session inventory and no active App-owned bag visual;
 - camera plus exactly two active controller tracking drivers;
 - active pointers only below the common rig;
 - exactly two standard rays, two Near/Far pointers, or no pointer according to the

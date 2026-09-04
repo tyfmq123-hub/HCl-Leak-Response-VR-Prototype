@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -46,6 +47,7 @@ namespace VRProject.LeakResponse.Narration
         Transform tongsOriginalParent;
         Vector3 heldLocalPosition;
         Quaternion heldLocalRotation;
+        bool equipmentUseReported;
 
         public bool IsConfigured => tongsRoot != null && grabInteractable != null && tipTransform != null;
         public P102RecoveryItemState HeldItem => heldItem;
@@ -67,6 +69,7 @@ namespace VRProject.LeakResponse.Narration
             returned = false;
             pickupGuidanceStarted = false;
             sockGuidanceCompleted = false;
+            equipmentUseReported = false;
 
             if (tongsRoot == null)
             {
@@ -200,6 +203,14 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
+
+            if (!equipmentUseReported)
+            {
+                equipmentUseReported = true;
+                SharedTrainingTelemetry.Current.EquipmentUsed(SharedEquipmentIds.RecoveryTongs);
+            }
+
             if (args?.interactorObject is XRBaseInputInteractor inputInteractor)
             {
                 if (!originalSelectTriggers.ContainsKey(inputInteractor))
@@ -256,8 +267,14 @@ namespace VRProject.LeakResponse.Narration
                 grabInteractable.trackPosition = true;
                 grabInteractable.trackRotation = true;
             }
-            if (args.isCanceled || returned || tongsRoot == null)
+            if (returned || tongsRoot == null)
                 return;
+            if (args.isCanceled)
+            {
+                if (recoveryActionEnabled)
+                    P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
+                return;
+            }
 
             if (returnEnabled && tongsGhost != null &&
                 Vector3.Distance(tongsRoot.transform.position, tongsGhost.position) <= 0.3f)
@@ -266,6 +283,7 @@ namespace VRProject.LeakResponse.Narration
                 return;
             }
 
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
             StartCoroutine(EnableReleasedTongsPhysics());
         }
 
@@ -526,6 +544,7 @@ namespace VRProject.LeakResponse.Narration
         IEnumerator SnapTongsToGhost()
         {
             returned = true;
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
             tongsRigidbody.linearVelocity = Vector3.zero;
             tongsRigidbody.angularVelocity = Vector3.zero;
             tongsRigidbody.useGravity = false;
@@ -584,7 +603,10 @@ namespace VRProject.LeakResponse.Narration
         {
             recoveryActionEnabled = true;
             if (grabInteractable != null && !returned)
+            {
                 grabInteractable.enabled = true;
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
+            }
         }
 
         void RestoreSelectTriggers()

@@ -22,7 +22,7 @@ namespace JH.EntrySafety
         {
             if (titleDesktopCamera == null)
             {
-                var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
                 for (var i = 0; i < cameras.Length; i++)
                 {
                     var camera = cameras[i];

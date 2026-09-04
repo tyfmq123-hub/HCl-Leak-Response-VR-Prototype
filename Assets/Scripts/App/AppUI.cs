@@ -217,6 +217,9 @@ namespace HClTraining.App
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.worldCamera = Camera.main;
+            var scaler = go.GetComponent<CanvasScaler>();
+            scaler.dynamicPixelsPerUnit = 20f;
+            scaler.referencePixelsPerUnit = 100f;
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.localScale = Vector3.one * (cameraAttached ? 0.00075f : 0.00125f);
@@ -249,7 +252,7 @@ namespace HClTraining.App
 
             Transform surface = null;
             var transforms = UnityEngine.Object.FindObjectsByType<Transform>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             for (var i = 0; i < transforms.Length; i++)
             {
                 if (transforms[i] != null && transforms[i].name == objectName)
@@ -310,7 +313,7 @@ namespace HClTraining.App
             tmp.fontSize = fontSize;
             tmp.alignment = alignment;
             tmp.color = color ?? Color.white;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.raycastTarget = false;
             return tmp;
         }

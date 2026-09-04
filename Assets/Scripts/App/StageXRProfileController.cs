@@ -24,6 +24,10 @@ namespace HClTraining.App
     {
         const string HandVisualizerPath = "Camera Offset/Hand Visualizer";
         const string HandTrackingPath = "Camera Offset/VR Hand Pose Tool Tracking";
+        const string LeftDefaultHandName = "PPE_DefaultHand_Left";
+        const string RightDefaultHandName = "PPE_DefaultHand_Right";
+        const string LeftWearableHandName = "PPE_VrHand_Left_Wearable";
+        const string RightWearableHandName = "PPE_VrHand_Right_Wearable";
         [SerializeField] GameObject commonXrOrigin;
         [SerializeField] StageXRProfile[] profiles;
 
@@ -139,7 +143,6 @@ namespace HClTraining.App
             RestoreStartProfile();
             if (commonXrOrigin == null)
             {
-                error = "공용 XR Origin 참조가 없습니다.";
                 error = "Common XR Origin is missing.";
                 Debug.LogError("[Stage XR Profile] " + error, this);
                 return false;
@@ -231,9 +234,13 @@ namespace HClTraining.App
         void ConfigureStartController(string side, string modelName)
         {
             var controllerPath = $"Camera Offset/{side} Controller";
+            var defaultHandName = side == "Left" ? LeftDefaultHandName : RightDefaultHandName;
+            var wearableHandName = side == "Left" ? LeftWearableHandName : RightWearableHandName;
             SetStartObject(controllerPath, true);
             SetStartObject($"{controllerPath}/Visuals", true);
             SetStartObject($"{controllerPath}/Visuals/{modelName}", true);
+            SetStartObject($"{controllerPath}/Visuals/{defaultHandName}", false);
+            SetStartObject($"{controllerPath}/Visuals/{wearableHandName}", false);
             SetStartObject($"{controllerPath}/Visual", false);
         }
 
@@ -243,23 +250,33 @@ namespace HClTraining.App
             SetObjectActive(xrRoot, HandTrackingPath, false);
             var useStandardRay = requirements.UseStandardRayPointer;
             var useNearFar = requirements.UseNearFarPointer;
+            var visualMode = requirements.HandVisualMode;
+            var showControllers = visualMode == StageXRHandVisualMode.Controllers;
+            var showLeftHand = visualMode == StageXRHandVisualMode.LeftHand ||
+                               visualMode == StageXRHandVisualMode.BothHands;
+            var showRightHand = visualMode == StageXRHandVisualMode.RightHand ||
+                                visualMode == StageXRHandVisualMode.BothHands;
+            var allowLeftInteraction = visualMode != StageXRHandVisualMode.RightHand;
+            var allowRightInteraction = visualMode != StageXRHandVisualMode.LeftHand;
             ConfigureController(
-                xrRoot, "Left", "XR Controller Left", useStandardRay,
+                xrRoot, "Left", "XR Controller Left", LeftDefaultHandName, LeftWearableHandName,
+                showControllers, showLeftHand, useStandardRay && allowLeftInteraction,
                 requirements.UIInteraction, requirements.Haptics);
             ConfigureController(
-                xrRoot, "Right", "XR Controller Right", useStandardRay,
+                xrRoot, "Right", "XR Controller Right", RightDefaultHandName, RightWearableHandName,
+                showControllers, showRightHand, useStandardRay && allowRightInteraction,
                 requirements.UIInteraction, requirements.Haptics);
             ConfigureNearFarInteractor(
                 xrRoot,
                 "Camera Offset/Left Controller/Left_NearFarInteractor",
-                useNearFar,
+                useNearFar && allowLeftInteraction,
                 requirements.NearInteraction,
                 requirements.FarInteraction,
                 requirements.Haptics);
             ConfigureNearFarInteractor(
                 xrRoot,
                 "Camera Offset/Right Controller/Right_NearFarInteractor",
-                useNearFar,
+                useNearFar && allowRightInteraction,
                 requirements.NearInteraction,
                 requirements.FarInteraction,
                 requirements.Haptics);
@@ -269,6 +286,10 @@ namespace HClTraining.App
             Transform xrRoot,
             string side,
             string modelName,
+            string defaultHandName,
+            string wearableHandName,
+            bool controllerModelActive,
+            bool defaultHandActive,
             bool standardRayActive,
             bool uiInteraction,
             bool haptics)
@@ -276,7 +297,9 @@ namespace HClTraining.App
             var controllerPath = $"Camera Offset/{side} Controller";
             SetObjectActive(xrRoot, controllerPath, true);
             SetObjectActive(xrRoot, $"{controllerPath}/Visuals", true);
-            SetObjectActive(xrRoot, $"{controllerPath}/Visuals/{modelName}", true);
+            SetObjectActive(xrRoot, $"{controllerPath}/Visuals/{modelName}", controllerModelActive);
+            SetObjectActive(xrRoot, $"{controllerPath}/Visuals/{defaultHandName}", defaultHandActive);
+            SetObjectActive(xrRoot, $"{controllerPath}/Visuals/{wearableHandName}", false);
             SetObjectActive(xrRoot, $"{controllerPath}/Visual", false);
             SetInteractorActive(xrRoot, $"{controllerPath}/Ray Interactor", standardRayActive);
             var ray = xrRoot.Find($"{controllerPath}/Ray Interactor")?.GetComponent<XRRayInteractor>();
@@ -814,7 +837,7 @@ namespace HClTraining.App
             var bodyTransformers = xrRoot.GetComponents<XRBodyTransformer>();
             var mediators = xrRoot.GetComponents<LocomotionMediator>();
             var moveProviders = xrRoot.GetComponents<ContinuousMoveProvider>();
-            var controllerDrivers = xrRoot.GetComponents<CharacterControllerDriver>();
+            var controllerDrivers = GetBehavioursNamed(xrRoot, "CharacterControllerDriver", false);
             var snapTurnProviders = xrRoot.GetComponents<SnapTurnProvider>();
             if (bodyTransformers.Length != 1 || mediators.Length != 1 || moveProviders.Length != 1 ||
                 controllerDrivers.Length != 1 || snapTurnProviders.Length != 1)
@@ -844,6 +867,22 @@ namespace HClTraining.App
             controllerDrivers[0].enabled = true;
             snapTurnProviders[0].enabled = requirements.Turning;
             return true;
+        }
+
+        static Behaviour[] GetBehavioursNamed(Transform root, string typeName, bool includeChildren)
+        {
+            var source = includeChildren
+                ? root.GetComponentsInChildren<Behaviour>(true)
+                : root.GetComponents<Behaviour>();
+            var matches = new List<Behaviour>();
+            for (var i = 0; i < source.Length; i++)
+            {
+                var behaviour = source[i];
+                if (behaviour != null && string.Equals(behaviour.GetType().Name, typeName, StringComparison.Ordinal))
+                    matches.Add(behaviour);
+            }
+
+            return matches.ToArray();
         }
 
         static bool IsSharedLocomotionBehaviour(Type type)

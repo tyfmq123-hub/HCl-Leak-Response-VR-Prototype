@@ -5,13 +5,31 @@ using UnityEngine;
 
 namespace JH.EntrySafety
 {
-    /// <summary>Owns the P-102-only runtime presentation and interaction surface on the existing four-row P/T panel.</summary>
+    public enum EntrySafetyStopAttemptResult
+    {
+        Ignored = 0,
+        Missed = 1,
+        Stopped = 2,
+    }
+
+    /// <summary>
+    /// Owns the fixed P-102 training row on the authored four-row P/T panel.
+    /// The other facility rows remain environment-only readouts.
+    /// </summary>
     public sealed class EntrySafetyGoal2PtPanelController : MonoBehaviour
     {
-        private static readonly Color P102RunNeonColor = new Color(0.15f, 1f, 0.35f, 1f);
-        private static readonly Color P102StopNeonColor = new Color(1f, 0.12f, 0.25f, 1f);
-        private static readonly Color StopZoneOutsideColor = new Color(0.20f, 0.50f, 1.00f, 0.22f);
-        private static readonly Color StopZoneInsideColor = new Color(0.35f, 0.70f, 1.00f, 0.32f);
+        private static readonly Color RunNeonColor = new Color(0.15f, 1f, 0.35f, 1f);
+        private static readonly Color StopNeonColor = new Color(1f, 0.12f, 0.25f, 1f);
+        private static readonly Color StopZoneOutsideColor = new Color(0.20f, 0.50f, 1.00f, 0.28f);
+        private static readonly Color StopZoneInsideColor = new Color(0.35f, 0.70f, 1.00f, 0.42f);
+        private const float MinStopZoneRadiusMeters = 0.04f;
+        private const float MaxStopZoneRadiusMeters = 0.40f;
+        private const float StopButtonWorldSizeMeters = 0.08f;
+        private const string P102PressureName = "PressureMesh_P-102";
+        private const string P102TemperatureName = "TemperatureMesh_P-102";
+        private const string P102StatusName = "StatusMesh_P-102";
+        private const string P102StopPressName = "StopButton_P102_Press";
+        private const string P102Temperature = "72.3 °C";
 
         [Header("Existing scene objects")]
         [SerializeField] private Transform _xrOrigin;
@@ -31,27 +49,27 @@ namespace JH.EntrySafety
         [SerializeField] private Vector2 _readoutHighlightPaddingMeters = new Vector2(0.008f, 0.028f);
         [SerializeField, Range(0.3f, 1.2f)] private float _readoutHighlightWidthScale = 0.65f;
 
-        [Header("Physical P-102 readouts")]
+        [Header("Physical readouts")]
         [SerializeField] private TMP_Text _p102PressureReadout;
         [SerializeField] private TMP_Text _p102TemperatureReadout;
         [SerializeField] private TMP_Text _p102RunStopReadout;
         [SerializeField] private CanvasGroup _fadeCanvasGroup;
         [SerializeField, Min(0.1f)] private float _arrivalContextSeconds = 3f;
 
-        [Header("Temporary process tuning")]
+        [Header("Process tuning")]
         [SerializeField, Min(0f)] private float _initialPressureMpa = 4.12f;
         [SerializeField, Min(0f)] private float _reducedPressureMpa = 1.20f;
         [SerializeField, Min(0.1f)] private float _pressureDecreaseSeconds = 9f;
-        [Header("P-102 STOP zone (scene editable)")]
+        [Header("STOP zone (scene editable)")]
         [Tooltip("Move this transform in the Scene view to place the STOP proximity sphere.")]
         [SerializeField] private Transform _stopZoneAnchor;
         [Tooltip("Used when no anchor is assigned, or when Use Anchor Scale As Radius is off.")]
-        [SerializeField, Min(0.01f)] private float _stopZoneRadiusMeters = 0.18f;
+        [SerializeField, Min(0.01f)] private float _stopZoneRadiusMeters = 0.32f;
         [Tooltip("If enabled, sphere radius = anchor lossyScale.x * 0.5.")]
-        [SerializeField] private bool _useAnchorScaleAsRadius = true;
-        // Fallback placement when _stopZoneAnchor is null. Negative is outward toward the player.
-        [SerializeField] private float _stopZoneForwardOffsetMeters = -0.55f;
+        [SerializeField] private bool _useAnchorScaleAsRadius = false;
+        [SerializeField] private float _stopZoneForwardOffsetMeters = -0.35f;
         [SerializeField, Min(0f)] private float _p102PressFaceOutwardOffsetMeters = 0.02f;
+        [SerializeField, Min(0.01f)] private float _stopButtonReachMeters = 0.12f;
 
         private Vector3 _p102PressFallbackWorldPosition;
         private float _pressureMpa;
@@ -61,8 +79,8 @@ namespace JH.EntrySafety
         private bool _hasInitialized;
         private bool _isArrivalContextActive;
         private bool _isRightHandInsideStopZone;
-        private float _p102RunningFontSize;
-        private bool _hasP102RunningFontSize;
+        private float _selectedRunningFontSize;
+        private bool _hasSelectedRunningFontSize;
         private GameObject _stopProximityVisual;
         private Renderer _stopProximityRenderer;
         private Material _stopProximityMaterial;
@@ -86,8 +104,11 @@ namespace JH.EntrySafety
         private void Awake()
         {
             ResolveLiveXrRefs();
-            _p102PressFallbackWorldPosition = _p102Press == null ? Vector3.zero : _p102Press.position;
-            CacheP102RunningFontSize();
+            ResolveP102References();
+            _p102PressFallbackWorldPosition = _p102Press == null
+                ? Vector3.zero
+                : _p102Press.position;
+            CacheSelectedRunningFontSize();
             ResetPresentation();
         }
 
@@ -104,7 +125,6 @@ namespace JH.EntrySafety
 
         private void ResolveLiveXrRefs()
         {
-            // Common XR Origin is named differently from the stage XR Origin.
             _xrOrigin = EntrySafetyAppXrResolve.PreferLive(_xrOrigin, "Common XR Origin");
             if (_xrOrigin == null)
                 _xrOrigin = EntrySafetyAppXrResolve.PreferLive(null, "XR Origin (VR)");
@@ -127,6 +147,7 @@ namespace JH.EntrySafety
         public void ResetPresentation()
         {
             ResolveLiveXrRefs();
+            ResolveP102References();
             _pressureMpa = _initialPressureMpa;
             _pressureElapsed = 0f;
             _pumpStopped = false;
@@ -135,8 +156,7 @@ namespace JH.EntrySafety
             _isRightHandInsideStopZone = false;
             SetStopProximityVisible(false);
             _lastStep = EntrySafetyStep.SceneIntro;
-            if (_p102Press != null)
-                _p102Press.position = GetReleasedPressPosition();
+            RestorePressPositions();
             if (_fadeCanvasGroup != null)
             {
                 _fadeCanvasGroup.alpha = 0f;
@@ -146,6 +166,7 @@ namespace JH.EntrySafety
             SetTargets(EntrySafetyGazeTargetId.None);
             UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
             RefreshReadouts();
+            EnsurePanelLocomotionBlocker();
             _hasInitialized = true;
         }
 
@@ -178,7 +199,6 @@ namespace JH.EntrySafety
                 ResetPresentation();
 
             _ = isGazing;
-
             if (step != _lastStep)
             {
                 _lastStep = step;
@@ -206,6 +226,7 @@ namespace JH.EntrySafety
         public void UpdateStopProximity(bool isStopStep, Vector3 rightHandTrackingPosition, bool hasRightHandPose)
         {
             ResolveLiveXrRefs();
+            ResolveP102References();
             if (!isStopStep || _pumpStopped || _xrOrigin == null || _p102Press == null)
             {
                 _isRightHandInsideStopZone = false;
@@ -217,42 +238,38 @@ namespace JH.EntrySafety
                                              rightHandTrackingPosition,
                                              hasRightHandPose,
                                              out var rightHandWorldPosition) &&
-                                         IsInsideStopZone(rightHandWorldPosition);
+                                         IsInsideP102Stop(rightHandWorldPosition);
             SetStopProximityVisible(true);
             SetStopProximityColor(_isRightHandInsideStopZone ? StopZoneInsideColor : StopZoneOutsideColor);
         }
 
-        public bool TryStopPump(Vector3 rightHandTrackingPosition, bool hasRightHandPose)
+        public EntrySafetyStopAttemptResult TryStopPump(Vector3 rightHandTrackingPosition, bool hasRightHandPose)
         {
-            if (_pumpStopped || _p102Press == null ||
+            if (_pumpStopped)
+                return EntrySafetyStopAttemptResult.Ignored;
+
+            ResolveP102References();
+            if (_p102Press == null ||
                 !TryGetRightHandWorldPosition(rightHandTrackingPosition, hasRightHandPose, out var rightHandWorldPosition))
             {
-                return false;
+                return EntrySafetyStopAttemptResult.Ignored;
             }
 
-            if (!IsInsideStopZone(rightHandWorldPosition))
-            {
-                return false;
-            }
+            if (!IsInsideP102Stop(rightHandWorldPosition))
+                return EntrySafetyStopAttemptResult.Missed;
 
             _pumpStopped = true;
             _pressureElapsed = 0f;
-            // Start depressurizing as soon as the physical STOP input succeeds.
-            // Nine seconds leaves the readout near its final value after the
-            // STOP narration and two-second visual confirmation have finished.
             _pressureDecreaseStarted = true;
             _pressureMpa = _initialPressureMpa;
             _isRightHandInsideStopZone = false;
             SetStopProximityVisible(false);
+            SharedIncidentState.Current.SetFacilityRunState(FacilityRunState.Stopped);
             StartCoroutine(AnimateStopPress());
             RefreshReadouts();
-            return true;
+            return EntrySafetyStopAttemptResult.Stopped;
         }
 
-        /// <summary>
-        /// Legacy entry point for flows that reach WaitPressureDecrease without
-        /// having started the pressure drop from the STOP input.
-        /// </summary>
         public void BeginPressureDecrease(float durationSeconds)
         {
             if (!_pumpStopped || _pressureDecreaseStarted)
@@ -269,7 +286,6 @@ namespace JH.EntrySafety
 
         public void ShowWaitFeedback()
         {
-            // Guidance text UI removed; pressure wait continues without panel copy.
         }
 
         public void ClearGazeFocus()
@@ -278,7 +294,6 @@ namespace JH.EntrySafety
             UpdateGazeHighlight(EntrySafetyGazeTargetId.None, 0f);
         }
 
-        /// <summary>Keeps Goal 2 complete without restoring the removed world-card guidance texts.</summary>
         public void ShowNextAreaReady()
         {
         }
@@ -339,7 +354,8 @@ namespace JH.EntrySafety
             if (_gazeHighlight == null)
                 return;
 
-            if (activeTarget == EntrySafetyGazeTargetId.None)
+            if (activeTarget == EntrySafetyGazeTargetId.None &&
+                _lastStep != EntrySafetyStep.StopPump)
             {
                 _gazeHighlight.ClearFollow();
                 return;
@@ -354,7 +370,7 @@ namespace JH.EntrySafety
 
             var faceOutward = -GetPanelForward();
             _gazeHighlight.Follow(anchor, faceOutward, GetHighlightSize(activeTarget, anchor));
-            _gazeHighlight.SetProgress(gazeProgress01);
+            _gazeHighlight.SetProgress(_lastStep == EntrySafetyStep.StopPump ? 1f : gazeProgress01);
         }
 
         private Transform GetHighlightAnchor(EntrySafetyGazeTargetId targetId)
@@ -377,7 +393,8 @@ namespace JH.EntrySafety
         private Vector2 GetHighlightSize(EntrySafetyGazeTargetId targetId, Transform anchor)
         {
             var fallback = targetId == EntrySafetyGazeTargetId.RunIndicator ||
-                           targetId == EntrySafetyGazeTargetId.StopIndicator
+                           targetId == EntrySafetyGazeTargetId.StopIndicator ||
+                           _lastStep == EntrySafetyStep.StopPump
                 ? _statusHighlightSizeMeters
                 : _readoutHighlightSizeMeters;
 
@@ -431,10 +448,21 @@ namespace JH.EntrySafety
             }
         }
 
-        private bool IsInsideStopZone(Vector3 rightHandWorldPosition)
+        private bool IsInsideP102Stop(Vector3 rightHandWorldPosition)
         {
-            var stopZoneCenter = GetStopZoneCenter();
-            return Vector3.Distance(rightHandWorldPosition, stopZoneCenter) <= GetStopZoneRadius();
+            if (_p102Press == null)
+                return false;
+
+            EnsureStopCollider(_p102Press);
+            var collider = _p102Press.GetComponent<Collider>();
+            if (collider != null)
+            {
+                var closest = collider.ClosestPoint(rightHandWorldPosition);
+                if (Vector3.Distance(closest, rightHandWorldPosition) <= _stopButtonReachMeters)
+                    return true;
+            }
+
+            return Vector3.Distance(rightHandWorldPosition, GetStopZoneCenter()) <= GetStopZoneRadius();
         }
 
         private bool TryGetRightHandWorldPosition(
@@ -465,9 +493,9 @@ namespace JH.EntrySafety
 
             var releasedPosition = GetReleasedPressPosition();
             var pressedPosition = releasedPosition + GetPanelForward() * 0.012f;
-            yield return MovePress(releasedPosition, pressedPosition, 0.15f);
+            yield return MovePress(_p102Press, releasedPosition, pressedPosition, 0.12f);
             yield return new WaitForSeconds(0.08f);
-            yield return MovePress(pressedPosition, releasedPosition, 0.15f);
+            yield return MovePress(_p102Press, pressedPosition, releasedPosition, 0.12f);
         }
 
         private Vector3 GetStopZoneCenter()
@@ -475,26 +503,30 @@ namespace JH.EntrySafety
             if (_stopZoneAnchor != null)
                 return _stopZoneAnchor.position;
 
-            if (_p102Press == null)
-                return transform.position;
+            if (_p102Press != null)
+                return _p102Press.position + GetPanelForward() * _stopZoneForwardOffsetMeters;
 
-            return GetReleasedPressPosition() + GetPanelForward() * _stopZoneForwardOffsetMeters;
+            return transform.position;
         }
 
         private float GetStopZoneRadius()
         {
-            if (_stopZoneAnchor != null && _useAnchorScaleAsRadius)
-                return Mathf.Max(0.01f, _stopZoneAnchor.lossyScale.x * 0.5f);
+            var radius = _stopZoneRadiusMeters;
+            if (_useAnchorScaleAsRadius && _stopZoneAnchor != null)
+                radius = _stopZoneAnchor.lossyScale.x * 0.5f;
 
-            return Mathf.Max(0.01f, _stopZoneRadiusMeters);
+            return Mathf.Clamp(radius, MinStopZoneRadiusMeters, MaxStopZoneRadiusMeters);
         }
 
         private Vector3 GetReleasedPressPosition()
         {
-            if (_p102Press.parent == null)
+            var press = _p102Press;
+            if (press == null)
+                return _p102PressFallbackWorldPosition;
+            if (press.parent == null)
                 return _p102PressFallbackWorldPosition;
 
-            return _p102Press.parent.position - GetPanelForward() * _p102PressFaceOutwardOffsetMeters;
+            return press.parent.position - GetPanelForward() * _p102PressFaceOutwardOffsetMeters;
         }
 
         private Vector3 GetPanelForward()
@@ -502,17 +534,20 @@ namespace JH.EntrySafety
             return _panelFocus == null ? Vector3.forward : _panelFocus.forward;
         }
 
-        private IEnumerator MovePress(Vector3 from, Vector3 to, float duration)
+        private IEnumerator MovePress(Transform press, Vector3 from, Vector3 to, float duration)
         {
+            if (press == null)
+                yield break;
+
             var elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                _p102Press.position = Vector3.Lerp(from, to, elapsed / duration);
+                press.position = Vector3.Lerp(from, to, elapsed / duration);
                 yield return null;
             }
 
-            _p102Press.position = to;
+            press.position = to;
         }
 
         private void SetStopProximityVisible(bool visible)
@@ -541,7 +576,7 @@ namespace JH.EntrySafety
                 return;
 
             _stopProximityVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            _stopProximityVisual.name = "P102StopProximitySphere";
+            _stopProximityVisual.name = "SelectedStopProximitySphere";
             _stopProximityVisual.transform.SetParent(transform, true);
 
             var collider = _stopProximityVisual.GetComponent<Collider>();
@@ -590,6 +625,7 @@ namespace JH.EntrySafety
 #if UNITY_EDITOR
         private void OnDrawGizmos()
         {
+            ResolveP102References();
             var center = GetStopZoneCenter();
             var radius = GetStopZoneRadius();
             Gizmos.color = new Color(0.20f, 0.50f, 1.00f, 0.35f);
@@ -597,44 +633,121 @@ namespace JH.EntrySafety
             Gizmos.color = new Color(0.20f, 0.50f, 1.00f, 0.08f);
             Gizmos.DrawSphere(center, radius);
         }
-
-        private void OnDrawGizmosSelected()
-        {
-            var center = GetStopZoneCenter();
-            var radius = GetStopZoneRadius();
-            Gizmos.color = new Color(0.35f, 0.70f, 1.00f, 0.9f);
-            Gizmos.DrawWireSphere(center, radius);
-        }
 #endif
 
         private void RefreshReadouts()
         {
+            ResolveP102References();
             SetText(_p102PressureReadout, $"{_pressureMpa:0.00} bar");
-            SetText(_p102TemperatureReadout, "72.3 °C");
+            SetText(_p102TemperatureReadout, P102Temperature);
             SetText(_p102RunStopReadout, _pumpStopped ? "STOP" : "RUN");
-            SetP102RunStopColor(_pumpStopped);
-        }
-
-        private void SetP102RunStopColor(bool isStopped)
-        {
+            if (_p102PressureReadout != null)
+                _p102PressureReadout.color = Color.white;
+            if (_p102TemperatureReadout != null)
+                _p102TemperatureReadout.color = Color.white;
             if (_p102RunStopReadout == null)
                 return;
 
-            CacheP102RunningFontSize();
-            var statusColor = isStopped ? P102StopNeonColor : P102RunNeonColor;
-            _p102RunStopReadout.color = statusColor;
-            _p102RunStopReadout.fontSize = isStopped
-                ? Mathf.Max(1f, _p102RunningFontSize - 4f)
-                : _p102RunningFontSize;
+            CacheSelectedRunningFontSize();
+            _p102RunStopReadout.color = _pumpStopped ? StopNeonColor : RunNeonColor;
+            if (_hasSelectedRunningFontSize)
+            {
+                _p102RunStopReadout.fontSize = _pumpStopped
+                    ? Mathf.Max(1f, _selectedRunningFontSize - 4f)
+                    : _selectedRunningFontSize;
+            }
         }
 
-        private void CacheP102RunningFontSize()
+        private void CacheSelectedRunningFontSize()
         {
-            if (_hasP102RunningFontSize || _p102RunStopReadout == null)
+            if (_hasSelectedRunningFontSize || _p102RunStopReadout == null)
                 return;
 
-            _p102RunningFontSize = _p102RunStopReadout.fontSize;
-            _hasP102RunningFontSize = true;
+            _selectedRunningFontSize = _p102RunStopReadout.fontSize;
+            _hasSelectedRunningFontSize = true;
+        }
+
+        private void ResolveP102References()
+        {
+            if (_p102PressureReadout == null)
+                _p102PressureReadout = FindNamed<TMP_Text>(P102PressureName);
+            if (_p102TemperatureReadout == null)
+                _p102TemperatureReadout = FindNamed<TMP_Text>(P102TemperatureName);
+            if (_p102RunStopReadout == null)
+                _p102RunStopReadout = FindNamed<TMP_Text>(P102StatusName);
+            if (_p102Press == null)
+                _p102Press = FindNamedTransform(P102StopPressName);
+            EnsureStopCollider(_p102Press);
+        }
+
+        private void RestorePressPositions()
+        {
+            if (_p102Press != null)
+                _p102Press.position = GetReleasedPressPosition();
+        }
+
+        private static void EnsureStopCollider(Transform press)
+        {
+            if (press == null)
+                return;
+
+            var box = press.GetComponent<BoxCollider>();
+            if (box == null)
+                box = press.gameObject.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+
+            var worldScale = press.lossyScale;
+            box.size = new Vector3(
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.x),
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.y),
+                StopButtonWorldSizeMeters / Mathf.Max(0.0001f, worldScale.z));
+        }
+
+        private void EnsurePanelLocomotionBlocker()
+        {
+            var panel = FindPanelRoot(_p102Press);
+            if (panel == null)
+                panel = FindNamedTransform("PT_Panel");
+            if (panel == null)
+                return;
+
+            EnsureStopCollider(_p102Press);
+            EntrySafetyPtPanelLocomotionBlocker.Ensure(panel, GetPanelForward());
+        }
+
+        private static Transform FindPanelRoot(Transform start)
+        {
+            var current = start;
+            while (current != null)
+            {
+                if (current.name == "PT_Panel")
+                    return current;
+                current = current.parent;
+            }
+
+            return null;
+        }
+
+        private static T FindNamed<T>(string objectName) where T : Component
+        {
+            var host = FindNamedTransform(objectName);
+            return host != null ? host.GetComponent<T>() : null;
+        }
+
+        private static Transform FindNamedTransform(string objectName)
+        {
+            if (string.IsNullOrEmpty(objectName))
+                return null;
+
+            var transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include);
+            for (var i = 0; i < transforms.Length; i++)
+            {
+                var candidate = transforms[i];
+                if (candidate != null && candidate.name == objectName)
+                    return candidate;
+            }
+
+            return null;
         }
 
         private static void SetTargetActive(EntrySafetyGazeTargetBehaviour target, bool active)

@@ -38,5 +38,6 @@ namespace JH.EntrySafety
             TtsText = string.Empty;
             HasTts = false;
         }
+
     }
 }

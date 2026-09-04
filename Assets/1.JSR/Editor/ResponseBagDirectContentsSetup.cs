@@ -28,7 +28,6 @@ public static class ResponseBagDirectContentsSetup
     const string ExactPadName = "INT_AbsorbentPad_01";
     const string ExactPadFallback = "ENV_PPECabinet_03";
 
-    [MenuItem("Tools/PPE/Setup Direct Response Bag Contents", false, 36)]
     public static void SetupDirectContents()
     {
         var scene = SceneManager.GetActiveScene();
@@ -43,7 +42,7 @@ public static class ResponseBagDirectContentsSetup
 
     public static void SetupDirectContentsBatch()
     {
-        const string ScenePath = "Assets/Scenes/PPE_PreparationRoom 1.unity";
+        const string ScenePath = "Assets/Scenes/04_PPE.unity";
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         if (!scene.IsValid())
         {
@@ -82,7 +81,7 @@ public static class ResponseBagDirectContentsSetup
         var bag = manager.ResponseBagRoot;
         if (bag == null)
         {
-            Debug.LogError("[Direct Bag Contents] manager.responseBagRoot is null. Assign ResponseBag_UnityReady.");
+            Debug.LogError("[Direct Bag Contents] manager.responseBagRoot is null. Assign ResponseBag_HardShell.");
             return;
         }
 
@@ -502,7 +501,7 @@ public static class ResponseBagDirectContentsSetup
         tmp.fontSize = 32f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
 
         var font = Resources.Load<TMP_FontAsset>(HangulFontResource);
@@ -548,8 +547,7 @@ public static class ResponseBagDirectContentsSetup
         deleted |= DestroyNamedRoot("ResponseBagContentsUIAnchor", report);
 
         var panels = Object.FindObjectsByType<ResponseBagContentsPanel>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < panels.Length; i++)
         {
             if (panels[i] == null)
@@ -561,8 +559,7 @@ public static class ResponseBagDirectContentsSetup
         }
 
         var gazeTargets = Object.FindObjectsByType<ResponseBagGazeTarget>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < gazeTargets.Length; i++)
         {
             if (gazeTargets[i] == null)
@@ -715,8 +712,7 @@ public static class ResponseBagDirectContentsSetup
 
         var bit = 1L << layerIndex;
         var interactors = Object.FindObjectsByType<XRBaseInteractor>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
 
         var updated = 0;
         for (var i = 0; i < interactors.Length; i++)

@@ -26,7 +26,7 @@ namespace VRProject.ObjectInstallation.Tests
         [Test]
         public void P102Scene_SockSourceHasCompleteGrabAndInstallWiring()
         {
-            var scene = EditorSceneManager.OpenScene("Assets/Scenes/SSH_VR_Project.unity", OpenSceneMode.Single);
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/06_LeakResponse.unity", OpenSceneMode.Single);
             var sceneObjects = scene.GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
                 .Select(transform => transform.gameObject)

@@ -40,7 +40,6 @@ public class ResponseBagThumbnailRenderer : EditorWindow
     [SerializeField] float padFitFill = 0.72f;
     [SerializeField] float padCameraDist = 1.6f;
 
-    [MenuItem("Tools/PPE/Render Response Bag Thumbnails")]
     public static void Open()
     {
         var win = GetWindow<ResponseBagThumbnailRenderer>("Bag Thumbnails");
@@ -49,7 +48,6 @@ public class ResponseBagThumbnailRenderer : EditorWindow
         win.Show();
     }
 
-    [MenuItem("Tools/PPE/Render Response Bag Thumbnails (Default Poses)")]
     public static void RenderDefaultsMenu()
     {
         RenderAllBatch();
@@ -384,7 +382,7 @@ public class ResponseBagThumbnailRenderer : EditorWindow
         for (var i = 0; i < 80; i++)
         {
             preview = AssetPreview.GetAssetPreview(source);
-            if (preview != null && !AssetPreview.IsLoadingAssetPreview(source.GetInstanceID()))
+            if (preview != null && !AssetPreview.IsLoadingAssetPreview(source.GetEntityId()))
                 break;
             // Pump editor so preview generation can finish.
             System.Threading.Thread.Sleep(25);

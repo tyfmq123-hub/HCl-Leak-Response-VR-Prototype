@@ -90,23 +90,29 @@ namespace VRProject.LeakResponse.Narration
 
         public static int HideHandPoseGhostRenderers(GameObject root)
         {
+            return SetHandPoseGhostRenderersVisible(root, false);
+        }
+
+        public static int SetHandPoseGhostRenderersVisible(GameObject root, bool visible)
+        {
             Transform ghostsRoot = FindDescendantTransform(root, HandPoseGhostsRootName);
             if (ghostsRoot == null)
                 return 0;
 
+            ghostsRoot.gameObject.SetActive(visible);
             Renderer[] renderers = ghostsRoot.GetComponentsInChildren<Renderer>(true);
-            int hiddenCount = 0;
+            int changedCount = 0;
             for (int i = 0; i < renderers.Length; ++i)
             {
                 Renderer renderer = renderers[i];
                 if (renderer == null)
                     continue;
 
-                renderer.enabled = false;
-                ++hiddenCount;
+                renderer.enabled = visible;
+                ++changedCount;
             }
 
-            return hiddenCount;
+            return changedCount;
         }
 
         public static bool IsHandPoseGhostTransform(Transform candidate, Transform rootLimit)
@@ -418,6 +424,30 @@ namespace VRProject.LeakResponse.Narration
                 material.EnableKeyword("_EMISSION");
                 material.SetColor("_EmissionColor", color * 2f);
             }
+            if (color.a < 0.999f)
+            {
+                if (material.HasProperty("_Surface"))
+                    material.SetFloat("_Surface", 1f);
+                if (material.HasProperty("_Blend"))
+                    material.SetFloat("_Blend", 0f);
+                if (material.HasProperty("_SrcBlend"))
+                    material.SetFloat("_SrcBlend",
+                        (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                if (material.HasProperty("_DstBlend"))
+                    material.SetFloat("_DstBlend",
+                        (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                if (material.HasProperty("_ZWrite"))
+                    material.SetFloat("_ZWrite", 0f);
+                if (material.HasProperty("_Cull"))
+                    material.SetFloat("_Cull", 0f);
+                if (material.HasProperty("_CullMode"))
+                    material.SetFloat("_CullMode", 0f);
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.DisableKeyword("_SURFACE_TYPE_OPAQUE");
+                material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+            material.enableInstancing = true;
             return material;
         }
 
@@ -456,14 +486,8 @@ namespace VRProject.LeakResponse.Narration
                 $"{ghostName} Material", new Color(0.1f, 0.9f, 1f, 0.38f));
             if (ghostMaterial != null)
             {
-                if (ghostMaterial.HasProperty("_Surface"))
-                    ghostMaterial.SetFloat("_Surface", 1f);
-                if (ghostMaterial.HasProperty("_ZWrite"))
-                    ghostMaterial.SetFloat("_ZWrite", 0f);
-                ghostMaterial.SetOverrideTag("RenderType", "Transparent");
-                ghostMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                ghostMaterial.DisableKeyword("_SURFACE_TYPE_OPAQUE");
-                ghostMaterial.renderQueue = 3000;
+                if (ghostMaterial.FindPass("DepthPrepass") >= 0)
+                    ghostMaterial.SetShaderPassEnabled("DepthPrepass", false);
             }
             Renderer[] renderers = ghost.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; ++i)

@@ -12,14 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ed6867ced254676a96a629c5bca2e6f, type: 3}
   m_Name: PreEntry
   m_EditorClassIdentifier: HClTraining.SharedXR.Runtime::HClTraining.SharedXR.StageXRRequirements
-  scenePath: Assets/Scenes/JH_Test_Scene.unity
+  scenePath: Assets/Scenes/05_PreEntry.unity
   spawnPosition: {x: 0, y: 0, z: -18.76}
   spawnEulerAngles: {x: 0, y: 0, z: 0}
   farInteraction: 0
-  nearInteraction: 0
+  nearInteraction: 1
   uiInteraction: 0
-  grabInteraction: 0
+  grabInteraction: 1
   haptics: 1
-  movement: 0
-  turning: 0
+  movement: 1
+  turning: 1
   comfortVignette: 0
+  handVisualMode: 0

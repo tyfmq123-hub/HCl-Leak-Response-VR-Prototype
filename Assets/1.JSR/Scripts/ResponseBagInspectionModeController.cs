@@ -41,7 +41,7 @@ public class ResponseBagInspectionModeController : MonoBehaviour
             label.HideImmediate();
 
         var items = FindObjectsByType<ResponseBagContentHoverItem>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < items.Length; i++)
             items[i]?.ClearVisuals();
     }
