@@ -17,9 +17,9 @@ namespace JH.EntrySafety
         [SerializeField] private Renderer _renderer;
         [SerializeField] private Collider _collider;
         [Header("LeakResponse Return Boundary")]
-        [SerializeField, Min(1f)] private float _returnBoundaryWorldWidth = 16f;
+        [SerializeField, Min(1f)] private float _returnBoundaryWorldWidth = 6f;
         [SerializeField, Min(1f)] private float _returnBoundaryWorldHeight = 5f;
-        [SerializeField, Min(0.05f)] private float _returnBoundaryWorldDepth = 0.35f;
+        [SerializeField, Min(0.05f)] private float _returnBoundaryWorldDepth = 0.2f;
 
         private Material _materialInstance;
         private BoxCollider _returnBoundaryCollider;
@@ -54,6 +54,9 @@ namespace JH.EntrySafety
 
         public void RestoreImmediate()
         {
+            if (this == null)
+                return;
+
             EnsureReferences();
             CaptureOpaqueColor();
             _isCleared = false;
@@ -71,7 +74,7 @@ namespace JH.EntrySafety
 
         public IEnumerator FadeOutAndClear()
         {
-            if (_isCleared)
+            if (this == null || _isCleared)
                 yield break;
 
             EnsureReferences();
@@ -102,6 +105,9 @@ namespace JH.EntrySafety
 
         public void ClearImmediate()
         {
+            if (this == null)
+                return;
+
             EnsureReferences();
             _isFading = false;
             _isCleared = true;
@@ -122,6 +128,9 @@ namespace JH.EntrySafety
 
         private void EnsureReferences()
         {
+            if (this == null)
+                return;
+
             if (_renderer == null)
                 _renderer = GetComponent<Renderer>();
             if (_collider == null)

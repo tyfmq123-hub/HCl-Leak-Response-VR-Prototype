@@ -1,0 +1,30 @@
+name: Unity repository integrity
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-integrity:
+    name: Git, Unity meta, packages, scenes, and LFS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with Git LFS
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Validate reproducible Unity checkout
+        run: python scripts/ci/validate_unity_repository.py --require-clean

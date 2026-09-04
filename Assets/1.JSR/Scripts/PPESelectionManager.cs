@@ -56,7 +56,14 @@ public class PPESelectionManager : MonoBehaviour
         var manager = PPEEquipmentManager.Instance != null
             ? PPEEquipmentManager.Instance
             : FindAnyObjectByType<PPEEquipmentManager>();
-        return equipable != null && manager != null && manager.Equip(equipable);
+        if (equipable == null || manager == null)
+            return false;
+
+        var pair = equipable.GetComponent<PPEGlovePairCoordinator>();
+        if (pair != null && !pair.BothEquipped)
+            return false;
+
+        return manager.Equip(equipable);
     }
 
     void Awake()

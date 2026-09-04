@@ -17,7 +17,6 @@ public static class WasteContainerPrepareSetup
     const string GazeDriverName = "CameraGazeSelectDriver";
     const string OutlineMaterialPath = "Assets/1.JSR/Materials/PPE/PPE_Outline.mat";
 
-    [MenuItem("Tools/PPE/Setup Waste Container Gaze+Grip Take-Out", false, 28)]
     public static void SetupWasteContainerTakeOut()
     {
         EnsurePreferredSceneLoaded();

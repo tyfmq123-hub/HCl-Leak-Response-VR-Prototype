@@ -13,7 +13,6 @@ public static class VrHandPrefabRestore
     const string LeftPrefabPath = "Assets/Common/VRHands/vr hand_Left.prefab";
     const string RightPrefabPath = "Assets/Common/VRHands/vr hand_Right.prefab";
 
-    [MenuItem("Tools/VR/Fill VR Hand Prefabs From FBX", false, 25)]
     public static void FillHandPrefabsFromFbx()
     {
         FillOne(LeftFbxPath, LeftPrefabPath, "vr hand_Left");

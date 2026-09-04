@@ -11,7 +11,6 @@ public static class PPERoomIntroVoiceSetup
     const string ObjectName = "PPE_RoomIntroVoice";
     const string ClipPath = "Assets/1.JSR/Resources/PPE_RoomIntroVoice.mp3";
 
-    [MenuItem("Tools/PPE/Setup Room Intro Voice", false, 30)]
     public static void SetupRoomIntroVoice()
     {
         var scene = SceneManager.GetActiveScene();

@@ -203,6 +203,8 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
+
             if (!equipmentUseReported)
             {
                 equipmentUseReported = true;
@@ -265,8 +267,14 @@ namespace VRProject.LeakResponse.Narration
                 grabInteractable.trackPosition = true;
                 grabInteractable.trackRotation = true;
             }
-            if (args.isCanceled || returned || tongsRoot == null)
+            if (returned || tongsRoot == null)
                 return;
+            if (args.isCanceled)
+            {
+                if (recoveryActionEnabled)
+                    P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
+                return;
+            }
 
             if (returnEnabled && tongsGhost != null &&
                 Vector3.Distance(tongsRoot.transform.position, tongsGhost.position) <= 0.3f)
@@ -275,6 +283,7 @@ namespace VRProject.LeakResponse.Narration
                 return;
             }
 
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
             StartCoroutine(EnableReleasedTongsPhysics());
         }
 
@@ -535,6 +544,7 @@ namespace VRProject.LeakResponse.Narration
         IEnumerator SnapTongsToGhost()
         {
             returned = true;
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
             tongsRigidbody.linearVelocity = Vector3.zero;
             tongsRigidbody.angularVelocity = Vector3.zero;
             tongsRigidbody.useGravity = false;
@@ -593,7 +603,10 @@ namespace VRProject.LeakResponse.Narration
         {
             recoveryActionEnabled = true;
             if (grabInteractable != null && !returned)
+            {
                 grabInteractable.enabled = true;
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
+            }
         }
 
         void RestoreSelectTriggers()

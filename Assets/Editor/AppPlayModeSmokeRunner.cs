@@ -41,7 +41,11 @@ public static class AppPlayModeSmokeRunner
     static bool hooked;
     static Camera validatedMainCamera;
     static bool validatedBagBodySpace;
+    static bool validatedPreEntryDetectorPose;
+    static int preEntryDetectorValidationPhase;
+    static double preEntryDetectorPhaseStarted;
 
+    // A request created after compilation is consumed on the next domain reload.
     static AppPlayModeSmokeRunner()
     {
         if (SessionState.GetBool(ActiveKey, false))
@@ -53,7 +57,6 @@ public static class AppPlayModeSmokeRunner
         }
     }
 
-    [MenuItem("Tools/HCl Training/Run App PlayMode Smoke")]
     public static void Run()
     {
         Directory.CreateDirectory("Logs");
@@ -64,6 +67,9 @@ public static class AppPlayModeSmokeRunner
         SessionState.SetString(StartedKey, EditorApplication.timeSinceStartup.ToString("R"));
         validatedMainCamera = null;
         validatedBagBodySpace = false;
+        validatedPreEntryDetectorPose = false;
+        preEntryDetectorValidationPhase = 0;
+        preEntryDetectorPhaseStarted = 0d;
         Hook();
         EditorSceneManager.OpenScene(SceneFlowController.AppScenePath, OpenSceneMode.Single);
         EditorApplication.EnterPlaymode();
@@ -139,6 +145,7 @@ public static class AppPlayModeSmokeRunner
 
                 case 2:
                     if (app.Session.CurrentStage != TrainingStage.PreEntry) return;
+                    if (!ValidatePreEntryDetectorPose()) return;
                     ValidateRuntime("Full PreEntry", TrainingStage.PreEntry);
                     Require(app.Session.LeftChemicalGloveWorn && app.Session.RightChemicalGloveWorn,
                         "Chemical glove state did not persist into PreEntry.");
@@ -159,7 +166,12 @@ public static class AppPlayModeSmokeRunner
                 case 4:
                     if (app.Session.CurrentStage != TrainingStage.Complete) return;
                     ValidateRuntime("Full Complete", TrainingStage.Complete);
-                    Require(app.Session.CompletedStages.Count == 3, "Full training did not record all three stages.");
+                    // This smoke advances each Stage through the public routing API; it
+                    // intentionally does not perform every required training check item.
+                    // Reaching the completion screen must therefore record three ended
+                    // Stages without falsely marking skipped procedures as completed.
+                    Require(app.Session.EndedStages.Count == 3,
+                        "Full training did not record all three ended stages.");
                     Require(UnityEngine.Object.FindAnyObjectByType<CompleteMenuPresenter>() != null,
                         "Complete menu presenter missing.");
                     Require(app.ScenarioFlow.RepeatSelectedTraining(), "Repeat full training request failed.");
@@ -205,6 +217,7 @@ public static class AppPlayModeSmokeRunner
                     ValidateRuntime("PreEntry only", TrainingStage.PreEntry);
                     Require(PPELoadoutReader.Source == PPELoadoutSource.FieldReadyPreset,
                         "PreEntry-only did not initialize official field-ready PPE preset.");
+                    if (!ValidatePreEntryDetectorPose()) return;
                     app.ScenarioFlow.CompleteCurrentStage();
                     Advance("PreEntry only -> Complete");
                     break;
@@ -258,10 +271,10 @@ public static class AppPlayModeSmokeRunner
                 app.SharedEquipment.RetrievalZone != null && app.SharedEquipment.RetrievalAnchor != null,
             $"{label}: Shared bag body anchor/retrieval contract is incomplete.");
 
-        var origins = UnityEngine.Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var origins = UnityEngine.Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Exclude);
         Require(origins.Length == 1, $"{label}: active XR Origin count={origins.Length}.");
 
-        var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
         var activeMainCameras = 0;
         Camera activeMainCamera = null;
         for (var i = 0; i < cameras.Length; i++)
@@ -281,26 +294,26 @@ public static class AppPlayModeSmokeRunner
             Require(ReferenceEquals(validatedMainCamera, app.MainCamera),
                 $"{label}: XR Main Camera instance changed across Stage transition.");
 
-        var listeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var listeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude);
         var activeListeners = 0;
         for (var i = 0; i < listeners.Length; i++) if (listeners[i].enabled) activeListeners++;
         Require(activeListeners == 1, $"{label}: active AudioListener count={activeListeners}.");
 
-        var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude);
         Require(systems.Length == 1, $"{label}: active EventSystem count={systems.Length}.");
 
         var interactionManagers = UnityEngine.Object.FindObjectsByType<XRInteractionManager>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
         Require(interactionManagers.Length == 1,
             $"{label}: active XR Interaction Manager count={interactionManagers.Length}.");
 
         var inputManagers = UnityEngine.Object.FindObjectsByType<InputActionManager>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
         Require(inputManagers.Length == 1,
             $"{label}: active Input Action Manager count={inputManagers.Length}.");
 
         var poseDrivers = UnityEngine.Object.FindObjectsByType<TrackedPoseDriver>(
-            FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            FindObjectsInactive.Exclude);
         Require(poseDrivers.Length == 3,
             $"{label}: active tracked pose driver count={poseDrivers.Length}, expected camera + two controllers.");
 
@@ -326,9 +339,18 @@ public static class AppPlayModeSmokeRunner
             ValidatePpeRequiredHighlight(label);
             ValidatePpeXChecklist(label);
         }
-        if (expectedStage == TrainingStage.PreEntry || expectedStage == TrainingStage.LeakResponse)
-            Require(app.SharedEquipment.BagRoot.gameObject.activeInHierarchy,
-                $"{label}: shared response bag is not available in the field Stage.");
+        if (expectedStage == TrainingStage.PreEntry)
+        {
+            var authoredPreEntryBag = FindActiveTransform("PreEntry_ResponseBag");
+            Require(app.SharedEquipment.BagRoot.gameObject.activeInHierarchy || authoredPreEntryBag != null,
+                $"{label}: neither the shared bag nor the authored PreEntry bag is active.");
+        }
+        else if (expectedStage == TrainingStage.LeakResponse)
+        {
+            var authoredLeakBag = FindActiveTransform("LeakResponse_ResponseBag");
+            Require(app.SharedEquipment.BagRoot.gameObject.activeInHierarchy || authoredLeakBag != null,
+                $"{label}: neither the shared bag nor the authored LeakResponse bag is active.");
+        }
 
         var contentScenes = 0;
         for (var i = 0; i < SceneManager.sceneCount; i++)
@@ -377,9 +399,9 @@ public static class AppPlayModeSmokeRunner
 
         var shouldBeActive = expectedStage == TrainingStage.LeakResponse;
         var bootstraps = UnityEngine.Object.FindObjectsByType<P102LeakRuntimeBootstrap>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var narrations = UnityEngine.Object.FindObjectsByType<P102LeakNarrationController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var leakBootstrapCount = 0;
         var leakNarrationCount = 0;
         for (var i = 0; i < bootstraps.Length; i++)
@@ -413,9 +435,9 @@ public static class AppPlayModeSmokeRunner
     {
         var preEntryScene = SceneManager.GetSceneByPath(SceneFlowController.PreEntryScenePath);
         var controllers = UnityEngine.Object.FindObjectsByType<EntrySafetyScenarioController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var adapters = UnityEngine.Object.FindObjectsByType<EntrySafetyInputAdapter>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         EntrySafetyScenarioController controller = null;
         EntrySafetyInputAdapter adapter = null;
         for (var i = 0; i < controllers.Length; i++)
@@ -447,7 +469,7 @@ public static class AppPlayModeSmokeRunner
             ? controller.StateMachine.CurrentStep
             : default;
         var sources = UnityEngine.Object.FindObjectsByType<AudioSource>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var playingSources = new List<AudioSource>();
         var samplesBefore = new List<int>();
         for (var i = 0; i < sources.Length; i++)
@@ -477,9 +499,9 @@ public static class AppPlayModeSmokeRunner
         Require(preEntryScene.IsValid() && preEntryScene.isLoaded,
             $"{label}: Full handoff unexpectedly unloaded the PreEntry environment.");
         var controllers = UnityEngine.Object.FindObjectsByType<EntrySafetyScenarioController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var adapters = UnityEngine.Object.FindObjectsByType<EntrySafetyInputAdapter>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < controllers.Length; i++)
         {
             if (controllers[i] == null || controllers[i].gameObject.scene != preEntryScene)
@@ -496,7 +518,7 @@ public static class AppPlayModeSmokeRunner
         }
 
         var audioSources = UnityEngine.Object.FindObjectsByType<AudioSource>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < audioSources.Length; i++)
         {
             if (audioSources[i] == null || audioSources[i].gameObject.scene != preEntryScene)
@@ -506,7 +528,7 @@ public static class AppPlayModeSmokeRunner
         }
 
         var barriers = UnityEngine.Object.FindObjectsByType<EntrySafetyNoAccessOverlayController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var barrierCount = 0;
         for (var i = 0; i < barriers.Length; i++)
         {
@@ -516,7 +538,7 @@ public static class AppPlayModeSmokeRunner
             var boundary = barriers[i].PhysicalBoundaryCollider;
             Require(!barriers[i].IsCleared && barriers[i].gameObject.activeInHierarchy &&
                     boundary is BoxCollider box && box.enabled && !box.isTrigger &&
-                    box.bounds.size.x >= 15.5f && box.bounds.size.z >= 0.3f,
+                    box.bounds.size.x >= 5.5f && box.bounds.size.z >= 0.15f,
                 $"{label}: PreEntry doorway was not physically re-closed for LeakResponse.");
         }
         Require(barrierCount == 1,
@@ -531,15 +553,15 @@ public static class AppPlayModeSmokeRunner
         AppBootstrap app)
     {
         var absorptions = UnityEngine.Object.FindObjectsByType<HClAbsorptionVisualController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var valves = UnityEngine.Object.FindObjectsByType<ValveWheelClosureController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var bagHandlers = UnityEngine.Object.FindObjectsByType<P102SharedBagItemHandler>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var wasteRuntimes = UnityEngine.Object.FindObjectsByType<P102WasteContainerRuntime>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var tongsRuntimes = UnityEngine.Object.FindObjectsByType<P102RecoveryTongsRuntime>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var absorptionCount = 0;
         var valveCount = 0;
         var bagHandlerCount = 0;
@@ -609,10 +631,11 @@ public static class AppPlayModeSmokeRunner
                 $"{label}: Waste-container lid handle Grab is not configured.");
             var lidGrab = waste.LidHandleCollider.GetComponentInParent<XRGrabInteractable>(true);
             Require(lidGrab != null && lidGrab.colliders.Count == 1 &&
-                    ReferenceEquals(lidGrab.colliders[0], waste.LidHandleCollider) &&
-                    lidGrab.useDynamicAttach && !lidGrab.matchAttachRotation &&
-                    lidGrab.snapToColliderVolume,
-                $"{label}: Waste-container lid does not use the handle-only dynamic Grab path.");
+                     ReferenceEquals(lidGrab.colliders[0], waste.LidHandleCollider) &&
+                     !lidGrab.useDynamicAttach && !lidGrab.matchAttachPosition &&
+                     !lidGrab.matchAttachRotation && lidGrab.snapToColliderVolume &&
+                     !lidGrab.trackScale,
+                $"{label}: Waste-container lid does not use the handle-only exact-pose Grab path.");
         }
         for (var i = 0; i < tongsRuntimes.Length; i++)
         {
@@ -647,7 +670,7 @@ public static class AppPlayModeSmokeRunner
 
         if (expectedActive)
         {
-            report.Add($"PASS {label}: lid and tongs use handle-only dynamic Grabs.");
+            report.Add($"PASS {label}: lid uses handle-only exact-pose Grab and tongs use handle-only dynamic Grab.");
             ValidateLeakBagYRetrieval(label, app, bagHandlers, leakScene);
         }
     }
@@ -668,73 +691,90 @@ public static class AppPlayModeSmokeRunner
             }
         }
 
-        Require(handler != null && app.Inventory != null && app.SharedEquipment != null,
+        var sessionInventory = SessionEquipmentInventory.Instance;
+        Require(handler != null && sessionInventory != null,
             $"{label}: Leak bag retrieval runtime is incomplete.");
         var narration = GetPrivateField<P102LeakNarrationController>(handler, "narration");
         var sockGroup = GetPrivateField<PreplacedGhostInstallGroup>(handler, "sockGroup");
+        var padGroup = GetPrivateField<PreplacedGhostInstallGroup>(handler, "padGroup");
         var sockSource = GetPrivateField<XRGrabInteractable>(handler, "sockSource");
         var padSource = GetPrivateField<XRGrabInteractable>(handler, "padSource");
         var cueCallback = typeof(P102SharedBagItemHandler).GetMethod(
             "OnCueCompleted",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        var inputCallback = typeof(P102SharedBagItemHandler).GetMethod(
+        var inputPerformedCallback = typeof(P102SharedBagItemHandler).GetMethod(
             "OnSharedInputPerformed",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        Require(narration != null && sockGroup != null && sockSource != null && padSource != null &&
-                cueCallback != null && inputCallback != null,
-            $"{label}: Leak Y input/state references are incomplete.");
+        var inputCanceledCallback = typeof(P102SharedBagItemHandler).GetMethod(
+            "OnSharedInputCanceled",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var resolveBindingsCallback = typeof(P102SharedBagItemHandler).GetMethod(
+            "ResolveStageBindings",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Require(narration != null && sockGroup != null && padGroup != null &&
+                sockSource != null && padSource != null &&
+                cueCallback != null && inputPerformedCallback != null && inputCanceledCallback != null &&
+                resolveBindingsCallback != null,
+            $"{label}: Leak Grip input/state references are incomplete.");
         Require(!sockSource.gameObject.activeInHierarchy && !padSource.gameObject.activeInHierarchy,
             $"{label}: Authored Sock/Pad supplies are visible before response-bag retrieval.");
 
-        var leftHand = app.SharedEquipment.LeftController;
-        Require(leftHand != null && app.SharedEquipment.RetrievalZone != null,
-            $"{label}: Shared bag left-hand retrieval zone is unavailable.");
+        // A standalone LeakResponse load also contains disabled dependency hands.
+        // Resolve the active shared controller before moving it into the authored
+        // retrieval zone, matching the production input path.
+        resolveBindingsCallback.Invoke(handler, null);
+        var leftHand = handler.LeftController;
+        Require(leftHand != null && handler.RetrievalZone != null && handler.RetrievalAnchor != null,
+            $"{label}: LeakResponse bag left-hand retrieval zone is unavailable.");
         var savedPosition = leftHand.position;
         try
         {
-            leftHand.position = app.SharedEquipment.RetrievalZone.bounds.center;
-            Require(app.SharedEquipment.IsLeftHandInRetrievalZone(),
-                $"{label}: Left hand could not enter the shared bag retrieval zone.");
+            leftHand.position = handler.RetrievalZone.bounds.center;
+            Require(handler.IsLeftHandInAccessZone(),
+                $"{label}: Left hand could not enter the LeakResponse bag retrieval zone.");
 
             narration.StopAll();
             sockSource.enabled = true;
             cueCallback.Invoke(handler, new object[] { P102LeakNarrationCue.AbsorbentSockPlacementActivated });
-            inputCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.SecondaryButton });
+            inputPerformedCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+            inputCanceledCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
             var sockBody = sockSource.GetComponent<Rigidbody>();
-            Require(app.Inventory.IsDeployed(PersistentEquipmentInventory.AbsorbentSock) &&
+            var sockDistance = Vector3.Distance(sockSource.transform.position,
+                handler.RetrievalAnchor.position);
+            Require(sessionInventory.GetCheckedOutCount(SharedEquipmentIds.AbsorbentSock) == 1 &&
                     sockSource.gameObject.activeInHierarchy &&
                     sockSource.name == "INT_AbsorbentSock_Straight_01" &&
                     ReferenceEquals(handler.PresentedSource, sockSource) &&
-                    ReferenceEquals(sockSource.transform.parent,
-                        app.SharedEquipment.RetrievalAnchor) &&
-                    Vector3.Distance(sockSource.transform.position,
-                        app.SharedEquipment.RetrievalAnchor.position) < 0.22f &&
+                    ReferenceEquals(sockSource.transform.parent, handler.RetrievalAnchor) &&
+                    sockDistance < 0.22f &&
                     sockBody != null && sockBody.isKinematic && !sockBody.useGravity,
-                $"{label}: Left Y did not present the existing Sock stably at the bag mouth.");
-            Require(app.Inventory.TryRecall(PersistentEquipmentInventory.AbsorbentSock),
-                $"{label}: Sock runtime regression cleanup failed.");
+                $"{label}: Left Grip press-release did not present the existing Sock stably at the bag mouth.");
 
             Require(sockGroup.TryInstallAll("Sock", out var installedSockCount) && installedSockCount > 0,
                 $"{label}: Sock state could not advance to the Pad retrieval gate.");
+            Require(sessionInventory.GetCheckedOutCount(SharedEquipmentIds.AbsorbentSock) == 0,
+                $"{label}: Installed Sock remained checked out in the session inventory.");
             narration.StopAll();
             padSource.enabled = true;
             cueCallback.Invoke(handler, new object[] { P102LeakNarrationCue.AbsorbentPadPlacementActivated });
-            inputCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.SecondaryButton });
+            inputPerformedCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+            inputCanceledCallback.Invoke(handler, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
             var padBody = padSource.GetComponent<Rigidbody>();
-            Require(app.Inventory.IsDeployed(PersistentEquipmentInventory.AbsorbentPad) &&
+            Require(sessionInventory.GetCheckedOutCount(SharedEquipmentIds.AbsorbentPad) == 1 &&
                     padSource.gameObject.activeInHierarchy &&
                     padSource.name == "INT_AbsorbentPad_01" &&
                     ReferenceEquals(handler.PresentedSource, padSource) &&
-                    ReferenceEquals(padSource.transform.parent,
-                        app.SharedEquipment.RetrievalAnchor) &&
+                    ReferenceEquals(padSource.transform.parent, handler.RetrievalAnchor) &&
                     Vector3.Distance(padSource.transform.position,
-                        app.SharedEquipment.RetrievalAnchor.position) < 0.22f &&
+                        handler.RetrievalAnchor.position) < 0.22f &&
                     padBody != null && padBody.isKinematic && !padBody.useGravity,
-                $"{label}: Left Y did not present the existing Pad stably at the bag mouth after Sock completion.");
-            Require(app.Inventory.TryRecall(PersistentEquipmentInventory.AbsorbentPad),
+                $"{label}: Left Grip press-release did not present the existing Pad stably at the bag mouth after Sock completion.");
+            Require(padGroup.TryInstallAll("Pad", out var installedPadCount) && installedPadCount > 0,
                 $"{label}: Pad runtime regression cleanup failed.");
+            Require(sessionInventory.GetCheckedOutCount(SharedEquipmentIds.AbsorbentPad) == 0,
+                $"{label}: Installed Pad remained checked out in the session inventory.");
             report.Add(
-                $"PASS {label}: Left Y presents the authored Sock, then Pad at the bag mouth without dropping them.");
+                $"PASS {label}: Left Grip press-release presents the authored Sock, then Pad at the bag mouth without dropping them.");
         }
         finally
         {
@@ -757,7 +797,7 @@ public static class AppPlayModeSmokeRunner
         var bodyTransformers = xrRoot.GetComponentsInChildren<XRBodyTransformer>(true);
         var mediators = xrRoot.GetComponentsInChildren<LocomotionMediator>(true);
         var moveProviders = xrRoot.GetComponentsInChildren<ContinuousMoveProvider>(true);
-        var controllerDrivers = xrRoot.GetComponentsInChildren<CharacterControllerDriver>(true);
+        var controllerDrivers = GetBehavioursNamed(xrRoot, "CharacterControllerDriver");
         var snapTurnProviders = xrRoot.GetComponentsInChildren<SnapTurnProvider>(true);
 
         Require(CountActive(bodyTransformers) == 1,
@@ -824,10 +864,310 @@ public static class AppPlayModeSmokeRunner
         return count;
     }
 
+    static bool ValidatePreEntryDetectorPose()
+    {
+        if (validatedPreEntryDetectorPose)
+            return true;
+
+        var detector = UnityEngine.Object.FindAnyObjectByType<EntrySafetyHclDetectorController>();
+        Require(detector != null, "PreEntry detector controller is missing.");
+        var scenario = UnityEngine.Object.FindAnyObjectByType<EntrySafetyScenarioController>();
+        var input = UnityEngine.Object.FindAnyObjectByType<EntrySafetyInputAdapter>();
+        var zone = UnityEngine.Object.FindAnyObjectByType<EntrySafetyEquipmentTransferZone>();
+        var zoneBounds = default(Bounds);
+        Require(scenario != null && scenario.StateMachine != null,
+            "PreEntry Scenario input flow is unavailable.");
+        Require(input != null && input.isActiveAndEnabled,
+            "PreEntry input adapter is unavailable.");
+        Require(zone != null && zone.TryGetWorldBounds(out zoneBounds),
+            "PreEntry bag retrieval zone is unavailable.");
+
+        if (scenario.StateMachine.CurrentStep == EntrySafetyStep.SceneIntro)
+            return false;
+        Require(scenario.StateMachine.CurrentStep == EntrySafetyStep.EquipDetector ||
+                preEntryDetectorValidationPhase >= 2,
+            $"PreEntry detector flow reached unexpected step {scenario.StateMachine.CurrentStep}.");
+
+        if (preEntryDetectorPhaseStarted <= 0d)
+            preEntryDetectorPhaseStarted = EditorApplication.timeSinceStartup;
+
+        if (preEntryDetectorValidationPhase == 0)
+        {
+            if (scenario.IsNarrationPlaying)
+                return false;
+
+            var trackedLeftHand = zone.TrackedLeftHand;
+            Require(trackedLeftHand != null, "PreEntry bag zone has no live tracked left hand.");
+            var originalPosition = trackedLeftHand.position;
+            var originalRotation = trackedLeftHand.rotation;
+
+            // Exercise the same analog release -> Grip event used on Quest. The hand is
+            // placed inside the authored zone only for the exact attempt frame.
+            input.SimulateLeftGripForIntegrationSmoke(0f, 0.2f);
+            trackedLeftHand.SetPositionAndRotation(zoneBounds.center, originalRotation);
+            zone.UpdateZone(true, 0.25f);
+            var emitted = input.SimulateLeftGripForIntegrationSmoke(1f, 0.02f);
+            trackedLeftHand.SetPositionAndRotation(originalPosition, originalRotation);
+
+            Require(emitted, "PreEntry first deliberate Grip was not emitted.");
+            Require(detector.IsAwaitingPickup && !detector.IsEquipped,
+                "PreEntry first Grip did not enter detector presentation state.");
+            report.Add("PASS PreEntry detector first Grip: input adapter -> bag zone -> presentation.");
+            preEntryDetectorValidationPhase = 1;
+            preEntryDetectorPhaseStarted = EditorApplication.timeSinceStartup;
+            return false;
+        }
+
+        if (preEntryDetectorValidationPhase == 1)
+        {
+            Require(EditorApplication.timeSinceStartup - preEntryDetectorPhaseStarted < 5d,
+                "PreEntry detector presentation did not become pickup-ready.");
+            if (!detector.IsPickupReady)
+                return false;
+
+            Require(detector.DetectorTransform != null &&
+                    detector.DetectorTransform.gameObject.activeInHierarchy,
+                "PreEntry detector stayed inactive after the first Grip.");
+            Require(detector.TryGetDetectorVisualBounds(out var presentedBounds),
+                "PreEntry presented detector has no active body renderer.");
+            var retrievalAnchor = FindActiveTransform("PreEntry_ItemRetrievalAnchor");
+            Require(retrievalAnchor != null &&
+                    Vector3.Distance(presentedBounds.center, retrievalAnchor.position) < 1.2f,
+                "PreEntry detector presentation is outside the bag retrieval area.");
+            CaptureDetectorValidationImage(
+                detector,
+                presentedBounds,
+                "Logs/PreEntryDetectorGhostValidation.png",
+                "presentation Ghost");
+
+            AlignTrackedLeftHandToDetectorGhost(zone.TrackedLeftHand, detector.DetectorTransform);
+
+            input.SimulateLeftGripForIntegrationSmoke(0f, 0.2f);
+            Require(input.SimulateLeftGripForIntegrationSmoke(1f, 0.02f),
+                "PreEntry second deliberate Grip was not emitted after full release.");
+            Require(detector.IsEquipped,
+                "PreEntry second Grip did not attach the detector to the live hand.");
+            preEntryDetectorValidationPhase = 2;
+            preEntryDetectorPhaseStarted = EditorApplication.timeSinceStartup;
+            return false;
+        }
+
+        Require(EditorApplication.timeSinceStartup - preEntryDetectorPhaseStarted < 5d,
+            "PreEntry detector attached but did not complete its visible pickup confirmation.");
+        if (scenario.StateMachine.CurrentStep == EntrySafetyStep.EquipDetector)
+            return false;
+        Require(scenario.StateMachine.CurrentStep == EntrySafetyStep.MeasureInitialHcl,
+            "PreEntry advanced before a visible detector pickup was confirmed.");
+
+        var transforms = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
+        Transform wearable = null;
+        for (var i = 0; i < transforms.Length; i++)
+        {
+            var candidate = transforms[i];
+            if (candidate != null && candidate.name == "PPE_VrHand_Left_Wearable" &&
+                candidate.gameObject.activeInHierarchy)
+            {
+                wearable = candidate;
+                break;
+            }
+        }
+        Require(wearable != null, "PreEntry active left wearable hand is missing.");
+
+        var detectorTransform = detector.DetectorTransform;
+        Require(detectorTransform != null && detectorTransform.gameObject.activeInHierarchy,
+            "PreEntry held detector is inactive.");
+        Require(detectorTransform.parent == wearable,
+            $"PreEntry detector parent is '{detectorTransform.parent?.name}', expected the live wearable hand.");
+        ReportDetectorRenderers(detectorTransform);
+        var wrist = FindDescendantTransform(wearable, "L_Wrist");
+        Require(wrist != null, "PreEntry live wearable hand has no L_Wrist.");
+        Require(detector.TryGetDetectorVisualBounds(out var heldBounds),
+            "PreEntry held detector has no active body renderer.");
+        var wristDistance = Vector3.Distance(heldBounds.center, wrist.position);
+        Require(wristDistance < 0.45f,
+            $"PreEntry detector body is {wristDistance:F3}m away from the live wrist.");
+
+        var viewport = AppBootstrap.Instance.MainCamera.WorldToViewportPoint(heldBounds.center);
+        CaptureDetectorValidationImage(
+            detector,
+            heldBounds,
+            "Logs/PreEntryDetectorGripValidation.png",
+            "held Grip");
+
+        validatedPreEntryDetectorPose = true;
+        report.Add(
+            $"PASS PreEntry detector actual flow: parent={wearable.name}, " +
+            $"wristDistance={wristDistance:F3}m, viewport={viewport}.");
+        return true;
+    }
+
+    static void AlignTrackedLeftHandToDetectorGhost(
+        Transform trackedLeftHand,
+        Transform detectorRoot)
+    {
+        Require(trackedLeftHand != null && detectorRoot != null,
+            "PreEntry detector Ghost alignment inputs are missing.");
+        var wearable = FindDescendantTransform(trackedLeftHand, "PPE_VrHand_Left_Wearable");
+        var liveWrist = FindDescendantTransform(wearable, "L_Wrist");
+        var ghostContainer = FindDescendantTransform(detectorRoot, "VRHandPoseTool_Ghosts");
+        var ghostWrist = FindDescendantTransform(ghostContainer, "L_Wrist");
+        Require(liveWrist != null && ghostWrist != null,
+            "PreEntry detector Ghost or live wrist is missing.");
+
+        var controllerToWristPosition =
+            Quaternion.Inverse(trackedLeftHand.rotation) * (liveWrist.position - trackedLeftHand.position);
+        var controllerToWristRotation =
+            Quaternion.Inverse(trackedLeftHand.rotation) * liveWrist.rotation;
+        var targetControllerRotation =
+            ghostWrist.rotation * Quaternion.Inverse(controllerToWristRotation);
+        var targetControllerPosition =
+            ghostWrist.position - targetControllerRotation * controllerToWristPosition;
+        trackedLeftHand.SetPositionAndRotation(targetControllerPosition, targetControllerRotation);
+    }
+
+    static void ReportDetectorRenderers(Transform detectorRoot)
+    {
+        for (var current = detectorRoot; current != null; current = current.parent)
+        {
+            report.Add(
+                $"INFO PreEntry detector hierarchy: name={current.name}, " +
+                $"localScale={current.localScale.ToString("F9")}, " +
+                $"lossyScale={current.lossyScale.ToString("F9")}.");
+        }
+
+        var renderers = detectorRoot.GetComponentsInChildren<Renderer>(true);
+        for (var i = 0; i < renderers.Length; i++)
+        {
+            var renderer = renderers[i];
+            if (renderer == null)
+                continue;
+            report.Add(
+                $"INFO PreEntry detector renderer: path={GetRelativePath(detectorRoot, renderer.transform)}, " +
+                $"type={renderer.GetType().Name}, enabled={renderer.enabled}, " +
+                $"active={renderer.gameObject.activeInHierarchy}, " +
+                $"rootScale={detectorRoot.lossyScale.ToString("F6")}, " +
+                $"localScale={renderer.transform.localScale.ToString("F6")}, " +
+                $"center={renderer.bounds.center.ToString("F6")}, " +
+                $"size={renderer.bounds.size.ToString("F9")}.");
+            var meshFilter = renderer.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                report.Add(
+                    $"INFO PreEntry detector mesh: name={meshFilter.sharedMesh.name}, " +
+                    $"localBounds={meshFilter.sharedMesh.bounds.size.ToString("F9")}.");
+            }
+        }
+    }
+
+    static string GetRelativePath(Transform root, Transform target)
+    {
+        if (target == root)
+            return root.name;
+        var names = new List<string>();
+        for (var current = target; current != null && current != root; current = current.parent)
+            names.Add(current.name);
+        names.Reverse();
+        return root.name + "/" + string.Join("/", names);
+    }
+
+    static void CaptureDetectorValidationImage(
+        EntrySafetyHclDetectorController detector,
+        Bounds heldBounds,
+        string imagePath,
+        string label)
+    {
+        var display = detector.ProgressAnchor;
+        Require(display != null, "PreEntry detector display anchor is missing.");
+
+        if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+        {
+            report.Add($"PASS PreEntry detector {label}: render capture skipped on the headless null graphics device.");
+            return;
+        }
+
+        var cameraObject = new GameObject("PreEntryDetectorValidationCamera");
+        var validationCamera = cameraObject.AddComponent<Camera>();
+        validationCamera.clearFlags = CameraClearFlags.SolidColor;
+        validationCamera.backgroundColor = new Color(0.16f, 0.18f, 0.2f, 1f);
+        validationCamera.nearClipPlane = 0.01f;
+        validationCamera.farClipPlane = 5f;
+        validationCamera.fieldOfView = 48f;
+
+        var focus = Vector3.Lerp(heldBounds.center, display.position, 0.35f);
+        // TextMeshPro's readable face is opposite Transform.forward. Render the same
+        // side the trainee sees instead of accidentally validating the detector back.
+        var viewDirection = display.forward.sqrMagnitude > 0.5f
+            ? -display.forward.normalized
+            : Vector3.forward;
+        var distance = Mathf.Max(0.45f, heldBounds.size.magnitude * 1.8f);
+        cameraObject.transform.position = focus + viewDirection * distance;
+        cameraObject.transform.LookAt(focus, Vector3.up);
+
+        var target = RenderTexture.GetTemporary(1024, 1024, 24, RenderTextureFormat.ARGB32);
+        var previous = RenderTexture.active;
+        try
+        {
+            validationCamera.targetTexture = target;
+            validationCamera.Render();
+            RenderTexture.active = target;
+            var image = new Texture2D(1024, 1024, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0f, 0f, 1024f, 1024f), 0, 0);
+            image.Apply();
+            File.WriteAllBytes(imagePath, image.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(image);
+        }
+        finally
+        {
+            validationCamera.targetTexture = null;
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(target);
+            UnityEngine.Object.DestroyImmediate(cameraObject);
+        }
+
+        report.Add($"PASS PreEntry detector {label} rendered validation image: {imagePath}.");
+    }
+
+    static Transform FindDescendantTransform(Transform root, string objectName)
+    {
+        if (root == null)
+            return null;
+        var descendants = root.GetComponentsInChildren<Transform>(true);
+        for (var i = 0; i < descendants.Length; i++)
+            if (descendants[i] != null && descendants[i].name == objectName)
+                return descendants[i];
+        return null;
+    }
+
+    static Transform FindActiveTransform(string objectName)
+    {
+        var transforms = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
+        for (var i = 0; i < transforms.Length; i++)
+        {
+            if (transforms[i] != null && transforms[i].name == objectName &&
+                transforms[i].gameObject.activeInHierarchy)
+                return transforms[i];
+        }
+        return null;
+    }
+
+    static Behaviour[] GetBehavioursNamed(Transform root, string typeName)
+    {
+        var source = root.GetComponentsInChildren<Behaviour>(true);
+        var matches = new List<Behaviour>();
+        for (var i = 0; i < source.Length; i++)
+        {
+            var behaviour = source[i];
+            if (behaviour != null && string.Equals(behaviour.GetType().Name, typeName, StringComparison.Ordinal))
+                matches.Add(behaviour);
+        }
+
+        return matches.ToArray();
+    }
+
     static void ValidatePpeRequiredHighlight(string label)
     {
         var highlights = UnityEngine.Object.FindObjectsByType<PPEOutlineHighlight>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var requiredCount = 0;
         for (var i = 0; i < highlights.Length; i++)
             if (highlights[i] != null && highlights[i].gameObject.activeInHierarchy &&
@@ -838,7 +1178,7 @@ public static class AppPlayModeSmokeRunner
 
     static void ValidatePpeXChecklist(string label)
     {
-        var checklist = UnityEngine.Object.FindFirstObjectByType<PPEChecklistPanel>(FindObjectsInactive.Include);
+        var checklist = UnityEngine.Object.FindAnyObjectByType<PPEChecklistPanel>(FindObjectsInactive.Include);
         Require(checklist != null, $"{label}: PPE checklist is missing.");
         var callback = typeof(PPEChecklistPanel).GetMethod(
             "OnSharedInputPerformed",
@@ -1094,6 +1434,10 @@ public static class AppPlayModeSmokeRunner
         {
             foreach (SharedXRControl control in Enum.GetValues(typeof(SharedXRControl)))
             {
+                // Quest exposes the system/menu button on the left controller only;
+                // SharedXRInputContract intentionally does not invent Right/Menu.
+                if (control == SharedXRControl.Menu && hand == SharedXRHand.Right)
+                    continue;
                 Require(input.TryGetAction(hand, control, out var action) && action != null,
                     $"{label}: shared input action is missing: {hand}/{control}.");
                 Require(action.enabled,

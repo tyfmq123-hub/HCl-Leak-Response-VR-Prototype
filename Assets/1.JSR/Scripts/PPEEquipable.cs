@@ -30,12 +30,25 @@ public class PPEEquipable : MonoBehaviour
 
     [SerializeField]
     [Range(0f, 180f)]
-    [Tooltip("Maximum orientation difference in degrees for a future equip check.")]
+    [Tooltip("Maximum orientation difference in degrees when Use Rotation Validation is enabled.")]
     float equipAngleTolerance = 35f;
+
+    [SerializeField]
+    [Tooltip("When false, placement uses distance only. Gloves/boots/suit should leave this off.")]
+    bool useRotationValidation = true;
+
+    [SerializeField]
+    [Tooltip("Optional placement point. When empty, an EquipReference child is created at the visual center.")]
+    Transform equipReference;
 
     [SerializeField]
     [Tooltip("Optional ghost/guide visual. STEP 3 stores the reference but does not instantiate it.")]
     GameObject guidePrefab;
+
+    [Header("Ghost Pose Calibration")]
+    [SerializeField]
+    [Tooltip("Child Transform rotated in the Inspector until the Face/Suit Ghost faces the correct way. Runtime Ghost uses this local rotation relative to the Face/Torso target.")]
+    Transform ghostPoseCalibration;
 
     [SerializeField]
     bool isEquipped;
@@ -59,8 +72,111 @@ public class PPEEquipable : MonoBehaviour
     public PPEEquipSlot EquipSlots => equipSlots;
     public float EquipDistance => equipDistance;
     public float EquipAngleTolerance => equipAngleTolerance;
+    public bool UseRotationValidation => useRotationValidation;
+    public Transform EquipReference => equipReference;
+    public Transform PlacementReference =>
+        equipReference != null ? equipReference : transform;
+
+    public Transform EnsurePlacementReference()
+    {
+        if (equipReference != null)
+            return equipReference;
+
+        equipReference = PPEEquipReferenceUtility.Ensure(transform, transform);
+        if (ppeType == PPEType.ProtectiveSuit ||
+            string.Equals(itemId, PPEEquipmentManager.IdChemicalSuit, StringComparison.Ordinal))
+            PPEEquipReferenceUtility.PlaceAtSuitChest(equipReference, transform);
+        return PlacementReference;
+    }
+
+    public const string GhostPoseCalibrationName = "GhostPoseCalibration";
+
+    public Transform EnsureGhostPoseCalibration()
+    {
+        if (!ShouldOwnGhostPoseCalibration())
+            return ghostPoseCalibration;
+
+        if (ghostPoseCalibration != null)
+            return ghostPoseCalibration;
+
+        var existing = transform.Find(GhostPoseCalibrationName);
+        if (existing != null)
+        {
+            ghostPoseCalibration = existing;
+            return ghostPoseCalibration;
+        }
+
+        var go = new GameObject(GhostPoseCalibrationName);
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localRotation = Quaternion.identity;
+        ghostPoseCalibration = go.transform;
+        return ghostPoseCalibration;
+    }
+
     public GameObject GuidePrefab => guidePrefab;
+    public Transform GhostPoseCalibration => ghostPoseCalibration;
     public bool IsEquipped => isEquipped;
+
+    void Awake()
+    {
+        if (ShouldOwnGhostPoseCalibration())
+            EnsureGhostPoseCalibration();
+    }
+
+    bool ShouldOwnGhostPoseCalibration()
+    {
+        return !string.Equals(itemId, PPEEquipmentManager.IdResponseBag, StringComparison.Ordinal);
+    }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        UnityEditor.EditorApplication.delayCall += () =>
+        {
+            if (this == null || !ShouldOwnGhostPoseCalibration())
+                return;
+            EnsureGhostPoseCalibration();
+        };
+    }
+
+    void OnDrawGizmos()
+    {
+        if (!ShouldOwnGhostPoseCalibration())
+            return;
+
+        var calib = ghostPoseCalibration != null
+            ? ghostPoseCalibration
+            : transform.Find(GhostPoseCalibrationName);
+        if (calib == null)
+            return;
+
+        var previewPos = calib.position;
+        var previewRot = calib.rotation;
+        Gizmos.color = new Color(0.35f, 0.85f, 1f, 0.9f);
+        Gizmos.matrix = Matrix4x4.TRS(previewPos, previewRot, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, new Vector3(0.08f, 0.08f, 0.08f));
+        Gizmos.color = Color.red;
+        Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.08f);
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(Vector3.zero, Vector3.up * 0.08f);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawLine(Vector3.zero, Vector3.forward * 0.08f);
+        Gizmos.matrix = Matrix4x4.identity;
+
+        var filters = GetComponentsInChildren<MeshFilter>(true);
+        Gizmos.color = new Color(0.35f, 0.9f, 1f, 0.18f);
+        for (var i = 0; i < filters.Length; i++)
+        {
+            var filter = filters[i];
+            if (filter == null || filter.sharedMesh == null)
+                continue;
+            if (filter.transform == calib)
+                continue;
+            Gizmos.DrawMesh(filter.sharedMesh, previewPos, previewRot, filter.transform.lossyScale);
+        }
+    }
+#endif
     public bool DeactivateOnEquip => deactivateOnEquip;
 
     public bool UsesSlot(PPEEquipSlot slot)
@@ -146,6 +262,12 @@ public class PPEEquipable : MonoBehaviour
         equipDistance = Mathf.Max(0.01f, distance);
         equipAngleTolerance = Mathf.Clamp(angleTolerance, 0f, 180f);
         guidePrefab = guide;
+    }
+
+    /// <summary>Editor helper for proximity-first vs orientation-checked items.</summary>
+    public void EditorSetUseRotationValidation(bool requireRotation)
+    {
+        useRotationValidation = requireRotation;
     }
 
     /// <summary>Editor helper for an item that remains visible on its anchor after equip.</summary>

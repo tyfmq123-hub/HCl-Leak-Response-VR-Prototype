@@ -35,7 +35,6 @@ public static class IntegrationSceneValidator
         (SceneFlowController.CompleteScenePath, 0),
     };
 
-    [MenuItem("Tools/HCl Training/Validate Integrated App")]
     public static void Validate()
     {
         var failures = new List<string>();
@@ -74,7 +73,6 @@ public static class IntegrationSceneValidator
         Debug.Log("[Integration Scene Validation] All seven Scenes, XR profiles, serialization, and Build Settings passed.");
     }
 
-    [MenuItem("Tools/HCl Training/Remove Missing Scripts From Integrated Scenes")]
     public static void RemoveMissingScripts()
     {
         var report = new List<string>();
@@ -205,21 +203,22 @@ public static class IntegrationSceneValidator
         if (string.Equals(scenePath, NormalizePath(SceneFlowController.PpeScenePath),
                 StringComparison.OrdinalIgnoreCase))
         {
-            if (!requirements.FarInteraction || requirements.NearInteraction ||
+            if (requirements.FarInteraction || !requirements.NearInteraction ||
                 !requirements.UIInteraction || !requirements.GrabInteraction ||
-                requirements.ComfortVignette)
+                !requirements.Movement || !requirements.Turning ||
+                !requirements.ComfortVignette)
             {
-                failures.Add("PPE requirements must declare Standard Ray + UI + Grab, without Near/Far mode.");
+                failures.Add("PPE requirements must declare Near/Far + UI + Grab + Move/Turn + Comfort vignette, without a duplicate Standard Ray.");
             }
         }
         else if (string.Equals(scenePath, NormalizePath(SceneFlowController.PreEntryScenePath),
                      StringComparison.OrdinalIgnoreCase))
         {
-            if (requirements.FarInteraction || requirements.NearInteraction ||
-                requirements.UIInteraction || requirements.GrabInteraction ||
+            if (requirements.FarInteraction || !requirements.NearInteraction ||
+                requirements.UIInteraction || !requirements.GrabInteraction ||
                 !requirements.Movement || !requirements.Turning || requirements.ComfortVignette)
             {
-                failures.Add("PreEntry requirements must keep pointer/UI/XRI Grab disabled while enabling shared movement and turning.");
+                failures.Add("PreEntry requirements must enable near Grab without far ray/UI, while keeping shared movement and turning enabled.");
             }
         }
         else if (string.Equals(scenePath, NormalizePath(SceneFlowController.LeakResponseScenePath),
@@ -284,7 +283,7 @@ public static class IntegrationSceneValidator
                         {
                             if (iterator.propertyType == SerializedPropertyType.ObjectReference &&
                                 iterator.objectReferenceValue == null &&
-                                iterator.objectReferenceInstanceIDValue != 0)
+                                iterator.objectReferenceEntityIdValue != EntityId.None)
                             {
                                 brokenReferenceCount++;
                                 failures.Add($"{scenePath}: broken reference at {GetHierarchyPath(gameObject)} :: " +
@@ -552,7 +551,7 @@ public static class IntegrationSceneValidator
         var bodyTransformers = origin.GetComponents<XRBodyTransformer>();
         var mediators = origin.GetComponents<LocomotionMediator>();
         var moveProviders = origin.GetComponents<ContinuousMoveProvider>();
-        var controllerDrivers = origin.GetComponents<CharacterControllerDriver>();
+        var controllerDrivers = GetBehavioursNamed(origin, "CharacterControllerDriver", false);
         var snapTurnProviders = origin.GetComponents<SnapTurnProvider>();
 
         if (bodyTransformers.Length != 1 || mediators.Length != 1 || moveProviders.Length != 1 ||
@@ -589,6 +588,15 @@ public static class IntegrationSceneValidator
         {
             failures.Add("Common XR left Turn input must be unused; the left thumbstick is reserved for movement.");
         }
+    }
+
+    static Behaviour[] GetBehavioursNamed(Transform root, string typeName, bool includeChildren)
+    {
+        var source = includeChildren
+            ? root.GetComponentsInChildren<Behaviour>(true)
+            : root.GetComponents<Behaviour>();
+        return source.Where(component =>
+            component != null && string.Equals(component.GetType().Name, typeName, StringComparison.Ordinal)).ToArray();
     }
 
     static void ValidateLocomotionReader(

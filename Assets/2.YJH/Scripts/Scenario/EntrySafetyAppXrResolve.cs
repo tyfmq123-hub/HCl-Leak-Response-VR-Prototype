@@ -12,7 +12,7 @@ namespace JH.EntrySafety
             if (string.IsNullOrEmpty(objectName))
                 return null;
 
-            var transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
             for (var i = 0; i < transforms.Length; i++)
             {
                 var candidate = transforms[i];
@@ -28,6 +28,41 @@ namespace JH.EntrySafety
             if (current != null && current.gameObject.activeInHierarchy)
                 return current;
             return FindActiveByName(objectName);
+        }
+
+        public static Transform PreferCommonController(Transform current, string controllerName)
+        {
+            // Additive PreEntry contains its own authored Left/Right Controller objects.
+            // They can remain active briefly while the App rig is already tracking, so
+            // the generic "current is active" rule can keep the zone bound to the wrong
+            // hand. Always prefer the controller under Common XR Origin when it exists.
+            if (current != null && current.gameObject.activeInHierarchy &&
+                HasNamedAncestor(current, "Common XR Origin"))
+                return current;
+
+            var transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
+            for (var i = 0; i < transforms.Length; i++)
+            {
+                var candidate = transforms[i];
+                if (candidate != null && candidate.name == controllerName &&
+                    candidate.gameObject.activeInHierarchy &&
+                    HasNamedAncestor(candidate, "Common XR Origin"))
+                    return candidate;
+            }
+
+            if (current != null && current.gameObject.activeInHierarchy)
+                return current;
+            return FindActiveByName(controllerName);
+        }
+
+        private static bool HasNamedAncestor(Transform candidate, string ancestorName)
+        {
+            for (var current = candidate; current != null; current = current.parent)
+            {
+                if (current.name == ancestorName)
+                    return true;
+            }
+            return false;
         }
 
         public static Transform FindActiveLeftControllerVisual()
@@ -57,7 +92,15 @@ namespace JH.EntrySafety
             if (main != null && main.isActiveAndEnabled && main.gameObject.activeInHierarchy)
                 return main;
 
-            var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var named = FindActiveByName("Main Camera");
+            if (named != null)
+            {
+                var namedCamera = named.GetComponent<Camera>();
+                if (namedCamera != null && namedCamera.isActiveAndEnabled)
+                    return namedCamera;
+            }
+
+            var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
             for (var i = 0; i < cameras.Length; i++)
             {
                 var camera = cameras[i];

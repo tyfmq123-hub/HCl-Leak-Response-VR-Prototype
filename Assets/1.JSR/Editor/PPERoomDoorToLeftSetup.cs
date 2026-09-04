@@ -9,7 +9,6 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public static class PPERoomDoorToLeftSetup
 {
-    [MenuItem("Tools/PPE/Move Doorway To Left Wall", false, 33)]
     public static void MoveDoorwayToLeftWall()
     {
         var scene = SceneManager.GetActiveScene();

@@ -32,7 +32,7 @@ public class XRUISelectHandCapture : MonoBehaviour, IPointerDownHandler, ISubmit
         }
 
         // Mouse / editor fallback: pick a free XRRayInteractor if any.
-        var rays = Object.FindObjectsByType<XRRayInteractor>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var rays = Object.FindObjectsByType<XRRayInteractor>(FindObjectsInactive.Exclude);
         for (var i = 0; i < rays.Length; i++)
         {
             var ray = rays[i];

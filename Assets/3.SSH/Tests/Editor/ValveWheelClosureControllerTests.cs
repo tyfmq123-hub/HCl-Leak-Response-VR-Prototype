@@ -159,10 +159,10 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void OneHandMode_AppliesOneHandRotationGain()
+        public void OneHandMode_DoesNotRotateValve()
         {
             float result = ValveWheelGrabTransformer.ApplyRotationGain(10f, 1, 0.55f, 1f, false);
-            Assert.That(result, Is.EqualTo(5.5f).Within(0.0001f));
+            Assert.That(result, Is.EqualTo(0f));
         }
 
         [Test]
@@ -173,71 +173,82 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void SamePhysicalHandDelta_TwoHandsRotateMoreThanOneHand()
+        public void SamePhysicalHandDelta_OnlyTwoHandsRotate()
         {
             float oneHand = ValveWheelGrabTransformer.ApplyRotationGain(10f, 1, 0.55f, 1f, false);
             float twoHands = ValveWheelGrabTransformer.ApplyRotationGain(10f, 2, 0.55f, 1f, false);
-            Assert.That(twoHands, Is.GreaterThan(oneHand));
+            Assert.That(oneHand, Is.EqualTo(0f));
+            Assert.That(twoHands, Is.EqualTo(10f).Within(0.0001f));
         }
 
         [Test]
-        public void TwoHandsMovingSameDirection_UseSmallerDelta()
+        public void TwoHandsMovingSameDirection_UseAverageDelta()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                8f, true, 12f, true, 0.05f, out float combined, out string reason);
+                8f, true, 12f, true, 0.02f, out float combined, out string reason);
             Assert.That(valid, Is.True);
-            Assert.That(combined, Is.EqualTo(8f).Within(0.0001f));
+            Assert.That(combined, Is.EqualTo(10f).Within(0.0001f));
             Assert.That(reason, Is.EqualTo("BOTH_HANDS_APPLIED"));
         }
 
         [Test]
-        public void InvalidLeftVector_DoesNotRotateInTwoHandMode()
+        public void InvalidLeftTracking_UsesRightWhileBothHandsRemainGrabbed()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                150f, false, 7f, true, 0.05f, out float combined, out string reason);
-            Assert.That(valid, Is.False);
-            Assert.That(combined, Is.EqualTo(0f));
-            Assert.That(reason, Is.EqualTo("INVALID_LEFT_VECTOR"));
+                150f, false, 7f, true, 0.02f, out float combined, out string reason);
+            Assert.That(valid, Is.True);
+            Assert.That(combined, Is.EqualTo(7f).Within(0.0001f));
+            Assert.That(reason, Is.EqualTo("RIGHT_TRACKED_WITH_TWO_HAND_GRAB"));
         }
 
         [Test]
-        public void InvalidRightVector_DoesNotRotateInTwoHandMode()
+        public void InvalidRightTracking_UsesLeftWhileBothHandsRemainGrabbed()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                7f, true, 150f, false, 0.05f, out float combined, out string reason);
-            Assert.That(valid, Is.False);
-            Assert.That(combined, Is.EqualTo(0f));
-            Assert.That(reason, Is.EqualTo("INVALID_RIGHT_VECTOR"));
+                7f, true, 150f, false, 0.02f, out float combined, out string reason);
+            Assert.That(valid, Is.True);
+            Assert.That(combined, Is.EqualTo(7f).Within(0.0001f));
+            Assert.That(reason, Is.EqualTo("LEFT_TRACKED_WITH_TWO_HAND_GRAB"));
         }
 
         [Test]
-        public void OnlyLeftHandMoving_DoesNotRotateInTwoHandMode()
+        public void LeftTrackingFrame_RotatesWhileBothHandsRemainGrabbed()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                10f, true, 0f, true, 0.05f, out float combined, out string reason);
-            Assert.That(valid, Is.False);
-            Assert.That(combined, Is.EqualTo(0f));
-            Assert.That(reason, Is.EqualTo("RIGHT_NOT_MOVING"));
+                10f, true, 0f, true, 0.02f, out float combined, out string reason);
+            Assert.That(valid, Is.True);
+            Assert.That(combined, Is.EqualTo(10f).Within(0.0001f));
+            Assert.That(reason, Is.EqualTo("LEFT_TRACKED_WITH_TWO_HAND_GRAB"));
         }
 
         [Test]
-        public void OnlyRightHandMoving_DoesNotRotateInTwoHandMode()
+        public void RightTrackingFrame_RotatesWhileBothHandsRemainGrabbed()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                0f, true, 10f, true, 0.05f, out float combined, out string reason);
-            Assert.That(valid, Is.False);
-            Assert.That(combined, Is.EqualTo(0f));
-            Assert.That(reason, Is.EqualTo("LEFT_NOT_MOVING"));
+                0f, true, 10f, true, 0.02f, out float combined, out string reason);
+            Assert.That(valid, Is.True);
+            Assert.That(combined, Is.EqualTo(10f).Within(0.0001f));
+            Assert.That(reason, Is.EqualTo("RIGHT_TRACKED_WITH_TWO_HAND_GRAB"));
         }
 
         [Test]
         public void TwoHandsMovingOppositeDirections_IgnoreFrame()
         {
             bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
-                8f, true, -7f, true, 0.05f, out float combined, out string reason);
+                8f, true, -7f, true, 0.02f, out float combined, out string reason);
             Assert.That(valid, Is.False);
             Assert.That(combined, Is.EqualTo(0f));
             Assert.That(reason, Is.EqualTo("OPPOSITE_DIRECTION"));
+        }
+
+        [Test]
+        public void BothInvalidTrackingVectors_IgnoreFrame()
+        {
+            bool valid = ValveWheelGrabTransformer.TryCombineHandDeltas(
+                0f, false, 0f, false, 0.02f, out float combined, out string reason);
+            Assert.That(valid, Is.False);
+            Assert.That(combined, Is.EqualTo(0f));
+            Assert.That(reason, Is.EqualTo("INVALID_BOTH_VECTORS"));
         }
 
         [TestCase(1, 2)]
@@ -252,14 +263,48 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void AfterOneOfTwoHandsReleases_RemainingHandCanContinueRotation()
+        public void AfterOneOfTwoHandsReleases_RotationStops()
         {
             float transitionDelta = ValveWheelGrabTransformer.ApplyRotationGain(
                 10f, 1, 0.55f, 1f, true);
             float nextFrameDelta = ValveWheelGrabTransformer.ApplyRotationGain(
                 10f, 1, 0.55f, 1f, false);
             Assert.That(transitionDelta, Is.EqualTo(0f));
-            Assert.That(nextFrameDelta, Is.EqualTo(5.5f).Within(0.0001f));
+            Assert.That(nextFrameDelta, Is.EqualTo(0f));
+        }
+
+        [TestCase(0, 1, true)]
+        [TestCase(1, 0, true)]
+        [TestCase(0, 0, false)]
+        [TestCase(1, 1, false)]
+        [TestCase(0, 2, false)]
+        public void ValveRotation_RequiresDistinctLeftAndRightHands(
+            int firstHandKey, int secondHandKey, bool expected)
+        {
+            Assert.That(
+                ValveWheelGrabTransformer.HasRequiredHandPair(firstHandKey, secondHandKey),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase("LeftHand", 0)]
+        [TestCase("Right Controller", 1)]
+        public void HandednessFallback_UsesInteractorParentHierarchy(
+            string parentName, int expectedKey)
+        {
+            GameObject parent = new GameObject(parentName);
+            GameObject child = new GameObject("Near-Far Interactor");
+            try
+            {
+                child.transform.SetParent(parent.transform);
+                Assert.That(
+                    ValveWheelGrabTransformer.HandKeyFromTransformHierarchy(
+                        child.transform),
+                    Is.EqualTo(expectedKey));
+            }
+            finally
+            {
+                Object.DestroyImmediate(parent);
+            }
         }
 
         [Test]
@@ -334,12 +379,13 @@ namespace VRProject.Valves.Tests
         [TestCase(0.02f, true)]
         [TestCase(0.035f, true)]
         [TestCase(0.08f, true)]
-        [TestCase(0.081f, false)]
+        [TestCase(0.15f, true)]
+        [TestCase(0.151f, false)]
         [TestCase(float.NaN, false)]
         [TestCase(float.PositiveInfinity, false)]
-        public void SurfaceDistance_UsesInclusiveEightyMillimeterLimit(float distance, bool expected)
+        public void SurfaceDistance_UsesInclusiveFifteenCentimeterLimit(float distance, bool expected)
         {
-            Assert.That(ValveWheelGrabTransformer.IsSurfaceDistanceAllowed(distance, 0.08f),
+            Assert.That(ValveWheelGrabTransformer.IsSurfaceDistanceAllowed(distance, 0.15f),
                 Is.EqualTo(expected));
         }
 
@@ -497,7 +543,7 @@ namespace VRProject.Valves.Tests
             string scene = ReadSampleScene();
             string transformerBlock = FindWheelComponentBlock(scene,
                 "VRProject.Valves.ValveWheelGrabTransformer");
-            StringAssert.Contains("maxGrabSurfaceDistance: 0.08", transformerBlock);
+            StringAssert.Contains("maxGrabSurfaceDistance: 0.15", transformerBlock);
 
             string interactableBlock = FindWheelComponentBlock(scene,
                 "UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable");
@@ -638,11 +684,11 @@ namespace VRProject.Valves.Tests
         }
 
         [Test]
-        public void Configurator_IsSelectionBasedAndHasNoLegacyGlobalEntryPoints()
+        public void Configurator_IsSelectionBasedWithoutProductionMenuAndHasNoLegacyGlobalEntryPoints()
         {
             string source = ReadConfigurator();
 
-            StringAssert.Contains("Tools/Valve System/Configure Selected Valve Wheel", source);
+            StringAssert.DoesNotContain("[MenuItem", source);
             StringAssert.Contains("Selection.activeGameObject", source);
             StringAssert.Contains("Selection.gameObjects", source);
             StringAssert.DoesNotContain("Configure Suction Valve Wheel", source);

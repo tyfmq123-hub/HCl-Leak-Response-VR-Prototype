@@ -22,7 +22,6 @@ public static class PPECabinetRestoreSetup
     const string WardrobeName = "PPECabinet";
     const string ThreeDoorName = "ENV_PPECabinet_03";
 
-    [MenuItem("Tools/PPE/Restore PPECabinet + 3-door locker", false, 32)]
     public static void RestoreCabinet()
     {
         var scene = SceneManager.GetActiveScene();

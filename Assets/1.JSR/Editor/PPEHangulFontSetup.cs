@@ -15,7 +15,6 @@ public static class PPEHangulFontSetup
     const string PretendardPath = "Assets/1.JSR/Fonts/PPE/Pretendard-SemiBold.otf";
     const string PretendardResourcesPath = "Assets/1.JSR/Resources/Pretendard-SemiBold.otf";
 
-    [MenuItem("Tools/PPE/Create Hangul TMP Font Asset", false, 27)]
     public static void CreateHangulFontAsset()
     {
         CreateHangulFontAsset(overwriteWithoutPrompt: false);

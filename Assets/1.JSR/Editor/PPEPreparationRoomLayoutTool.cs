@@ -138,7 +138,6 @@ public static class PPEPreparationRoomLayoutTool
         };
     }
 
-    [MenuItem("Tools/PPE/Arrange Preparation Room Equipment", false, 20)]
     public static void ArrangePreparationRoomEquipment()
     {
         RepairBrokenRenames();
@@ -146,7 +145,6 @@ public static class PPEPreparationRoomLayoutTool
         Arrange(null);
     }
 
-    [MenuItem("Tools/PPE/Arrange Into Selected Cabinet", false, 19)]
     public static void ArrangeIntoSelectedCabinet()
     {
         var sel = Selection.activeGameObject;
@@ -160,7 +158,6 @@ public static class PPEPreparationRoomLayoutTool
         Arrange(ResolveCabinetFromSelection(sel));
     }
 
-    [MenuItem("Tools/PPE/Dump Cabinet Candidates", false, 21)]
     public static void DumpSceneCabinetCandidatesMenu() => DumpSceneCabinetCandidates();
 
     static void DumpSceneCabinetCandidates()

@@ -28,7 +28,6 @@ public static class ResponseBagContentsUISetup
     const string PadFbx =
         "Assets/Common/Equipment/INT_AbsorbentPad_01/INT_AbsorbentPad_01.fbx";
 
-    [MenuItem("Tools/PPE/Setup Response Bag Contents UI", false, 35)]
     public static void SetupContentsUi()
     {
         var scene = SceneManager.GetActiveScene();

@@ -16,6 +16,23 @@ namespace HClTraining.App
         SessionCompleted = 8,
         SessionAbandoned = 9,
         SessionInterrupted = 10,
+        CompletionScreenShown = 11,
+        CompletionRestartRequested = 12,
+        CompletionExitRequested = 13,
+        StageEnded = 14,
+        QuickFeedbackSubmitted = 15,
+        VoiceFeedbackSubmitted = 16,
+        FeedbackSkipped = 17,
+        RecoveredIncompleteSession = 18,
+        InteractionPrompted = 19,
+        InteractionFirstInput = 20,
+        InteractionAttempted = 21,
+        InteractionCompleted = 22,
+        AppStateChanged = 23,
+        Heartbeat = 24,
+        ClientError = 25,
+        FlowAnomaly = 26,
+        TrainingPauseChanged = 27,
     }
 
     public enum TrainingSessionStatus
@@ -48,14 +65,39 @@ namespace HClTraining.App
         Failed = 3,
     }
 
+    public enum TelemetryAttemptResult
+    {
+        Accepted = 0,
+        Rejected = 1,
+        Ignored = 2,
+    }
+
+    public enum TelemetryRejectionReason
+    {
+        None = 0,
+        WrongControl = 1,
+        WrongHand = 2,
+        WrongOrder = 3,
+        PrerequisiteMissing = 4,
+        InteractionInactive = 5,
+        Other = 6,
+    }
+
     [Serializable]
     public sealed class TrainingTelemetryRecord
     {
-        public int schema_version;
+        public string schema_version;
+        public string event_id;
         public string session_id;
         public int sequence;
         public string occurred_at_utc;
         public string event_type;
+        public string interaction_id;
+        public string unity_scene_name;
+        public string build_id;
+        public string platform;
+        public string device_model;
+        public string payload_json;
         public string mode;
         public string stage_id;
         public string step_id;
@@ -68,6 +110,23 @@ namespace HClTraining.App
         public string detail;
         public string app_version;
         public string content_version;
+        public double ppe_duration_seconds;
+        public double preentry_duration_seconds;
+        public double leakresponse_duration_seconds;
+        public double total_duration_seconds;
+        public bool training_completed;
+        public string ended_at_utc;
+        public string completed_at_utc;
+        public string execution_mode;
+        public string selected_stage;
+        public bool stage_ended;
+        public bool stage_completed;
+        public double stage_duration_seconds;
+        public int retry_count;
+        public string stage_result_json;
+        public string training_result_json;
+        public string feedback_target;
+        public string feedback_json;
     }
 
     public interface ITrainingTelemetrySink
@@ -84,7 +143,42 @@ namespace HClTraining.App
 
         void StartSession(TrainingMode mode);
         void StageEntered(TrainingStage stage);
+        void StageEnded(TrainingStage stage, bool completed, StageTrainingResult result);
         void StageCompleted(TrainingStage stage);
+        void CompletionScreenShown();
+        void CompletionRestartRequested();
+        void CompletionExitRequested();
+        void QuickFeedbackSubmitted(TrainingStage targetStage, TrainingFeedbackRecord feedback);
+        void VoiceFeedbackSubmitted(TrainingStage targetStage, TrainingFeedbackRecord feedback);
+        void FeedbackSkipped(TrainingStage targetStage, TrainingFeedbackRecord feedback);
+        void InteractionPrompted(
+            TrainingStage stage,
+            string interactionId,
+            int expectedOrderIndex,
+            string expectedHand,
+            string expectedControl,
+            string promptSource);
+        void InteractionAttempted(
+            string interactionId,
+            string actualHand,
+            string actualControl,
+            TelemetryAttemptResult result,
+            TelemetryRejectionReason rejectionReason = TelemetryRejectionReason.None,
+            string detail = null);
+        void InteractionCompleted(
+            string interactionId,
+            string actualHand = null,
+            string actualControl = null);
+        void ObserveInput(SharedXRHand hand, SharedXRControl control);
+        void AppStateChanged(string stateType, bool active, string source, bool exactPhysicalRemovalConfirmed = false);
+        void TrainingPauseChanged(bool paused);
+        void ClientError(string logType, string message, string stackTrace);
+        void FlowAnomaly(
+            string anomalyType,
+            string expectedState,
+            string actualState,
+            long elapsedMs,
+            bool confirmedBug = false);
         void EndSession(
             TrainingSessionStatus status,
             TrainingExitReason reason = TrainingExitReason.NotProvided,
@@ -121,7 +215,22 @@ namespace HClTraining.App
 
             public void StartSession(TrainingMode mode) { }
             public void StageEntered(TrainingStage stage) { }
+            public void StageEnded(TrainingStage stage, bool completed, StageTrainingResult result) { }
             public void StageCompleted(TrainingStage stage) { }
+            public void CompletionScreenShown() { }
+            public void CompletionRestartRequested() { }
+            public void CompletionExitRequested() { }
+            public void QuickFeedbackSubmitted(TrainingStage targetStage, TrainingFeedbackRecord feedback) { }
+            public void VoiceFeedbackSubmitted(TrainingStage targetStage, TrainingFeedbackRecord feedback) { }
+            public void FeedbackSkipped(TrainingStage targetStage, TrainingFeedbackRecord feedback) { }
+            public void InteractionPrompted(TrainingStage stage, string interactionId, int expectedOrderIndex, string expectedHand, string expectedControl, string promptSource) { }
+            public void InteractionAttempted(string interactionId, string actualHand, string actualControl, TelemetryAttemptResult result, TelemetryRejectionReason rejectionReason = TelemetryRejectionReason.None, string detail = null) { }
+            public void InteractionCompleted(string interactionId, string actualHand = null, string actualControl = null) { }
+            public void ObserveInput(SharedXRHand hand, SharedXRControl control) { }
+            public void AppStateChanged(string stateType, bool active, string source, bool exactPhysicalRemovalConfirmed = false) { }
+            public void TrainingPauseChanged(bool paused) { }
+            public void ClientError(string logType, string message, string stackTrace) { }
+            public void FlowAnomaly(string anomalyType, string expectedState, string actualState, long elapsedMs, bool confirmedBug = false) { }
             public void StepEntered(TrainingStepId step) { }
             public void StepCompleted(TrainingStepId step, int attemptCount = 0, int rejectedCount = 0) { }
             public void ContentViewed(string contentId) { }

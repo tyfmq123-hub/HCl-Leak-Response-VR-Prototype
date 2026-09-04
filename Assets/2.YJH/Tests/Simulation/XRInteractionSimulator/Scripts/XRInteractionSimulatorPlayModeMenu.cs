@@ -184,7 +184,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
         /// </summary>
         protected void Start()
         {
-            m_Simulator = Object.FindFirstObjectByType<XRInteractionSimulator>();
+            m_Simulator = Object.FindAnyObjectByType<XRInteractionSimulator>();
             if (m_Simulator == null)
             {
                 Debug.LogError($"Could not find the XRInteractionSimulator component, disabling simulator UI.", this);
@@ -224,7 +224,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
 
         void CheckInputModalityManager()
         {
-            var inputModalityManager = Object.FindFirstObjectByType<XRInputModalityManager>();
+            var inputModalityManager = Object.FindAnyObjectByType<XRInputModalityManager>();
             if (inputModalityManager != null &&
                 inputModalityManager.leftHand == null && inputModalityManager.rightHand == null)
             {
@@ -237,7 +237,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.Samples.InteractionSimulator
 #if XR_HANDS_1_2_OR_NEWER
         void CheckHandVisualizer()
         {
-            var inputModalityManager = Object.FindFirstObjectByType<XRInputModalityManager>();
+            var inputModalityManager = Object.FindAnyObjectByType<XRInputModalityManager>();
             if (inputModalityManager != null)
             {
                 if (inputModalityManager.leftHand == null && inputModalityManager.rightHand == null)

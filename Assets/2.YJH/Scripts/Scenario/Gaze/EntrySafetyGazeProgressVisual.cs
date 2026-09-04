@@ -117,12 +117,8 @@ namespace JH.EntrySafety
 
         private Camera ResolveCamera()
         {
-            if (_billboardCamera != null)
-                return _billboardCamera;
-            if (Camera.main != null)
-                return Camera.main;
-
-            return FindObjectOfType<Camera>();
+            _billboardCamera = EntrySafetyAppXrResolve.PreferLiveMainCamera(_billboardCamera);
+            return _billboardCamera;
         }
 
         private void RebuildLines()

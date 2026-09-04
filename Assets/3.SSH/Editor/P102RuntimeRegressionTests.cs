@@ -152,13 +152,12 @@ namespace VRProject.LeakResponse.EditorTests
         {
             CreateFlangeRig(out GameObject cameraObject, out GameObject flangeRoot,
                 out Transform leakPoint, out BoxCollider flangeCollider, out P102FlangeGazeRuntime gaze);
-            GameObject narrationObject = new GameObject("Narration", typeof(AudioSource));
+            GameObject narrationObject = new GameObject("LeakResponse Flow");
             P102LeakNarrationController narration =
                 narrationObject.AddComponent<P102LeakNarrationController>();
             narration.enabled = false;
             narration.ConfigureRuntime(
-                narrationObject.GetComponent<AudioSource>(), null, null, null,
-                cameraObject.transform, null, null, null, null, null, null);
+                null, null, null, null, null, null);
             narration.SetStageActivated(true);
             gaze.Configure(narration, flangeRoot.transform, leakPoint, cameraObject.transform);
             GameObject blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -217,11 +216,12 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(text.text, Is.EqualTo("✓"));
                 Assert.That(gaze.GaugeFillAmount, Is.Zero);
                 Assert.That(narration.PendingCount, Is.EqualTo(1),
-                    "Completion must enqueue the existing leak-reduction-completed gate.");
-
-                Invoke(gaze, "OnCueCompleted", P102LeakNarrationCue.LeakReductionCompleted);
-                Assert.That(narration.PendingCount, Is.EqualTo(2),
-                    "The completed narration cue must enqueue the existing sock-placement gate.");
+                    "The completion cue remains queued until its narration has completed.");
+                Assert.That(narration.HasDispatched(P102LeakNarrationCue.LeakReductionCompleted),
+                    Is.True, "Gaze completion must dispatch the next flow gate immediately.");
+                Assert.That(narration.HasDispatched(
+                        P102LeakNarrationCue.AbsorbentSockPlacementActivated),
+                    Is.False, "The sock-placement gate must wait for completion narration.");
 
                 Invoke(gaze, "Update");
                 Assert.That(gaze.CompletionDispatchCount, Is.EqualTo(1));
@@ -398,9 +398,14 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(grab.trackScale, Is.False);
                 Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
                 Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.False);
+                Assert.That(poseGhostsRoot.activeSelf, Is.False);
                 Assert.That(runtime.HandleGrabCollider.transform.localPosition.y,
                     Is.LessThan(-0.1f),
                     "Pose ghost renderers must not distort the physical tongs bounds.");
+                Invoke(runtime, "EnableRecoveryInteraction");
+                Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.True,
+                    "The authored tongs hand ghost must be visible while pickup is enabled.");
+                Assert.That(poseGhostsRoot.activeSelf, Is.True);
             }
             finally
             {
@@ -411,7 +416,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void WasteContainerLid_UsesStableDynamicAttach_AndHidesLegacyPoseGhosts()
+        public void WasteContainerLid_UsesVisibleHandleAttach_AndHidesLegacyPoseGhosts()
         {
             GameObject container = new GameObject("INT_WasteContainer_01");
             GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -434,31 +439,62 @@ namespace VRProject.LeakResponse.EditorTests
             poseGhostVisual.transform.localPosition = new Vector3(50f, 50f, 50f);
             poseGhostVisual.transform.localScale = Vector3.one * 8f;
             GameObject sideGhost = new GameObject("HazWasteContainer_Lid_ObjectGhost");
+            sideGhost.transform.SetPositionAndRotation(
+                new Vector3(1.25f, 0.8f, -0.45f), Quaternion.Euler(17f, 123f, -28f));
             GameObject absorptionObject = new GameObject("Absorption Controller");
             var absorption = absorptionObject.AddComponent<
                 VRProject.LeakResponse.HClAbsorptionVisualController>();
             GameObject runtimeObject = new GameObject("P102 Waste Lid Authored Attach Test");
             P102WasteContainerRuntime runtime =
                 runtimeObject.AddComponent<P102WasteContainerRuntime>();
+            Vector3 authoredLidPosition = lid.transform.position;
+            Quaternion authoredLidRotation = lid.transform.rotation;
+            Vector3 authoredSideGhostPosition = sideGhost.transform.position;
+            Quaternion authoredSideGhostRotation = sideGhost.transform.rotation;
 
             try
             {
                 Assert.That(runtime.Configure(container, null, absorption), Is.True);
+                Assert.That(Vector3.Distance(lid.transform.position, authoredLidPosition),
+                    Is.LessThan(0.0001f),
+                    "Runtime setup must preserve the Scene-authored closed lid position.");
+                Assert.That(Quaternion.Angle(lid.transform.rotation, authoredLidRotation),
+                    Is.LessThan(0.001f),
+                    "Runtime setup must preserve the Scene-authored closed lid rotation.");
+                Assert.That(Vector3.Distance(sideGhost.transform.position,
+                        authoredSideGhostPosition), Is.LessThan(0.0001f),
+                    "Runtime setup must preserve the Scene-authored side ghost position.");
+                Assert.That(Quaternion.Angle(sideGhost.transform.rotation,
+                        authoredSideGhostRotation), Is.LessThan(0.001f),
+                    "Runtime setup must preserve the Scene-authored side ghost rotation.");
                 XRGrabInteractable grab = lid.GetComponent<XRGrabInteractable>();
-                Assert.That(grab.attachTransform, Is.SameAs(attachObject.transform));
-                Assert.That(grab.useDynamicAttach, Is.True);
-                Assert.That(grab.matchAttachPosition, Is.True);
+                Assert.That(grab.attachTransform,
+                    Is.SameAs(runtime.LidHandleCollider.transform));
+                Assert.That(grab.attachTransform, Is.Not.SameAs(attachObject.transform),
+                    "Removed Hand Pose Tool attach must never drive the visible lid.");
+                Assert.That(grab.useDynamicAttach, Is.False);
+                Assert.That(grab.matchAttachPosition, Is.False);
                 Assert.That(grab.matchAttachRotation, Is.False);
                 Assert.That(grab.snapToColliderVolume, Is.True);
                 Assert.That(grab.addDefaultGrabTransformers, Is.False);
                 Assert.That(grab.trackScale, Is.False);
                 Assert.That(grab.singleGrabTransformersCount, Is.EqualTo(1));
                 Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.False);
+                Assert.That(poseGhostsRoot.activeSelf, Is.False);
+                Invoke(runtime, "OnCueStarted",
+                    P102LeakNarrationCue.ContainerAndLidGhostActivated);
+                Assert.That(poseGhostVisual.GetComponent<Renderer>().enabled, Is.True,
+                    "The authored lid hand ghost must be visible while lid pickup is enabled.");
+                Assert.That(poseGhostsRoot.activeSelf, Is.True);
                 Assert.That(Vector3.Distance(
                         runtime.LidHandleCollider.bounds.center,
                         lid.GetComponent<Renderer>().bounds.center),
                     Is.LessThan(1f),
                     "Pose ghost renderers must not distort the lid handle bounds.");
+                Assert.That(FindRuntimeObject(
+                        "P102_WasteContainerLeftWallCollider_Runtime"),
+                    Is.Null,
+                    "Solid runtime bin walls trap the player and tongs inside the container.");
             }
             finally
             {
@@ -625,52 +661,31 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void SubtitleHud_UsesSafeAnchorsScalerAndBoundedAutoSize()
+        public void FlowCue_QueuesUntilNarrationPlaybackCanRun()
         {
-            var hud = new GameObject("P102 subtitle test", typeof(RectTransform), typeof(Canvas));
-            var panel = new GameObject("Panel", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
-            var textObject = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
-            var cameraObject = new GameObject("Camera", typeof(Camera));
-            var narrationObject = new GameObject("Narration", typeof(AudioSource));
-            panel.transform.SetParent(hud.transform, false);
-            textObject.transform.SetParent(panel.transform, false);
+            var flowObject = new GameObject("LeakResponse Flow");
 
             try
             {
-                P102LeakNarrationController narration =
-                    narrationObject.AddComponent<P102LeakNarrationController>();
-                TMP_Text text = textObject.GetComponent<TMP_Text>();
-                CanvasGroup group = panel.GetComponent<CanvasGroup>();
-                narration.ConfigureRuntime(narrationObject.GetComponent<AudioSource>(),
-                    hud.GetComponent<RectTransform>(), text, group, cameraObject.transform,
-                    suction, discharge, discharge, null, null, null);
+                P102LeakNarrationController flow =
+                    flowObject.AddComponent<P102LeakNarrationController>();
+                flow.enabled = false;
+                flow.SetStageActivated(true);
+                flow.ConfigureRuntime(suction, discharge, discharge, null, null, null);
+                string order = string.Empty;
+                flow.CueStarted += cue => order += $"S{(int)cue:00}";
+                flow.CueCompleted += cue => order += $"C{(int)cue:00}";
 
-                CanvasScaler scaler = hud.GetComponent<CanvasScaler>();
-                RectTransform panelRect = panel.GetComponent<RectTransform>();
-                Assert.That(scaler, Is.Not.Null);
-                Assert.That(hud.GetComponent<Canvas>().renderMode, Is.EqualTo(RenderMode.WorldSpace));
-                Assert.That(scaler.uiScaleMode, Is.EqualTo(CanvasScaler.ScaleMode.ConstantPixelSize));
-                Assert.That(scaler.dynamicPixelsPerUnit, Is.EqualTo(10f));
-                Assert.That(hud.GetComponent<RectTransform>().sizeDelta,
-                    Is.EqualTo(HClTraining.App.XRSubtitleHudLayout.CanvasSize));
-                Assert.That(panelRect.anchorMin,
-                    Is.EqualTo(P102LeakNarrationController.RuntimeSubtitlePanelAnchorMin));
-                Assert.That(panelRect.anchorMax,
-                    Is.EqualTo(P102LeakNarrationController.RuntimeSubtitlePanelAnchorMax));
-                Assert.That(text.enableAutoSizing, Is.True);
-                Assert.That(text.fontSizeMin,
-                    Is.EqualTo(P102LeakNarrationController.RuntimeSubtitleFontSizeMin));
-                Assert.That(text.fontSizeMax,
-                    Is.EqualTo(P102LeakNarrationController.RuntimeSubtitleFontSizeMax));
-                Assert.That(text.textWrappingMode, Is.EqualTo(TextWrappingModes.Normal));
-                foreach (Graphic graphic in hud.GetComponentsInChildren<Graphic>(true))
-                    Assert.That(graphic.raycastTarget, Is.False, graphic.name);
+                Assert.That(flow.EnqueueOnce(P102LeakNarrationCue.DischargeValveActivated), Is.True);
+                Assert.That(order, Is.Empty);
+                Assert.That(flow.PendingCount, Is.EqualTo(1));
+                Assert.That(flow.IsPlaying, Is.False);
+                Assert.That(flow.HasDispatched(P102LeakNarrationCue.DischargeValveActivated), Is.True);
+                Assert.That(flowObject.GetComponent<AudioSource>(), Is.Null);
             }
             finally
             {
-                UnityEngine.Object.DestroyImmediate(narrationObject);
-                UnityEngine.Object.DestroyImmediate(cameraObject);
-                UnityEngine.Object.DestroyImmediate(hud);
+                UnityEngine.Object.DestroyImmediate(flowObject);
             }
         }
 

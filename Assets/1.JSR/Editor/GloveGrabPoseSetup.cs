@@ -20,7 +20,6 @@ public static class GloveGrabPoseSetup
     // edge and does not sink into the opening / overlap the glove palm.
     const float CuffOutsideOffsetMeters = 0.08f;
 
-    [MenuItem("Tools/PPE/Fix Chemical Gloves Grab Pose", false, 29)]
     public static void FixChemicalGlovesGrabPose()
     {
         EnsurePreferredSceneLoaded();

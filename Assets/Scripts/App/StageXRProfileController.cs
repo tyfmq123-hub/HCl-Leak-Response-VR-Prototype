@@ -837,7 +837,7 @@ namespace HClTraining.App
             var bodyTransformers = xrRoot.GetComponents<XRBodyTransformer>();
             var mediators = xrRoot.GetComponents<LocomotionMediator>();
             var moveProviders = xrRoot.GetComponents<ContinuousMoveProvider>();
-            var controllerDrivers = xrRoot.GetComponents<CharacterControllerDriver>();
+            var controllerDrivers = GetBehavioursNamed(xrRoot, "CharacterControllerDriver", false);
             var snapTurnProviders = xrRoot.GetComponents<SnapTurnProvider>();
             if (bodyTransformers.Length != 1 || mediators.Length != 1 || moveProviders.Length != 1 ||
                 controllerDrivers.Length != 1 || snapTurnProviders.Length != 1)
@@ -867,6 +867,22 @@ namespace HClTraining.App
             controllerDrivers[0].enabled = true;
             snapTurnProviders[0].enabled = requirements.Turning;
             return true;
+        }
+
+        static Behaviour[] GetBehavioursNamed(Transform root, string typeName, bool includeChildren)
+        {
+            var source = includeChildren
+                ? root.GetComponentsInChildren<Behaviour>(true)
+                : root.GetComponents<Behaviour>();
+            var matches = new List<Behaviour>();
+            for (var i = 0; i < source.Length; i++)
+            {
+                var behaviour = source[i];
+                if (behaviour != null && string.Equals(behaviour.GetType().Name, typeName, StringComparison.Ordinal))
+                    matches.Add(behaviour);
+            }
+
+            return matches.ToArray();
         }
 
         static bool IsSharedLocomotionBehaviour(Type type)

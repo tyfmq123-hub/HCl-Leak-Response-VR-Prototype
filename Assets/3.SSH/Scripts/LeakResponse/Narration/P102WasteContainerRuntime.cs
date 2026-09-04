@@ -16,7 +16,6 @@ namespace VRProject.LeakResponse.Narration
         const float IntakeDepthBelowRim = 0.28f;
         const float SideLidCaptureDistance = 0.85f;
         const float ClosedLidCaptureDistance = 0.75f;
-        const float ClosedLidRimClearance = 0.01f;
 
         enum LidSnapOutcome
         {
@@ -32,11 +31,9 @@ namespace VRProject.LeakResponse.Narration
         GameObject lidObject;
         Transform sideGhost;
         Transform closedGhost;
-        Transform lidAuthoredHandPoseAttach;
         XRGrabInteractable lidGrab;
         BoxCollider lidHandleCollider;
         Rigidbody lidRigidbody;
-        Rigidbody bodyRigidbody;
         P102LeakNarrationController narration;
         HClAbsorptionVisualController absorptionController;
         Vector3 closedPosition;
@@ -101,6 +98,12 @@ namespace VRProject.LeakResponse.Narration
             lidObject = FindDescendant(containerRoot, "HazWasteContainer_Lid");
             GameObject sideGhostObject = P102RuntimeUtility.FindSceneObject("HazWasteContainer_Lid_ObjectGhost");
             sideGhost = sideGhostObject != null ? sideGhostObject.transform : null;
+            if (sideGhost != null && sideGhost.parent != containerRoot.transform)
+            {
+                // Keep the authored world pose, but make later container moves carry the
+                // lid-stow target with the Stage-owned waste container.
+                sideGhost.SetParent(containerRoot.transform, true);
+            }
 
             if (bodyObject == null || lidObject == null)
             {
@@ -111,11 +114,13 @@ namespace VRProject.LeakResponse.Narration
             P102RuntimeUtility.HideHandPoseGhostRenderers(lidObject);
 
             originalLidParent = lidObject.transform.parent;
-            AlignClosedLidToContainerRim();
+            // The Scene owns the canonical closed pose. Recalculating it from the
+            // merged FBX bounds can include the rear handle in the body's height and
+            // can choose the underside of the lid as its top. Both make the lid appear
+            // upside-down and suspended above the bin on device.
+            lidObject.transform.SetParent(originalLidParent, true);
             closedPosition = lidObject.transform.position;
             closedRotation = lidObject.transform.rotation;
-
-            EnsureContainerBodyPhysics();
 
             GameObject existingClosedGhost =
                 P102RuntimeUtility.FindSceneObject("HazWasteContainer_Lid_ClosedGhost_Runtime");
@@ -140,15 +145,14 @@ namespace VRProject.LeakResponse.Narration
             lidGrab.colliders.Clear();
             if (lidHandleCollider != null)
                 lidGrab.colliders.Add(lidHandleCollider);
-            lidAuthoredHandPoseAttach = P102RuntimeUtility.FindDescendantTransform(
-                lidObject, P102RuntimeUtility.RightHandPoseAttachName);
-            lidGrab.attachTransform = lidAuthoredHandPoseAttach != null
-                ? lidAuthoredHandPoseAttach
-                : lidHandleCollider != null
-                    ? lidHandleCollider.transform
-                    : null;
-            lidGrab.useDynamicAttach = true;
-            lidGrab.matchAttachPosition = true;
+            // The imported Hand Pose attach belongs to the removed pose tool and can
+            // be metres away from the visible lid. The physical handle is the only
+            // valid Grab reference for this Stage.
+            lidGrab.attachTransform = lidHandleCollider != null
+                ? lidHandleCollider.transform
+                : lidObject.transform;
+            lidGrab.useDynamicAttach = false;
+            lidGrab.matchAttachPosition = false;
             lidGrab.matchAttachRotation = false;
             lidGrab.snapToColliderVolume = true;
             lidGrab.throwOnDetach = false;
@@ -196,7 +200,7 @@ namespace VRProject.LeakResponse.Narration
                 !IsItemWithinDepositZone(item) || !HasVisibleRenderer(item))
                 return false;
 
-            int uniqueId = item.GetInstanceID();
+            int uniqueId = item.GetEntityId().GetHashCode();
             if (!depositGate.TryDeposit(uniqueId) || !item.MarkDeposited())
                 return false;
 
@@ -230,7 +234,7 @@ namespace VRProject.LeakResponse.Narration
                 P102RecoveryItemState other = recoveryRuntime.Items[i];
                 if (other == null || other == representative || other.Kind != kind || other.IsDeposited)
                     continue;
-                if (!depositGate.TryDeposit(other.GetInstanceID()) || !other.MarkDeposited())
+                if (!depositGate.TryDeposit(other.GetEntityId().GetHashCode()) || !other.MarkDeposited())
                     continue;
 
                 XRGrabInteractable otherGrab = other.GetComponent<XRGrabInteractable>();
@@ -282,6 +286,7 @@ namespace VRProject.LeakResponse.Narration
             {
                 lidStowEnabled = true;
                 SetGhostVisible(sideGhost, true);
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(lidObject, true);
                 if (lidGrab != null)
                     lidGrab.enabled = true;
             }
@@ -289,6 +294,8 @@ namespace VRProject.LeakResponse.Narration
             {
                 finalCloseEnabled = CanFinalLock;
                 SetGhostVisible(closedGhost, finalCloseEnabled);
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(
+                    lidObject, finalCloseEnabled);
                 if (lidGrab != null)
                     lidGrab.enabled = finalCloseEnabled;
                 if (!finalCloseEnabled)
@@ -311,28 +318,24 @@ namespace VRProject.LeakResponse.Narration
         void OnLidSelectEntered(SelectEnterEventArgs args)
         {
             StopLidReleaseRoutine();
+            P102RuntimeUtility.SetHandPoseGhostRenderersVisible(lidObject, false);
             Transform selectionAttach = args?.interactorObject?.GetAttachTransform(lidGrab);
             heldLidControllerAnchor = P102RuntimeUtility.ResolveStableControllerAnchor(
                                           args?.interactorObject) ??
                                       selectionAttach;
             if (heldLidControllerAnchor != null && lidObject != null)
             {
-                Transform handleAttach = lidAuthoredHandPoseAttach != null
-                    ? lidAuthoredHandPoseAttach
-                    : lidHandleCollider != null ? lidHandleCollider.transform : null;
-                if (handleAttach != null && selectionAttach != null)
+                if (lidHandleCollider != null)
                 {
-                    Quaternion attachRotationInLid =
-                        Quaternion.Inverse(lidObject.transform.rotation) * handleAttach.rotation;
-                    Vector3 attachPositionInLid =
-                        lidObject.transform.InverseTransformPoint(handleAttach.position);
-                    Quaternion targetRotation = selectionAttach.rotation *
-                                                Quaternion.Inverse(attachRotationInLid);
-                    Vector3 scaledAttachPosition = Vector3.Scale(
-                        attachPositionInLid, lidObject.transform.lossyScale);
-                    Vector3 targetPosition = selectionAttach.position -
-                                             targetRotation * scaledAttachPosition;
-                    lidObject.transform.SetPositionAndRotation(targetPosition, targetRotation);
+                    Quaternion heldRotation = lidObject.transform.rotation;
+                    Vector3 localHandlePoint = lidObject.transform.InverseTransformPoint(
+                        lidHandleCollider.transform.position);
+                    Vector3 scaledHandlePoint = Vector3.Scale(
+                        localHandlePoint, lidObject.transform.lossyScale);
+                    Vector3 heldPosition = heldLidControllerAnchor.position -
+                                           heldRotation * scaledHandlePoint;
+                    lidObject.transform.SetPositionAndRotation(
+                        heldPosition, heldRotation);
                 }
 
                 // Keep the lid under the tracked controller, never under Near/Far's movable
@@ -360,7 +363,13 @@ namespace VRProject.LeakResponse.Narration
                 lidGrab.trackPosition = true;
                 lidGrab.trackRotation = true;
             }
-            if (args.isCanceled || snappingLid || lidObject == null || depositGate.IsLocked)
+            if (args.isCanceled)
+            {
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(
+                    lidObject, lidGrab != null && lidGrab.enabled && !depositGate.IsLocked);
+                return;
+            }
+            if (snappingLid || lidObject == null || depositGate.IsLocked)
                 return;
 
             StopLidReleaseRoutine();
@@ -434,6 +443,7 @@ namespace VRProject.LeakResponse.Narration
             lidObject.transform.SetPositionAndRotation(targetPosition, targetRotation);
             if (outcome == LidSnapOutcome.FinalLock)
             {
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(lidObject, false);
                 if (depositGate.TryLock())
                 {
                     SetGhostVisible(closedGhost, false);
@@ -446,6 +456,7 @@ namespace VRProject.LeakResponse.Narration
             else if (outcome == LidSnapOutcome.Stow)
             {
                 lidStowed = true;
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(lidObject, false);
                 SetGhostVisible(sideGhost, false);
                 lidGrab.enabled = false;
                 LidStowed?.Invoke();
@@ -454,6 +465,8 @@ namespace VRProject.LeakResponse.Narration
             else if (lidGrab != null)
             {
                 lidGrab.enabled = lidStowed ? finalCloseEnabled : lidStowEnabled;
+                P102RuntimeUtility.SetHandPoseGhostRenderersVisible(
+                    lidObject, lidGrab.enabled);
             }
 
             snappingLid = false;
@@ -576,44 +589,6 @@ namespace VRProject.LeakResponse.Narration
             }
         }
 
-        void EnsureContainerBodyPhysics()
-        {
-            if (bodyObject == null ||
-                !P102RuntimeUtility.TryGetRendererBounds(bodyObject, out Bounds bodyBounds))
-            {
-                return;
-            }
-
-            bodyRigidbody = P102RuntimeUtility.GetOrAdd<Rigidbody>(bodyObject);
-            bodyRigidbody.linearVelocity = Vector3.zero;
-            bodyRigidbody.angularVelocity = Vector3.zero;
-            bodyRigidbody.useGravity = false;
-            bodyRigidbody.isKinematic = true;
-
-            const float wallThickness = 0.035f;
-            float wallHeight = Mathf.Max(0.1f, bodyBounds.size.y);
-            CreateOrUpdateBodyCollider(
-                "P102_WasteContainerBottomCollider_Runtime",
-                new Vector3(bodyBounds.center.x, bodyBounds.min.y + wallThickness * 0.5f, bodyBounds.center.z),
-                new Vector3(bodyBounds.size.x, wallThickness, bodyBounds.size.z));
-            CreateOrUpdateBodyCollider(
-                "P102_WasteContainerLeftWallCollider_Runtime",
-                new Vector3(bodyBounds.min.x + wallThickness * 0.5f, bodyBounds.center.y, bodyBounds.center.z),
-                new Vector3(wallThickness, wallHeight, bodyBounds.size.z));
-            CreateOrUpdateBodyCollider(
-                "P102_WasteContainerRightWallCollider_Runtime",
-                new Vector3(bodyBounds.max.x - wallThickness * 0.5f, bodyBounds.center.y, bodyBounds.center.z),
-                new Vector3(wallThickness, wallHeight, bodyBounds.size.z));
-            CreateOrUpdateBodyCollider(
-                "P102_WasteContainerFrontWallCollider_Runtime",
-                new Vector3(bodyBounds.center.x, bodyBounds.center.y, bodyBounds.min.z + wallThickness * 0.5f),
-                new Vector3(bodyBounds.size.x, wallHeight, wallThickness));
-            CreateOrUpdateBodyCollider(
-                "P102_WasteContainerBackWallCollider_Runtime",
-                new Vector3(bodyBounds.center.x, bodyBounds.center.y, bodyBounds.max.z - wallThickness * 0.5f),
-                new Vector3(bodyBounds.size.x, wallHeight, wallThickness));
-        }
-
         BoxCollider EnsureLidHandleGrabCollider()
         {
             if (lidObject == null ||
@@ -685,107 +660,6 @@ namespace VRProject.LeakResponse.Narration
                 return;
             StopCoroutine(lidReleaseRoutine);
             lidReleaseRoutine = null;
-        }
-
-        void CreateOrUpdateBodyCollider(string objectName, Vector3 worldCenter, Vector3 worldSize)
-        {
-            Transform colliderTransform = bodyObject.transform.Find(objectName);
-            if (colliderTransform == null)
-            {
-                var colliderObject = new GameObject(objectName);
-                colliderTransform = colliderObject.transform;
-                colliderTransform.SetParent(bodyObject.transform, true);
-            }
-
-            colliderTransform.position = worldCenter;
-            colliderTransform.rotation = Quaternion.identity;
-            colliderTransform.localScale = Vector3.one;
-            BoxCollider collider = colliderTransform.GetComponent<BoxCollider>();
-            if (collider == null)
-                collider = colliderTransform.gameObject.AddComponent<BoxCollider>();
-
-            Vector3 scale = colliderTransform.lossyScale;
-            collider.center = Vector3.zero;
-            collider.size = new Vector3(
-                worldSize.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
-                worldSize.y / Mathf.Max(0.0001f, Mathf.Abs(scale.y)),
-                worldSize.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)));
-            collider.isTrigger = false;
-            collider.enabled = true;
-        }
-
-        void AlignClosedLidToContainerRim()
-        {
-            if (bodyObject == null || lidObject == null ||
-                !P102RuntimeUtility.TryGetRendererBounds(lidObject, out Bounds lidBounds))
-            {
-                Debug.LogWarning(
-                    "[P102 Flow] Waste lid rim alignment skipped because renderer bounds are unavailable.",
-                    this);
-                return;
-            }
-
-            // The Body renderer also contains the tall black pedal frame. Its overall max Y
-            // is above the orange bin rim and previously lifted the lid into the air. Resolve
-            // the SafetyYellow submesh only so the closed pose follows the actual bin opening.
-            if (!TryGetMaterialTopY(bodyObject, "HDPE_SafetyYellow", out float rimHeight))
-            {
-                Debug.LogWarning(
-                    "[P102 Flow] Waste lid kept its authored height because the yellow bin rim was not found.",
-                    this);
-                return;
-            }
-
-            float targetBottom = rimHeight + ClosedLidRimClearance;
-            float verticalOffset = targetBottom - lidBounds.min.y;
-            lidObject.transform.position += Vector3.up * verticalOffset;
-        }
-
-        static bool TryGetMaterialTopY(GameObject root, string materialName, out float topY)
-        {
-            topY = float.NegativeInfinity;
-            if (root == null || string.IsNullOrEmpty(materialName))
-                return false;
-
-            bool found = false;
-            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
-            for (int rendererIndex = 0; rendererIndex < renderers.Length; ++rendererIndex)
-            {
-                MeshRenderer renderer = renderers[rendererIndex];
-                MeshFilter filter = renderer != null ? renderer.GetComponent<MeshFilter>() : null;
-                Mesh mesh = filter != null ? filter.sharedMesh : null;
-                if (mesh == null)
-                    continue;
-
-                Material[] materials = renderer.sharedMaterials;
-                int count = Mathf.Min(materials.Length, mesh.subMeshCount);
-                for (int materialIndex = 0; materialIndex < count; ++materialIndex)
-                {
-                    Material material = materials[materialIndex];
-                    if (material == null ||
-                        material.name.IndexOf(materialName, StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        continue;
-                    }
-
-                    Bounds localBounds = mesh.GetSubMesh(materialIndex).bounds;
-                    Vector3 min = localBounds.min;
-                    Vector3 max = localBounds.max;
-                    for (int corner = 0; corner < 8; ++corner)
-                    {
-                        Vector3 localPoint = new Vector3(
-                            (corner & 1) == 0 ? min.x : max.x,
-                            (corner & 2) == 0 ? min.y : max.y,
-                            (corner & 4) == 0 ? min.z : max.z);
-                        topY = Mathf.Max(topY,
-                            renderer.transform.TransformPoint(localPoint).y);
-                    }
-
-                    found = true;
-                }
-            }
-
-            return found;
         }
 
         static void SetGhostVisible(Transform ghost, bool visible)

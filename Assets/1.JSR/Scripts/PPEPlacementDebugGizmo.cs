@@ -23,7 +23,7 @@ public sealed class PPEPlacementDebugGizmo : MonoBehaviour
     [Header("Debug Toggle")]
     [SerializeField]
     [Tooltip("Master switch for Scene-view PPE placement diagnostics.")]
-    bool drawDebugGizmos = true;
+    bool drawDebugGizmos;
 
     [SerializeField] bool drawWhenNotPlaying = true;
     [SerializeField] bool showAllAnchors = true;
@@ -139,7 +139,7 @@ public sealed class PPEPlacementDebugGizmo : MonoBehaviour
     {
         placementManager = manager;
         anchorSet = equipmentAnchors;
-        drawDebugGizmos = true;
+        drawDebugGizmos = false;
     }
 #endif
 }

@@ -38,6 +38,14 @@ public class WasteContainerPrepareInteractable : MonoBehaviour
     bool containerSelected;
     bool preparationInProgress;
     float selectedAtTime = -999f;
+    bool capturedAuthoredState;
+    bool authoredObjectActive;
+    bool authoredRootActive;
+    bool authoredInteractableEnabled;
+    Transform authoredRootParent;
+    Vector3 authoredRootLocalPosition;
+    Quaternion authoredRootLocalRotation;
+    Vector3 authoredRootLocalScale;
 
     public string DisplayName =>
         string.IsNullOrWhiteSpace(displayName) ? DefaultDisplayName : displayName;
@@ -45,7 +53,11 @@ public class WasteContainerPrepareInteractable : MonoBehaviour
     public bool IsContainerSelected => IsStickySelected();
     public bool PreparationInProgress => preparationInProgress;
 
-    void Awake() => ResolveRefs();
+    void Awake()
+    {
+        ResolveRefs();
+        CaptureAuthoredState();
+    }
 
     void OnEnable()
     {
@@ -63,6 +75,83 @@ public class WasteContainerPrepareInteractable : MonoBehaviour
     void OnDestroy() => WireInteractable(false);
 
     public void SetConfirmInputOwnedByRouter(bool owned) => confirmInputOwnedByRouter = owned;
+
+    /// <summary>
+    /// Full PPE Room retry: restore Prepared=false visual, interaction, and authored pose.
+    /// Does not turn WasteContainer into wearable PPE.
+    /// </summary>
+    public void ResetPreparedState()
+    {
+        preparationInProgress = false;
+        containerSelected = false;
+        selectedAtTime = -999f;
+
+        ResolveRefs();
+        if (!capturedAuthoredState)
+            CaptureAuthoredState();
+
+        if (outlineHighlight != null)
+        {
+            if (PPESelectionManager.Instance != null &&
+                PPESelectionManager.Instance.CurrentSelectedPPE == outlineHighlight)
+                PPESelectionManager.Instance.ClearSelection();
+            else
+                outlineHighlight.SetSelected(false);
+        }
+
+        var root = containerRoot != null ? containerRoot : gameObject;
+        RestoreAuthoredHierarchy(root);
+        RestoreAuthoredActive(root);
+
+        if (interactable != null)
+            interactable.enabled = authoredInteractableEnabled;
+
+        if (equipmentManager != null)
+            equipmentManager.SetPrepared(PPEEquipmentManager.IdWasteContainer, false);
+
+        ClearXrInteraction(root != null ? root : gameObject);
+    }
+
+    void CaptureAuthoredState()
+    {
+        ResolveRefs();
+        var root = containerRoot != null ? containerRoot : gameObject;
+        authoredObjectActive = gameObject.activeSelf;
+        authoredRootActive = root != null && root.activeSelf;
+        authoredInteractableEnabled = interactable == null || interactable.enabled;
+        if (root != null)
+        {
+            authoredRootParent = root.transform.parent;
+            authoredRootLocalPosition = root.transform.localPosition;
+            authoredRootLocalRotation = root.transform.localRotation;
+            authoredRootLocalScale = root.transform.localScale;
+        }
+
+        capturedAuthoredState = true;
+    }
+
+    void RestoreAuthoredHierarchy(GameObject root)
+    {
+        if (root == null)
+            return;
+
+        if (root.transform.parent != authoredRootParent)
+            root.transform.SetParent(authoredRootParent, false);
+
+        root.transform.localPosition = authoredRootLocalPosition;
+        root.transform.localRotation = authoredRootLocalRotation;
+        root.transform.localScale = authoredRootLocalScale == Vector3.zero
+            ? Vector3.one
+            : authoredRootLocalScale;
+    }
+
+    void RestoreAuthoredActive(GameObject root)
+    {
+        if (root != null && root.activeSelf != authoredRootActive)
+            root.SetActive(authoredRootActive);
+        if (gameObject.activeSelf != authoredObjectActive)
+            gameObject.SetActive(authoredObjectActive);
+    }
 
     /// <summary>Used by camera gaze when rays are off (gloves worn).</summary>
     public void NotifyGazeSelected()
