@@ -16,9 +16,9 @@ MonoBehaviour:
   spawnPosition: {x: 0, y: 0, z: -18.76}
   spawnEulerAngles: {x: 0, y: 0, z: 0}
   farInteraction: 0
-  nearInteraction: 0
+  nearInteraction: 1
   uiInteraction: 0
-  grabInteraction: 0
+  grabInteraction: 1
   haptics: 1
   movement: 1
   turning: 1

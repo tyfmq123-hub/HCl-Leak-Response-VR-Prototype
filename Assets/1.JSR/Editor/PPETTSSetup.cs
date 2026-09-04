@@ -55,7 +55,6 @@ public static class PPETTSSetup
         "36_CheckCurrentRequiredPPE.wav",
     };
 
-    [MenuItem("Tools/PPE/Setup PPE Room TTS", false, 41)]
     public static void SetupPpeTts()
     {
         EnsurePreferredSceneLoaded();

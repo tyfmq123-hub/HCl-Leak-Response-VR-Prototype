@@ -20,7 +20,7 @@ namespace JH.EntrySafety
         private void Awake()
         {
             if (_noAccessOverlay == null)
-                _noAccessOverlay = FindFirstObjectByType<EntrySafetyNoAccessOverlayController>();
+                _noAccessOverlay = FindAnyObjectByType<EntrySafetyNoAccessOverlayController>();
 
             EnsurePerimeterWalls();
             EnsureNoAccessIsSolid();

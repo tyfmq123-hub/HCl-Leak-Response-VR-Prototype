@@ -114,7 +114,6 @@ public class PPEPreviewController : MonoBehaviour
     bool[] colliderWasEnabled;
     Transform bagInspectAnchor;
     Transform activePreviewParent;
-    bool activePreviewIsWorldFixed;
 
     [Header("Response bag world-fixed inspect")]
     [SerializeField] float bagInspectDistance = 1.05f;
@@ -290,7 +289,6 @@ public class PPEPreviewController : MonoBehaviour
         activeSnapshot = null;
         activeRoutine = null;
         activePreviewParent = null;
-        activePreviewIsWorldFixed = false;
     }
 
     IEnumerator SelectionChangeRoutine(PPEOutlineHighlight previous, PPEOutlineHighlight next)
@@ -334,7 +332,6 @@ public class PPEPreviewController : MonoBehaviour
             yield break;
 
         activePreviewParent = previewParent;
-        activePreviewIsWorldFixed = false;
 
         var snapshot = CaptureSnapshot(t);
         activeSnapshot = snapshot;

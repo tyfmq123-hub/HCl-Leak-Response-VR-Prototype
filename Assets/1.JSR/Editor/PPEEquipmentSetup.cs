@@ -38,7 +38,6 @@ public static class PPEEquipmentSetup
         new EquipIdentity("PPE_Gloves", "ChemicalGloves", "내화학 보호장갑"),
     };
 
-    [MenuItem("Tools/PPE/Setup Equipment System", false, 25)]
     public static void SetupEquipmentSystem()
     {
         var scene = SceneManager.GetActiveScene();

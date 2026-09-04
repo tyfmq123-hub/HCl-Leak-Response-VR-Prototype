@@ -20,7 +20,6 @@ public static class PPERayInteractableSetup
     const string OutlineMaterialPath = "Assets/1.JSR/Materials/PPE/PPE_Outline.mat";
     const string OutlineResourcesPath = "Assets/Resources/PPE_Outline.mat";
 
-    [MenuItem("Tools/PPE/Setup Ray Interactables", false, 20)]
     public static void SetupRayInteractables()
     {
         var scene = SceneManager.GetActiveScene();

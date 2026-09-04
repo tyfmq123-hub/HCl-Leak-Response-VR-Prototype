@@ -13,8 +13,6 @@ namespace VRProject.LeakResponse.Narration
     {
         readonly HashSet<TrainingStepId> enteredSteps = new HashSet<TrainingStepId>();
         readonly HashSet<TrainingStepId> completedSteps = new HashSet<TrainingStepId>();
-        readonly HashSet<P102LeakNarrationCue> viewedCues =
-            new HashSet<P102LeakNarrationCue>();
         P102LeakNarrationController narration;
 
         public void Configure(P102LeakNarrationController newNarration)
@@ -56,10 +54,6 @@ namespace VRProject.LeakResponse.Narration
 
         void OnCueCompleted(P102LeakNarrationCue cue)
         {
-            if (viewedCues.Add(cue))
-                SharedTrainingTelemetry.Current.ContentViewed(
-                    $"LeakResponse.TTS.{(int)cue:00}");
-
             switch (cue)
             {
                 case P102LeakNarrationCue.SuctionValveClosed:

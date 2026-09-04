@@ -101,6 +101,11 @@ namespace VRProject.Valves
         void Awake()
         {
             ResolveReferences();
+            // Older Scene data can still contain this removed option. Read and clear
+            // it at runtime so the serialized compatibility field does not affect the
+            // authoritative Front + Axis + Close Direction convention.
+            if (invertRotationDirection)
+                invertRotationDirection = false;
             if (wheelRigidbody != null)
             {
                 wheelRigidbody.linearVelocity = Vector3.zero;

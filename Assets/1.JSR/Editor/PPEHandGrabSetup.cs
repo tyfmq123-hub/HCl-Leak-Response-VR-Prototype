@@ -12,7 +12,6 @@ public static class PPEHandGrabSetup
 {
     const string ScenePath = "Assets/Scenes/04_PPE.unity";
 
-    [MenuItem("Tools/PPE/Setup STEP 2 Hand Grab", false, 27)]
     public static void SetupHandGrab()
     {
         var scene = SceneManager.GetActiveScene();

@@ -193,7 +193,7 @@ public class ResponseBagContentsRevealController : MonoBehaviour
         tmp.fontSize = nameLabelFontSize;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Ellipsis;
         var font = Resources.Load<TMP_FontAsset>(HangulFontResource);
         if (font != null)
@@ -756,7 +756,7 @@ public class ResponseBagContentsRevealController : MonoBehaviour
         tmp.fontSize = 32f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         var font = Resources.Load<TMP_FontAsset>(HangulFontResource);
         if (font != null)
             tmp.font = font;

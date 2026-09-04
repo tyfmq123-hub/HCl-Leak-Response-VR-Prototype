@@ -9,41 +9,41 @@ public static class PPETTSSubtitles
         switch (cue)
         {
             case PPETTSCue.EmergencyIntro:
-                return "주의. P-102 연결 배관의 플랜지 접합부에서 염산 누출이 발생했습니다.";
+                return "염산 이송 설비에서 누출이 감지되었습니다. 현장에 바로 접근하지 말고 보호구와 대응 장비를 준비하십시오.";
             case PPETTSCue.WearEssentialPPE:
-                return "현장에 진입하기 전 개인보호구와 대응장비를 지정된 순서로 준비하십시오.";
+                return "화이트보드에서 누출 위치와 준비 순서를 충분히 확인하십시오.";
             case PPETTSCue.WearInOrder:
-                return "정해진 순서대로 착용하세요.";
+                return "착용 장비는 오른쪽 장비 보관대에 있습니다. 보관대를 보며 안내되는 순서대로 착용하고 대응 장비를 준비하십시오.";
             case PPETTSCue.PointWithRay:
-                return "컨트롤러 레이로 장비를 가리키세요.";
+                return "손을 장비 가까이 가져가 직접 선택하십시오.";
             case PPETTSCue.OutlineShowsSelectable:
                 return "외곽선이 보이는 장비를 선택할 수 있습니다.";
             case PPETTSCue.LegacyGripButtonEquipInstruction:
-                return string.Empty;
+                return "장비를 손으로 잡아 지정된 착용 위치에서 놓으십시오.";
             case PPETTSCue.BButtonCancel:
-                return "B 버튼으로 선택을 취소할 수 있습니다.";
+                return "잘못 놓친 장비는 원래 위치로 돌아갑니다.";
             case PPETTSCue.WearInnerGloves:
-                return "먼저 속장갑을 착용하십시오.";
+                return "속장갑을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.InnerGlovesEquipped:
                 return "속장갑을 착용했습니다.";
             case PPETTSCue.WearChemicalSuit:
-                return "속장갑을 착용한 상태에서 내산성 화학보호복을 착용하십시오.";
+                return "내산성 화학보호복을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.ChemicalSuitEquipped:
                 return "내산성 화학보호복을 착용했습니다.";
             case PPETTSCue.WearChemicalBoots:
-                return "내화학 안전장화를 착용하십시오.";
+                return "내화학 안전장화를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.ChemicalBootsEquipped:
                 return "내화학 안전장화를 착용했습니다.";
             case PPETTSCue.WearRespirator:
-                return "전면형 호흡보호구를 착용하십시오.";
+                return "전면형 호흡보호구를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.RespiratorEquipped:
-                return "현장 대응에 필요한 장비를 확인하기 위해 대응가방을 준비합니다.";
+                return "전면형 호흡 보호구 착용을 확인했습니다.";
             case PPETTSCue.WearFaceProtection:
-                return "안면보호구를 착용하십시오.";
+                return "안면보호구를 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.FaceProtectionEquipped:
                 return "안면보호구를 착용했습니다.";
             case PPETTSCue.WearOuterGloves:
-                return "외부 보호장갑을 착용하십시오.";
+                return "외부 보호장갑을 Grip으로 선택하고, 다시 Grip을 눌러 착용하십시오.";
             case PPETTSCue.OuterGlovesEquipped:
                 return "외부 보호장갑을 착용했습니다.";
             case PPETTSCue.EssentialPPEComplete:
@@ -80,6 +80,8 @@ public static class PPETTSSubtitles
                 return "먼저 대응가방 내용물을 확인하세요.";
             case PPETTSCue.CheckCurrentRequiredPPE:
                 return "현재 필요한 PPE를 확인하세요.";
+            case PPETTSCue.GripPackedResponseBag:
+                return "장비 수납이 완료되었습니다. 가방을 Grip해 챙기십시오.";
             default:
                 return string.Empty;
         }

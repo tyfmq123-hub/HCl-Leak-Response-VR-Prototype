@@ -40,7 +40,6 @@ public static class ResponseEquipmentSetup
         "Canvas",
     };
 
-    [MenuItem("Tools/PPE/Setup Response Bag Integration", false, 29)]
     public static void SetupResponseEquipment()
     {
         var scene = SceneManager.GetActiveScene();
@@ -98,7 +97,7 @@ public static class ResponseEquipmentSetup
 
         // Priority 1: exact existing PrepareInteractable on a valid world object.
         var prepares = Object.FindObjectsByType<ResponseBagPrepareInteractable>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         var prepareCandidates = new List<GameObject>();
         for (var i = 0; i < prepares.Length; i++)
         {

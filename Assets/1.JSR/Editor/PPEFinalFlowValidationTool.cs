@@ -37,7 +37,6 @@ public static class PPEFinalFlowValidationTool
         new FlowCase("Protective Suit", PPEType.ProtectiveSuit, PPEEquipSlot.Body, "ChemicalSuit", "ProtectiveSuit"),
     };
 
-    [MenuItem("Tools/PPE/STEP 8/Add or Refresh Placement Debug Gizmo", false, 32)]
     public static void SetupDebugGizmo()
     {
         var scene = SceneManager.GetActiveScene();
@@ -67,7 +66,6 @@ public static class PPEFinalFlowValidationTool
         Debug.Log("[PPE Final Validation] Placement Debug Gizmo is wired. Toggle Draw Debug Gizmos in Inspector.", gizmo);
     }
 
-    [MenuItem("Tools/PPE/STEP 8/Validate Final PPE Placement Flow", false, 33)]
     public static void ValidateFinalFlow()
     {
         var scene = SceneManager.GetActiveScene();
@@ -122,7 +120,6 @@ public static class PPEFinalFlowValidationTool
         }
     }
 
-    [MenuItem("Tools/PPE/Validate Helmet Reference Flow", false, 34)]
     public static void ValidateHelmetReferenceFlow()
     {
         var scene = SceneManager.GetActiveScene();

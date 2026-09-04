@@ -54,6 +54,9 @@ namespace JH.EntrySafety
 
         public void RestoreImmediate()
         {
+            if (this == null)
+                return;
+
             EnsureReferences();
             CaptureOpaqueColor();
             _isCleared = false;
@@ -71,7 +74,7 @@ namespace JH.EntrySafety
 
         public IEnumerator FadeOutAndClear()
         {
-            if (_isCleared)
+            if (this == null || _isCleared)
                 yield break;
 
             EnsureReferences();
@@ -102,6 +105,9 @@ namespace JH.EntrySafety
 
         public void ClearImmediate()
         {
+            if (this == null)
+                return;
+
             EnsureReferences();
             _isFading = false;
             _isCleared = true;
@@ -122,6 +128,9 @@ namespace JH.EntrySafety
 
         private void EnsureReferences()
         {
+            if (this == null)
+                return;
+
             if (_renderer == null)
                 _renderer = GetComponent<Renderer>();
             if (_collider == null)

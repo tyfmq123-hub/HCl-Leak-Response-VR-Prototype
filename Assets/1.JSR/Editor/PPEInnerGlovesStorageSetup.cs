@@ -30,7 +30,6 @@ public static class PPEInnerGlovesStorageSetup
     const float TargetWorldHeight = 0.28f;
     const float TargetWorldWidth = 0.45f;
 
-    [MenuItem("Tools/PPE/Install Inner Gloves (PPE_glrove) Into Right Bay", false, 24)]
     public static void InstallInnerGlovesIntoRightBay()
     {
         EnsurePreferredSceneLoaded();

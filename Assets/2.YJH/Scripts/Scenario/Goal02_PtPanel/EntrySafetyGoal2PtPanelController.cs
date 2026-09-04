@@ -739,7 +739,7 @@ namespace JH.EntrySafety
             if (string.IsNullOrEmpty(objectName))
                 return null;
 
-            var transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var transforms = FindObjectsByType<Transform>(FindObjectsInactive.Include);
             for (var i = 0; i < transforms.Length; i++)
             {
                 var candidate = transforms[i];

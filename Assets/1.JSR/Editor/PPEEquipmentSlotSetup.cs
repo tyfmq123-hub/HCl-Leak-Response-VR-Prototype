@@ -54,7 +54,6 @@ public static class PPEEquipmentSlotSetup
             { "GasDetector", new PlacementProfile(PPEType.GasDetector, PPEEquipSlot.GasDetector, 0.16f, 45f) },
         };
 
-    [MenuItem("Tools/PPE/Setup STEP 3 Equipment Slots", false, 28)]
     public static void SetupEquipmentSlots()
     {
         var scene = SceneManager.GetActiveScene();
@@ -96,7 +95,6 @@ public static class PPEEquipmentSlotSetup
         Debug.Log(report.ToString());
     }
 
-    [MenuItem("Tools/PPE/Setup STEP 6 PPE Body Reference", false, 31)]
     public static void SetupPpeBodyReference()
     {
         SetupEquipmentSlots();

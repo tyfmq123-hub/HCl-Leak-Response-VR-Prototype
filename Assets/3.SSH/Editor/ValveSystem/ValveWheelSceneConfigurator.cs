@@ -12,7 +12,6 @@ namespace VRProject.Valves.Editor
 {
     public static class ValveWheelSceneConfigurator
     {
-        const string MenuPath = "Tools/Valve System/Configure Selected Valve Wheel";
         const string AnchorName = "ValveWheel_KinematicAnchor";
         const string RimRootName = "RimColliders";
         const string CenterShaftColliderName = "CenterShaftGrabCollider";
@@ -43,7 +42,6 @@ namespace VRProject.Valves.Editor
             public List<CapsuleCollider> LegacyRimColliders;
         }
 
-        [MenuItem(MenuPath)]
         public static void ConfigureSelectedValveWheel()
         {
             if (!TryBuildPlan(out ConfigurationPlan plan, out string reason))
@@ -70,7 +68,6 @@ namespace VRProject.Valves.Editor
             }
         }
 
-        [MenuItem(MenuPath, true)]
         static bool ValidateConfigureSelectedValveWheel() =>
             !EditorApplication.isPlayingOrWillChangePlaymode && Selection.gameObjects.Length == 1;
 
@@ -675,13 +672,13 @@ namespace VRProject.Valves.Editor
             Undo.RecordObject(transformer, "Configure valve grab transformer");
             SerializedObject serialized = new SerializedObject(transformer);
             serialized.FindProperty("hingeJoint").objectReferenceValue = hinge;
-            serialized.FindProperty("oneHandRotationGain").floatValue = 0.55f;
+            serialized.FindProperty("oneHandRotationGain").floatValue = 0f;
             serialized.FindProperty("twoHandRotationGain").floatValue = 1f;
-            serialized.FindProperty("twoHandMinimumDeltaDegrees").floatValue = 0.05f;
+            serialized.FindProperty("twoHandMinimumDeltaDegrees").floatValue = 0.02f;
             serialized.FindProperty("maxOpenRotationDegrees").floatValue = 108f;
             serialized.FindProperty("maxCloseRotationDegrees").floatValue = 252f;
             serialized.FindProperty("maximumHands").intValue = 2;
-            serialized.FindProperty("maxGrabSurfaceDistance").floatValue = 0.08f;
+            serialized.FindProperty("maxGrabSurfaceDistance").floatValue = 0.15f;
             serialized.ApplyModifiedProperties();
             transformer.ApplyConfiguredJointLimits();
         }

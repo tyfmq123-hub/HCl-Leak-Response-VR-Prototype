@@ -3,7 +3,6 @@ using UnityEngine;
 
 public static class CreateChainLinkFence
 {
-    [MenuItem("Tools/Plant Utility Tools/Create/Chain Link Fence Panel")]
     public static void CreateFence()
     {
         GameObject root = new GameObject("Fence_Panel_Root");

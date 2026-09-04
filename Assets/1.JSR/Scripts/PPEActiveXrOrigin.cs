@@ -94,7 +94,7 @@ public static class PPEActiveXrOrigin
         if (origin == null)
             return;
 
-        var key = origin.gameObject.scene.name + "/" + origin.name + "/" + origin.GetInstanceID();
+        var key = origin.gameObject.scene.name + "/" + origin.name + "/" + origin.GetEntityId();
         if (loggedSelection == key)
             return;
         loggedSelection = key;

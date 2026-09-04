@@ -90,23 +90,29 @@ namespace VRProject.LeakResponse.Narration
 
         public static int HideHandPoseGhostRenderers(GameObject root)
         {
+            return SetHandPoseGhostRenderersVisible(root, false);
+        }
+
+        public static int SetHandPoseGhostRenderersVisible(GameObject root, bool visible)
+        {
             Transform ghostsRoot = FindDescendantTransform(root, HandPoseGhostsRootName);
             if (ghostsRoot == null)
                 return 0;
 
+            ghostsRoot.gameObject.SetActive(visible);
             Renderer[] renderers = ghostsRoot.GetComponentsInChildren<Renderer>(true);
-            int hiddenCount = 0;
+            int changedCount = 0;
             for (int i = 0; i < renderers.Length; ++i)
             {
                 Renderer renderer = renderers[i];
                 if (renderer == null)
                     continue;
 
-                renderer.enabled = false;
-                ++hiddenCount;
+                renderer.enabled = visible;
+                ++changedCount;
             }
 
-            return hiddenCount;
+            return changedCount;
         }
 
         public static bool IsHandPoseGhostTransform(Transform candidate, Transform rootLimit)

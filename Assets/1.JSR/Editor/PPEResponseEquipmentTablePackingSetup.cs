@@ -12,7 +12,6 @@ public static class PPEResponseEquipmentTablePackingSetup
     const string ScenePath = "Assets/Scenes/04_PPE.unity";
     const string DeskAssetPath = "Assets/1.JSR/Models/PPE_DeskTop/\uC791\uC5C5\uB300+3D+\uBAA8\uB378.fbx";
 
-    [MenuItem("Tools/HCl Training/PPE/Setup Response Equipment Table Packing", false, 37)]
     public static void Setup()
     {
         var scene = SceneManager.GetActiveScene();

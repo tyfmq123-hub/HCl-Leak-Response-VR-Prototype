@@ -9,9 +9,6 @@ using UnityEngine;
 /// </summary>
 public static class PPELoadoutSourceGuardSmokeTest
 {
-    const string MenuPath = "Tools/PPE/Run Loadout Source Guard Smoke Test";
-
-    [MenuItem(MenuPath)]
     public static void Run()
     {
         var failures = 0;

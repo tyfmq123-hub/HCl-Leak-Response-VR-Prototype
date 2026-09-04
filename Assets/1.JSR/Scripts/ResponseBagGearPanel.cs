@@ -738,7 +738,7 @@ public class ResponseBagGearPanel : MonoBehaviour
         label.alignment = TextAlignmentOptions.Center;
         label.verticalAlignment = VerticalAlignmentOptions.Middle;
         label.color = LabelWhite;
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.overflowMode = TextOverflowModes.Ellipsis;
         label.raycastTarget = false;
         ApplyHangul(label);

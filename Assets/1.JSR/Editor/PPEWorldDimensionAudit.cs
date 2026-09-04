@@ -12,7 +12,6 @@ public static class PPEWorldDimensionAudit
 {
     const string ScenePath = "Assets/Scenes/04_PPE.unity";
 
-    [MenuItem("Tools/HCl Training/PPE/Audit PPE World Dimensions", false, 31)]
     public static void Audit()
     {
         var scene = SceneManager.GetActiveScene();

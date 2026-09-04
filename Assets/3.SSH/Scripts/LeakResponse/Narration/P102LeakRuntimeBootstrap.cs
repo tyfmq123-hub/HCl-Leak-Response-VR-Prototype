@@ -1,13 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals;
+using VRProject.LeakResponse;
 using VRProject.LeakResponse.Logic;
 using VRProject.ObjectInstallation;
 using VRProject.Valves;
@@ -43,6 +42,7 @@ namespace VRProject.LeakResponse.Narration
         PreplacedGhostInstallGroup gatedPadGroup;
         XRGrabInteractable sockSourceGrab;
         XRGrabInteractable padSourceGrab;
+        Coroutine stageFlowStartRoutine;
         bool stageActivated;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -136,6 +136,7 @@ namespace VRProject.LeakResponse.Narration
             activeInstance = this;
             stageActivated = P102LeakStageActivation.ShouldActivate(gameObject.scene);
             HideAuthoredGrabPoseGhosts();
+            ConfigureEnvironmentAudio();
         }
 
         void HideAuthoredGrabPoseGhosts()
@@ -146,8 +147,47 @@ namespace VRProject.LeakResponse.Narration
                 FindSceneObject(gameObject.scene, "HazWasteContainer_Lid"));
         }
 
+        void ConfigureEnvironmentAudio(
+            ValveWheelClosureController leakStateProvider = null)
+        {
+            Scene scene = gameObject.scene;
+            GameObject mistAnchor = FindSceneObject(scene, "LeakPoint");
+            GameObject dropletsAnchor = FindSceneObject(scene, "FallingDrops");
+            GameObject pumpAnchor = FindSceneObject(scene, "Pump_102");
+            GameObject fenceAnchor = FindSceneObject(
+                scene, "ENV_SiteFence_Set_01 (9)");
+            GameObject alarm01Anchor = FindSceneObject(
+                scene, "ENV_SiteFence_Set_01 (6)");
+            GameObject alarm02Anchor = FindSceneObject(
+                scene, "ENV_SiteFence_Set_01 (13)");
+
+            if (leakStateProvider == null)
+            {
+                GameObject dischargeValve = FindSceneObject(
+                    scene, "ENV_LeakPipeGateValveWheel_dis");
+                if (dischargeValve != null)
+                {
+                    leakStateProvider =
+                        dischargeValve.GetComponent<ValveWheelClosureController>();
+                }
+            }
+
+            LeakResponseSpatialLeakAudio spatialAudio =
+                ResolveOrCreateHelper<LeakResponseSpatialLeakAudio>();
+            spatialAudio.Configure(
+                mistAnchor != null ? mistAnchor.transform : null,
+                dropletsAnchor != null ? dropletsAnchor.transform : null,
+                pumpAnchor != null ? pumpAnchor.transform : null,
+                fenceAnchor != null ? fenceAnchor.transform : null,
+                alarm01Anchor != null ? alarm01Anchor.transform : null,
+                alarm02Anchor != null ? alarm02Anchor.transform : null,
+                leakStateProvider);
+            spatialAudio.SetLeakStageActive(stageActivated);
+        }
+
         void OnDestroy()
         {
+            StopScheduledStageFlowStart();
             UnsubscribeInteractionGates();
             if (activeInstance == this)
                 activeInstance = null;
@@ -167,26 +207,32 @@ namespace VRProject.LeakResponse.Narration
         public void SetStageActivated(bool active)
         {
             stageActivated = active;
+            ConfigureEnvironmentAudio();
+
             if (!active)
             {
+                StopScheduledStageFlowStart();
                 gatedNarration?.SetStageActivated(false);
+                P102RuntimeUtility.FindSceneComponent<P102LeakEnvironmentSetup>()
+                    ?.SetStageActive(false);
+                P102RuntimeUtility.FindSceneComponent<P102AbsorbentPlayerBoundaryRuntime>()
+                    ?.SetStageActive(false);
                 var bagHandler = GetComponent<P102SharedBagItemHandler>();
                 if (bagHandler != null)
                     bagHandler.enabled = false;
-                var leakAudio = GetComponent<LeakResponseSpatialLeakAudio>();
-                if (leakAudio != null)
-                    leakAudio.enabled = false;
                 return;
             }
 
             ConfigureOnce();
+            P102RuntimeUtility.FindSceneComponent<P102LeakEnvironmentSetup>()
+                ?.SetStageActive(true);
+            P102RuntimeUtility.FindSceneComponent<P102AbsorbentPlayerBoundaryRuntime>()
+                ?.SetStageActive(true);
             gatedNarration?.SetStageActivated(true);
+            ScheduleStageFlowStart(gatedNarration);
             var activeBagHandler = GetComponent<P102SharedBagItemHandler>();
             if (activeBagHandler != null)
                 activeBagHandler.enabled = true;
-            var activeLeakAudio = GetComponent<LeakResponseSpatialLeakAudio>();
-            if (activeLeakAudio != null)
-                activeLeakAudio.enabled = true;
         }
 
         public void ConfigureOnce()
@@ -204,11 +250,7 @@ namespace VRProject.LeakResponse.Narration
             ValveWheelClosureController suctionValve = FindValve("ENV_LeakPipeGateValveWheel_suc");
             ValveWheelClosureController dischargeValve = FindValve("ENV_LeakPipeGateValveWheel_dis");
             GameObject leakPointObject = P102RuntimeUtility.FindSceneObject("LeakPoint");
-            LeakResponseSpatialLeakAudio spatialLeakAudio =
-                ResolveOrCreateHelper<LeakResponseSpatialLeakAudio>();
-            spatialLeakAudio.Configure(
-                leakPointObject != null ? leakPointObject.transform : null,
-                dischargeValve);
+            ConfigureEnvironmentAudio(dischargeValve);
 
             PreplacedGhostInstallGroup sockGroup = ResolveOrBuildGroup(
                 "Sock", SockGhostNames, "INT_AbsorbentSock_Straight_01", 0.25f);
@@ -229,6 +271,12 @@ namespace VRProject.LeakResponse.Narration
                 Debug.LogError("[P102 Flow] Required leak source 'FallingDrops' is missing.", this);
             else if (fallingDrops == null)
                 Debug.LogError("[P102 Flow] 'FallingDrops' has no ParticleSystem.", fallingDropsObject);
+
+            LeakResponseDiagonalMistRuntime diagonalMist =
+                ResolveOrCreateHelper<LeakResponseDiagonalMistRuntime>();
+            diagonalMist.Configure(
+                fallingDropsObject != null ? fallingDropsObject.transform : null,
+                dischargeValve);
 
             HClAbsorptionVisualController absorption =
                 P102RuntimeUtility.FindSceneComponent<HClAbsorptionVisualController>() ??
@@ -252,15 +300,7 @@ namespace VRProject.LeakResponse.Narration
                 gameObject.AddComponent<P102LeakNarrationController>();
             narration.gameObject.SetActive(true);
             narration.enabled = true;
-            ResolveNarrationHud(narration, cameraTransform, out RectTransform subtitleRoot,
-                out TMP_Text subtitleText, out CanvasGroup subtitleGroup);
-            AudioSource narrationSource = narration.NarrationSource ?? P102RuntimeUtility.GetOrAdd<AudioSource>(narration.gameObject);
             narration.ConfigureRuntime(
-                narrationSource,
-                subtitleRoot,
-                subtitleText,
-                subtitleGroup,
-                cameraTransform,
                 suctionValve,
                 dischargeValve,
                 dischargeValve,
@@ -310,16 +350,49 @@ namespace VRProject.LeakResponse.Narration
                 waste,
                 narration);
 
-            TMP_FontAsset runtimeFont = P102RuntimeUtility.LoadRuntimeFont();
-            if (runtimeFont == null)
-                Debug.LogError("[P102 Flow] Bootstrap completed without the required Pretendard TMP font asset.", this);
-            if (!narration.RuntimeDataReady)
-                Debug.LogError("[P102 Flow] Bootstrap completed without a valid CSV 26 / WAV 26 narration map.", narration);
+            P102AbsorbentPlayerBoundaryRuntime playerBoundary =
+                ResolveOrCreateHelper<P102AbsorbentPlayerBoundaryRuntime>();
+            playerBoundary.Configure(
+                gameObject.scene, ResolveGroupItemTransforms(sockGroup));
 
+            ScheduleStageFlowStart(narration);
             Debug.Log(
-                $"[P102 Flow] Bootstrap configured once. CSV={narration.LoadedCueCount}/26, " +
-                $"WAV={narration.LoadedAudioClipCount}/26, Sock={sockGroup?.Items?.Length ?? 0}/4, " +
+                $"[P102 Flow] Bootstrap configured once. Media=disabled, Sock={sockGroup?.Items?.Length ?? 0}/4, " +
                 $"Pad={padGroup?.Items?.Length ?? 0}/3, Facility=P102.", this);
+        }
+
+        void ScheduleStageFlowStart(P102LeakNarrationController narration)
+        {
+            if (narration == null ||
+                narration.HasDispatched(P102LeakNarrationCue.LeakSceneArrival))
+                return;
+
+            StopScheduledStageFlowStart();
+            stageFlowStartRoutine = StartCoroutine(
+                BeginStageFlowAfterLifecycleBind(narration));
+        }
+
+        IEnumerator BeginStageFlowAfterLifecycleBind(
+            P102LeakNarrationController narration)
+        {
+            // StageLifecycleAdapter intentionally waits two frames before binding.
+            // Waiting one additional frame ensures it receives the immediate
+            // Arrival start/completion pair and releases its interaction lock.
+            for (int frame = 0; frame < 3; ++frame)
+                yield return null;
+
+            stageFlowStartRoutine = null;
+            if (stageActivated && narration != null && narration.isActiveAndEnabled)
+                narration.BeginStageFlow();
+        }
+
+        void StopScheduledStageFlowStart()
+        {
+            if (stageFlowStartRoutine == null)
+                return;
+
+            StopCoroutine(stageFlowStartRoutine);
+            stageFlowStartRoutine = null;
         }
 
         PreplacedGhostInstallGroup ResolveOrBuildGroup(string typeId, string[] ghostNames,
@@ -678,6 +751,20 @@ namespace VRProject.LeakResponse.Narration
             }
 
             valve.enabled = true;
+            XRGrabInteractable grab = valveObject.GetComponent<XRGrabInteractable>();
+            ValveWheelGrabTransformer transformer =
+                valveObject.GetComponent<ValveWheelGrabTransformer>();
+            if (grab == null || transformer == null)
+            {
+                Debug.LogError(
+                    $"[P102 Flow] Required valve '{exactName}' has incomplete Grab components.",
+                    valveObject);
+                return valve;
+            }
+
+            transformer.enabled = true;
+            grab.enabled = true;
+            grab.selectMode = InteractableSelectMode.Multiple;
             return valve;
         }
 
@@ -703,6 +790,20 @@ namespace VRProject.LeakResponse.Narration
                     groups.Add(candidates[i]);
             }
             return groups.ToArray();
+        }
+
+        static Transform[] ResolveGroupItemTransforms(PreplacedGhostInstallGroup group)
+        {
+            if (group == null || group.Items == null)
+                return Array.Empty<Transform>();
+
+            var transforms = new List<Transform>(group.Items.Length);
+            for (int i = 0; i < group.Items.Length; ++i)
+            {
+                if (group.Items[i] != null)
+                    transforms.Add(group.Items[i].transform);
+            }
+            return transforms.ToArray();
         }
 
         static Transform ResolveMainCamera()
@@ -755,113 +856,6 @@ namespace VRProject.LeakResponse.Narration
             return null;
         }
 
-        static void ResolveNarrationHud(P102LeakNarrationController narration, Transform cameraTransform,
-            out RectTransform root, out TMP_Text text, out CanvasGroup canvasGroup)
-        {
-            root = narration.SubtitleRoot;
-            text = narration.SubtitleText;
-            canvasGroup = narration.SubtitleCanvasGroup;
-
-            if (text == null && root != null)
-                text = root.GetComponentInChildren<TMP_Text>(true);
-
-            if (root == null)
-            {
-                GameObject existingRuntimeHud =
-                    P102RuntimeUtility.FindSceneObject("P102LeakSubtitleHUD_Runtime");
-                if (existingRuntimeHud != null)
-                    root = existingRuntimeHud.GetComponent<RectTransform>();
-            }
-
-            if (root == null)
-            {
-                Canvas existingCanvas = canvasGroup != null
-                    ? canvasGroup.GetComponentInParent<Canvas>(true)
-                    : text != null ? text.GetComponentInParent<Canvas>(true) : null;
-                if (existingCanvas != null)
-                    root = existingCanvas.GetComponent<RectTransform>();
-            }
-
-            if (root != null)
-            {
-                root.gameObject.SetActive(true);
-                if (text == null)
-                    text = root.GetComponentInChildren<TMP_Text>(true);
-                if (canvasGroup == null)
-                    canvasGroup = root.GetComponentInChildren<CanvasGroup>(true);
-                if (canvasGroup == null)
-                    canvasGroup = root.gameObject.AddComponent<CanvasGroup>();
-
-                if (text == null)
-                {
-                    var repairTextObject = new GameObject(
-                        "SubtitleText", typeof(RectTransform), typeof(TextMeshProUGUI));
-                    repairTextObject.transform.SetParent(root, false);
-                    TextMeshProUGUI repairText = repairTextObject.GetComponent<TextMeshProUGUI>();
-                    repairText.font = P102RuntimeUtility.LoadRuntimeFont();
-                    repairText.color = Color.white;
-                    repairText.alignment = TextAlignmentOptions.Center;
-                    repairText.enableAutoSizing = true;
-                    repairText.fontSizeMin = 30f;
-                    repairText.fontSizeMax = 46f;
-                    repairText.raycastTarget = false;
-                    Stretch(repairText.rectTransform, new Vector2(45f, 20f), new Vector2(-45f, -20f));
-                    text = repairText;
-                }
-            }
-
-            if (root != null && text != null && canvasGroup != null)
-                return;
-
-            var hud = new GameObject("P102LeakSubtitleHUD_Runtime", typeof(RectTransform), typeof(Canvas));
-            // Keep the Stage-owned HUD in the LeakResponse Scene. Parenting it to the
-            // persistent App camera moves it into the App Scene and leaves it behind
-            // after this Stage unloads. The narration controller follows the resolved
-            // camera in world space without taking ownership of the shared XR rig.
-            Scene narrationScene = narration.gameObject.scene;
-            if (narrationScene.IsValid() && narrationScene.isLoaded)
-                SceneManager.MoveGameObjectToScene(hud, narrationScene);
-            root = hud.GetComponent<RectTransform>();
-            root.sizeDelta = new Vector2(1100f, 200f);
-            root.localPosition = narration.SubtitleHudLocalPosition;
-            root.localRotation = Quaternion.identity;
-            root.localScale = Vector3.one * 0.0006f;
-            Canvas canvas = hud.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            canvasGroup = hud.AddComponent<CanvasGroup>();
-            canvasGroup.interactable = false;
-            canvasGroup.blocksRaycasts = false;
-
-            var panelObject = new GameObject("SubtitlePanel", typeof(RectTransform), typeof(Image));
-            panelObject.transform.SetParent(hud.transform, false);
-            Image panel = panelObject.GetComponent<Image>();
-            panel.color = new Color(0f, 0f, 0f, 0.78f);
-            panel.sprite = P102RuntimeUtility.GetRoundedPanelSprite();
-            panel.type = Image.Type.Sliced;
-            panel.raycastTarget = false;
-            Stretch(panel.rectTransform, Vector2.zero, Vector2.zero);
-
-            var textObject = new GameObject("SubtitleText", typeof(RectTransform), typeof(TextMeshProUGUI));
-            textObject.transform.SetParent(panelObject.transform, false);
-            TextMeshProUGUI tmp = textObject.GetComponent<TextMeshProUGUI>();
-            tmp.font = P102RuntimeUtility.LoadRuntimeFont();
-            tmp.color = Color.white;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.enableAutoSizing = true;
-            tmp.fontSizeMin = 30f;
-            tmp.fontSizeMax = 46f;
-            tmp.raycastTarget = false;
-            Stretch(tmp.rectTransform, new Vector2(45f, 20f), new Vector2(-45f, -20f));
-            text = tmp;
-        }
-
-        static void Stretch(RectTransform rect, Vector2 offsetMin, Vector2 offsetMax)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = offsetMin;
-            rect.offsetMax = offsetMax;
-        }
     }
 
     /// <summary>
@@ -946,9 +940,24 @@ namespace VRProject.LeakResponse.Narration
                 for (var i = 0; i < absorptions.Length; i++)
                     absorptions[i].enabled = active;
 
+                var diagonalMists =
+                    root.GetComponentsInChildren<LeakResponseDiagonalMistRuntime>(true);
+                for (var i = 0; i < diagonalMists.Length; i++)
+                    diagonalMists[i].enabled = active;
+
                 var valves = root.GetComponentsInChildren<ValveWheelClosureController>(true);
                 for (var i = 0; i < valves.Length; i++)
+                {
                     valves[i].enabled = active;
+                    XRGrabInteractable grab =
+                        valves[i].GetComponent<XRGrabInteractable>();
+                    ValveWheelGrabTransformer transformer =
+                        valves[i].GetComponent<ValveWheelGrabTransformer>();
+                    if (grab != null)
+                        grab.enabled = active;
+                    if (transformer != null)
+                        transformer.enabled = active;
+                }
 
                 var splashBursts = root.GetComponentsInChildren<WaterSplashBurst>(true);
                 for (var i = 0; i < splashBursts.Length; i++)

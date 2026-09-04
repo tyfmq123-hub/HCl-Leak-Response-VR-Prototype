@@ -16,8 +16,6 @@ public static class PPEPairPhysicalAuthoringSetup
     const float GloveGrabDistance = PPEDirectGrabProximityFilter.NearGrabHoverSelectDistance;
     const float BootGrabDistance = 0.10f;
 
-    [MenuItem("Tools/HCl Training/PPE/Author Left/Right PPE Pairs", false, 28)]
-    [MenuItem("Tools/PPE/Author Left-Right Pair Pieces", false, 28)]
     public static void AuthorPairPieces()
     {
         var scene = EnsurePpeSceneOpen();
@@ -35,13 +33,11 @@ public static class PPEPairPhysicalAuthoringSetup
         Debug.Log(report.ToString());
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Swap InnerGloves Sides", false, 29)]
     public static void SwapInnerGloveSides()
     {
         SwapSides(PPEEquipmentManager.IdInnerGloves);
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Swap ChemicalBoots Sides", false, 30)]
     public static void SwapBootSides()
     {
         SwapSides(PPEEquipmentManager.IdChemicalBoots);

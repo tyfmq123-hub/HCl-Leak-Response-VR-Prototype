@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: HandGhostFresnel
-  m_Shader: {fileID: 4800000, guid: 85b642eb1cf14984d904d4596b431c7c, type: 3}
+  m_Shader: {fileID: 4800000, guid: eaf6c881346d4be6b3e9120e9f6bd79a, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

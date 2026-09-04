@@ -24,7 +24,6 @@ public class ResponseBagPrepareInteractable : MonoBehaviour
     [SerializeField] string displayName = DefaultDisplayName;
 
     [Header("Prepare")]
-    [SerializeField] bool deactivateOnPrepare = true;
     [SerializeField] AudioSource completionAudio;
 
     [Header("Confirm Timing")]
@@ -120,6 +119,12 @@ public class ResponseBagPrepareInteractable : MonoBehaviour
 
         bagSelected = true;
         selectedAtTime = Time.unscaledTime;
+
+        // Packing owns when the bag becomes selectable. The first Grip after all
+        // three items have been packed is the explicit "take the bag" action.
+        var packing = ResponseBagPackingController.Instance;
+        if (packing != null && packing.AllPacked)
+            BeginPreparation();
     }
 
     void OnSelectExited(SelectExitEventArgs _)
@@ -188,6 +193,32 @@ public class ResponseBagPrepareInteractable : MonoBehaviour
         return BeginPreparation();
     }
 
+    /// <summary>
+    /// Final packing action: one Grip while the hand/near-far interactor is already
+    /// hovering the enabled bag takes it immediately. This intentionally bypasses
+    /// the generic PPE two-press sticky-selection delay.
+    /// </summary>
+    public bool TryPrepareFromPackingGripHover()
+    {
+        ResolveRefs();
+
+        if (preparationInProgress || interactable == null || !interactable.isHovered)
+            return false;
+
+        var packing = ResponseBagPackingController.Instance;
+        if (packing == null || !packing.AllPacked)
+            return false;
+
+        if (equipmentManager == null || equipmentManager.IsResponseBagPrepared())
+            return false;
+
+        var root = responseBagRoot != null ? responseBagRoot : gameObject;
+        if (root == null || !root.activeInHierarchy)
+            return false;
+
+        return BeginPreparation();
+    }
+
     bool IsStickySelected()
     {
         if (outlineHighlight != null && outlineHighlight.IsSelected)
@@ -241,7 +272,6 @@ public class ResponseBagPrepareInteractable : MonoBehaviour
         interactable = xrInteractable != null ? xrInteractable : GetComponent<XRBaseInteractable>();
         outlineHighlight = GetComponent<PPEOutlineHighlight>();
         displayName = DefaultDisplayName;
-        deactivateOnPrepare = true;
         confirmInputOwnedByRouter = true;
     }
 

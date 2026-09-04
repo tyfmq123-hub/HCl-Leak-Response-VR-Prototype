@@ -18,8 +18,6 @@ namespace VRProject.ObjectInstallation.Editor
     /// </summary>
     internal static class AbsorbentPreplacedGhostConfigurator
     {
-        const string MenuPath =
-            "Tools/Object Installation/Configure Selected Absorbent Ghost Installation";
         const string UndoName = "Configure Absorbent Preplaced Ghost Installation";
         const string RequiredRootName = "VRHandPoseTool_ObjectGhosts";
         const string PadType = "Pad";
@@ -127,7 +125,6 @@ namespace VRProject.ObjectInstallation.Editor
             public readonly List<string> notices = new List<string>();
         }
 
-        [MenuItem(MenuPath, priority = 2200)]
         static void ConfigureSelectedAbsorbentGhostInstallation()
         {
             if (!TryBuildPlan(out ConfigurationPlan plan, out string error))
@@ -183,7 +180,6 @@ namespace VRProject.ObjectInstallation.Editor
             EditorUtility.DisplayDialog("Absorbent Ghost Installation", message, "OK");
         }
 
-        [MenuItem(MenuPath, validate = true)]
         static bool ValidateConfigureSelectedAbsorbentGhostInstallation()
         {
             return !EditorApplication.isPlayingOrWillChangePlaymode;

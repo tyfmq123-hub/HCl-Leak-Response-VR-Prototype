@@ -147,9 +147,6 @@ public static class PPEGhostPosePreview
         }
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Preview Glove Ghost Calibration", false, 31)]
-    [MenuItem("Tools/HCl Training/PPE/Glove Ghost Calibration Preview", false, 31)]
-    [MenuItem("Tools/PPE/Preview Glove Ghost Calibration", false, 31)]
     static void TogglePreview()
     {
         var enabled = !EditorPrefs.GetBool(PrefKey, false);
@@ -166,9 +163,6 @@ public static class PPEGhostPosePreview
             "Not shown in player builds. Default is OFF.");
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Preview Glove Ghost Calibration", true)]
-    [MenuItem("Tools/HCl Training/PPE/Glove Ghost Calibration Preview", true)]
-    [MenuItem("Tools/PPE/Preview Glove Ghost Calibration", true)]
     static bool TogglePreviewValidate()
     {
         var on = EditorPrefs.GetBool(PrefKey, false);
@@ -178,7 +172,6 @@ public static class PPEGhostPosePreview
         return true;
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Ensure Glove Ghost Pose Calibration", false, 32)]
     static void EnsureGloveCalibrations()
     {
         var scene = SceneManager.GetActiveScene();
@@ -186,7 +179,7 @@ public static class PPEGhostPosePreview
             Debug.LogWarning("[PPE Glove Ghost] Open 04_PPE.unity for authored children.");
 
         var created = 0;
-        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include);
         for (var i = 0; i < members.Length; i++)
         {
             var member = members[i];
@@ -210,7 +203,6 @@ public static class PPEGhostPosePreview
         Debug.Log("[PPE Glove Ghost] Ensured GhostPoseCalibration on the four physical gloves. New children: " + created);
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Reset Ghost Calibration", false, 33)]
     static void ResetSelected()
     {
         var member = ResolveSelectedGloveMember();
@@ -232,7 +224,6 @@ public static class PPEGhostPosePreview
         SceneView.RepaintAll();
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Copy Mirrored Calibration", false, 34)]
     static void CopyMirrored()
     {
         var member = ResolveSelectedGloveMember();
@@ -266,7 +257,6 @@ public static class PPEGhostPosePreview
             ". Left/Right were not auto-mirrored; this command was explicit.");
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Align Ghost To Reference Hand", false, 35)]
     static void AlignSelectedToReferenceHand()
     {
         var member = ResolveSelectedGloveMember();
@@ -322,7 +312,6 @@ public static class PPEGhostPosePreview
             member);
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Align EquipReference To Ghost Palm", false, 36)]
     static void AlignSelectedEquipReferenceToGhostPalm()
     {
         var member = ResolveSelectedGloveMember();
@@ -409,7 +398,7 @@ public static class PPEGhostPosePreview
         DrawPalmGizmo(leftPalmPos, leftPalmRot, "Reference Left Palm");
         DrawPalmGizmo(rightPalmPos, rightPalmRot, "Reference Right Palm");
 
-        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include);
         var handledSelection = false;
         for (var i = 0; i < members.Length; i++)
         {
@@ -459,7 +448,7 @@ public static class PPEGhostPosePreview
     {
         var origin = Vector3.zero;
         var yaw = Quaternion.identity;
-        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var members = Object.FindObjectsByType<PPEGlovePairMember>(FindObjectsInactive.Include);
         for (var i = 0; i < members.Length; i++)
         {
             if (!IsAuthorableGlove(members[i]))

@@ -17,7 +17,6 @@ public static class ResponseBagGearPanelPrefabBuilder
     const string ResourcesPrefabDir = "Assets/Resources/PPE";
     const string ResourcesPrefabPath = "Assets/1.JSR/Resources/ResponseBagGearPanel.prefab";
 
-    [MenuItem("Tools/PPE/Build Response Bag Gear Panel Prefab")]
     public static void BuildPrefab()
     {
         EnsureFolder("Assets/Prefabs");

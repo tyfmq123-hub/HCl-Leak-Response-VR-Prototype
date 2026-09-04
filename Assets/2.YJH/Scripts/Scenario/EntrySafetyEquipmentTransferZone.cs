@@ -19,6 +19,26 @@ namespace JH.EntrySafety
         public bool IsLeftHandInside { get; private set; }
         public bool IsReadyForEquip => _timer != null && _timer.IsCompleted;
         public float Progress01 => _timer?.Progress01 ?? 0f;
+        public bool TryGetWorldBounds(out Bounds bounds)
+        {
+            ResolveRuntimeBindings();
+            if (_zoneCollider == null)
+            {
+                bounds = default;
+                return false;
+            }
+
+            bounds = _zoneCollider.bounds;
+            return _zoneCollider.enabled && _zoneCollider.gameObject.activeInHierarchy;
+        }
+        public Transform TrackedLeftHand
+        {
+            get
+            {
+                ResolveRuntimeBindings();
+                return _leftHand;
+            }
+        }
 
         private void Awake()
         {
@@ -77,7 +97,7 @@ namespace JH.EntrySafety
 
         private void ResolveRuntimeBindings()
         {
-            _leftHand = EntrySafetyAppXrResolve.PreferLive(_leftHand, "Left Controller");
+            _leftHand = EntrySafetyAppXrResolve.PreferCommonController(_leftHand, "Left Controller");
             _zoneCollider = EntrySafetyAppXrResolve.PreferLiveCollider(
                 _zoneCollider,
                 "PreEntry_BagRetrievalZone");

@@ -133,7 +133,7 @@ public class ResponseEquipmentManager : MonoBehaviour
 
         // Hide any leftover large contents UI.
         var panels = FindObjectsByType<ResponseBagContentsPanel>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < panels.Length; i++)
         {
             if (panels[i] != null && panels[i].gameObject.activeSelf)
@@ -142,7 +142,7 @@ public class ResponseEquipmentManager : MonoBehaviour
 
         // Disable camera-gaze presentation (caused bag shake / relocate flows).
         var gazeDetectors = FindObjectsByType<ResponseBagCameraGazeDetector>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < gazeDetectors.Length; i++)
         {
             if (gazeDetectors[i] != null)
@@ -150,7 +150,7 @@ public class ResponseEquipmentManager : MonoBehaviour
         }
 
         var inspections = FindObjectsByType<ResponseBagInspectionModeController>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < inspections.Length; i++)
         {
             if (inspections[i] != null)
@@ -673,8 +673,10 @@ public class ResponseEquipmentManager : MonoBehaviour
             contentsPanel.HidePanel();
 
         ShowPreparedFeedback();
-        ShowWearableVisual();
         SyncPpeEquippedBookkeeping(responseBagRoot);
+        // MarkAsEquipped may enable the legacy equippedVisual, so hide it after
+        // bookkeeping as well as in the direct PPE-equip notification path.
+        HideWearableVisual();
 
         if (deactivateRoot)
             responseBagRoot.SetActive(false);
@@ -747,7 +749,7 @@ public class ResponseEquipmentManager : MonoBehaviour
             label.HideImmediate();
 
         var items = FindObjectsByType<ResponseBagContentHoverItem>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < items.Length; i++)
             items[i]?.ClearVisuals();
     }
@@ -791,8 +793,9 @@ public class ResponseEquipmentManager : MonoBehaviour
         if (contentsPanel != null)
             contentsPanel.HidePanel();
 
-        // Ensure wearable visual pose + active (equippedVisual may already be on).
-        ShowWearableVisual();
+        // The prepared bag becomes Session inventory only. Every later Stage owns
+        // its own placed bag, so no body-following PPE bag is shown.
+        HideWearableVisual();
 
         StateChanged?.Invoke();
         OnResponseBagPreparedChanged?.Invoke(true);

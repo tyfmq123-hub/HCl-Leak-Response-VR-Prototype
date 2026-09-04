@@ -47,7 +47,6 @@ public static class PPEChecklistPanelSetup
         new RowSpec { ObjectName = "WasteContainerRow", Label = "유해폐기물 수거용기 준비", ItemId = PPEEquipmentManager.IdWasteContainer, Source = PPEChecklistPanel.ChecklistSource.Prepared },
     };
 
-    [MenuItem("Tools/PPE/Setup Checklist Panel", false, 28)]
     public static void SetupChecklistPanel()
     {
         var scene = SceneManager.GetActiveScene();

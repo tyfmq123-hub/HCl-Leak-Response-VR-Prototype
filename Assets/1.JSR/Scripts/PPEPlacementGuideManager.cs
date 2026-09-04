@@ -75,23 +75,6 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     float faceGhostVisualVerticalOffset;
 
     [Header("Face / Suit Static Ghost")]
-    [SerializeField]
-    [Tooltip("Single stable alpha for Face/Suit ghosts. No Ready/NotReady color switch.")]
-    [Range(0.08f, 0.35f)]
-    float faceSuitStableAlpha = 0.16f;
-
-    [SerializeField]
-    [Tooltip("HMD-to-ghost distance where Face ghost is fully at stable alpha.")]
-    float faceGhostFullVisibleDistance = 0.45f;
-
-    [SerializeField]
-    [Tooltip("HMD-to-ghost distance where Face ghost starts fading out.")]
-    float faceGhostFadeStartDistance = 0.35f;
-
-    [SerializeField]
-    [Tooltip("HMD-to-ghost distance where Face ghost is fully hidden.")]
-    float faceGhostHiddenDistance = 0.22f;
-
     [Header("Suit Ghost Comfort")]
     [SerializeField]
     [Tooltip("Ghost-only extra distance along torso forward. Does not move the Body validation target.")]
@@ -169,7 +152,6 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     PPEGlovePairMember activeGloveMember;
     PPEEquipSlot readyCandidateSlot = PPEEquipSlot.None;
     float readyCandidateSince = -1f;
-    bool equipAttemptedForCandidate;
     bool visualReadyLatched;
     Transform debugEnterSphere;
     Transform debugExitSphere;
@@ -364,13 +346,19 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
                 continue;
 
             var sampleFrom = placementRef != null ? placementRef : activeGrabbable.transform;
-            var distance = Vector3.Distance(sampleFrom.position, guide.Anchor.position);
-            var angle = Quaternion.Angle(sampleFrom.rotation, guide.Anchor.rotation);
-            var distanceValid = visualReadyLatched
-                ? distance <= exitDistance
-                : distance <= enterDistance;
-            var angleValid = !useRotation || angle <= maxAngle;
-            var placementValid = distanceValid && angleValid;
+            var evaluation = PPEPlacementValidation.Evaluate(
+                sampleFrom,
+                guide.Anchor,
+                targetValid: true,
+                sequenceValid: sequenceValid,
+                maxDistance: visualReadyLatched ? exitDistance : enterDistance,
+                useRotationValidation: useRotation,
+                maxAngle: maxAngle);
+            var distance = evaluation.Distance;
+            var angle = evaluation.Angle;
+            var distanceValid = evaluation.DistanceValid;
+            var angleValid = evaluation.AngleValid;
+            var placementValid = evaluation.PoseValid;
 
             if (distance < nearestDistance)
             {
@@ -428,7 +416,6 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         {
             readyCandidateSlot = firstReady.Slot;
             readyCandidateSince = Time.time;
-            equipAttemptedForCandidate = false;
             return;
         }
 
@@ -438,8 +425,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         if (Time.time - readyCandidateSince < readyHoldDuration)
             return;
 
-        if (TryEquipAtAnchor(firstReady.Anchor))
-            equipAttemptedForCandidate = true;
+        TryEquipAtAnchor(firstReady.Anchor);
     }
 
     Transform ResolvePlacementReference()
@@ -748,7 +734,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         overlayLabel.fontSize = 0.11f;
         overlayLabel.alignment = TextAlignmentOptions.TopLeft;
         overlayLabel.rectTransform.sizeDelta = new Vector2(1.7f, 1.35f);
-        overlayLabel.enableWordWrapping = false;
+        overlayLabel.textWrappingMode = TextWrappingModes.NoWrap;
         overlayLabel.raycastTarget = false;
     }
 
@@ -1652,7 +1638,6 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
     {
         readyCandidateSlot = PPEEquipSlot.None;
         readyCandidateSince = -1f;
-        equipAttemptedForCandidate = false;
         visualReadyLatched = false;
         if (keepDebug)
             return;

@@ -8,7 +8,7 @@ using VRProject.ObjectInstallation;
 namespace VRProject.LeakResponse.Narration
 {
     /// <summary>
-    /// LeakResponse-owned meaning of Left Y. Shared XR supplies only input and haptics;
+    /// LeakResponse-owned bag Grip action. Shared XR supplies only input and haptics;
     /// the bag zone, retrieval anchor, and item state belong to this Stage.
     /// </summary>
     [DisallowMultipleComponent]
@@ -16,10 +16,11 @@ namespace VRProject.LeakResponse.Narration
     {
         const float PresentationDuration = 0.28f;
         const string LeftControllerName = "Left Controller";
+        const string RightControllerName = "Right Controller";
         const string RetrievalZoneName = "LeakResponse_BagRetrievalZone";
         const string RetrievalAnchorName = "LeakResponse_ItemRetrievalAnchor";
-        static readonly Vector3 ConcealedLocalOffset = new Vector3(0f, -0.035f, -0.12f);
-        static readonly Vector3 ReadyLocalOffset = new Vector3(0f, 0.045f, 0.10f);
+        static readonly Vector3 ConcealedLocalOffset = new Vector3(0f, -0.20f, 0f);
+        static readonly Vector3 ReadyLocalOffset = new Vector3(0f, 0.28f, 0f);
 
         P102LeakNarrationController narration;
         PreplacedGhostInstallGroup sockGroup;
@@ -29,6 +30,7 @@ namespace VRProject.LeakResponse.Narration
         SharedXRInputContract sharedInput;
         SessionEquipmentInventory sessionInventory;
         Transform leftController;
+        Transform rightController;
         Collider retrievalZone;
         Transform retrievalAnchor;
         XRGrabInteractable presentedSource;
@@ -42,6 +44,8 @@ namespace VRProject.LeakResponse.Narration
         bool padAvailable;
         bool sockCheckedOut;
         bool padCheckedOut;
+        bool leftGripReleaseArmed;
+        bool rightGripReleaseArmed;
         bool configured;
 
         public bool IsPresentingItem =>
@@ -50,6 +54,7 @@ namespace VRProject.LeakResponse.Narration
         public XRGrabInteractable PresentedSource => presentedSource;
         public Transform PresentationAnchor => presentationAnchor;
         public Transform LeftController => leftController;
+        public Transform RightController => rightController;
         public Collider RetrievalZone => retrievalZone;
         public Transform RetrievalAnchor => retrievalAnchor;
 
@@ -96,6 +101,7 @@ namespace VRProject.LeakResponse.Narration
 
         void OnDisable()
         {
+            ClearGripReleaseArms();
             UnsubscribeSharedInput();
         }
 
@@ -107,45 +113,61 @@ namespace VRProject.LeakResponse.Narration
             UnsubscribeSharedInput();
             sharedInput = candidate;
             sharedInput.Performed += OnSharedInputPerformed;
+            sharedInput.Canceled += OnSharedInputCanceled;
         }
 
         void UnsubscribeSharedInput()
         {
             if (sharedInput != null)
+            {
                 sharedInput.Performed -= OnSharedInputPerformed;
+                sharedInput.Canceled -= OnSharedInputCanceled;
+            }
             sharedInput = null;
         }
 
         void OnSharedInputPerformed(SharedXRHand hand, SharedXRControl control)
         {
-            if (!configured || hand != SharedXRHand.Left ||
-                control != SharedXRControl.SecondaryButton)
+            if (!configured || control != SharedXRControl.Grip)
             {
                 return;
             }
 
             ResolveStageBindings();
-            if (!IsLeftHandInAccessZone())
+            if (presentedSource != null || !IsHandInAccessZone(hand) ||
+                ResolveAvailableEquipmentId() == null)
             {
                 return;
             }
 
-            if (narration != null && (narration.IsPlaying || narration.PendingCount > 0))
+            // Arm the bag gesture on press, but do not expose the item yet. If the
+            // item appears while Grip is held, XRI immediately selects it with that
+            // same press and drops it again on release. Deployment therefore occurs
+            // only after the matching Grip release.
+            SetGripReleaseArmed(hand, true);
+        }
+
+        void OnSharedInputCanceled(SharedXRHand hand, SharedXRControl control)
+        {
+            if (control != SharedXRControl.Grip || !TakeGripReleaseArm(hand))
                 return;
 
-            string equipmentId = null;
-            if (!sockGroup.IsInstalled && sockSource.enabled && sockAvailable)
-            {
-                equipmentId = SharedEquipmentIds.AbsorbentSock;
-            }
-            else if (sockGroup.IsInstalled && !padGroup.IsInstalled && padSource.enabled &&
-                     padAvailable)
-            {
-                equipmentId = SharedEquipmentIds.AbsorbentPad;
-            }
+            RetrieveNextAvailableItem(hand);
+        }
 
+        void RetrieveNextAvailableItem(SharedXRHand hand)
+        {
+            if (!configured || presentedSource != null)
+                return;
+
+            ResolveStageBindings();
+            string equipmentId = ResolveAvailableEquipmentId();
             if (equipmentId == null)
                 return;
+
+            // One completed press-release gesture can deploy only one item. Clear
+            // the other hand's pending gesture before changing the bag state.
+            ClearGripReleaseArms();
 
             XRGrabInteractable source = equipmentId == SharedEquipmentIds.AbsorbentSock
                 ? sockSource
@@ -178,8 +200,48 @@ namespace VRProject.LeakResponse.Narration
             }
             SharedTrainingTelemetry.Current.EquipmentUsed(equipmentId);
 
-            sharedInput?.SendHaptic(SharedXRHand.Left, 0.35f, 0.08f);
-            Debug.Log($"[P102 Stage Bag] Retrieved existing Stage item '{equipmentId}'.", this);
+            sharedInput?.SendHaptic(hand, 0.35f, 0.08f);
+            Debug.Log(
+                $"[P102 Stage Bag] Grip released; presented Stage item '{equipmentId}'.",
+                this);
+        }
+
+        string ResolveAvailableEquipmentId()
+        {
+            if (!sockGroup.IsInstalled && sockSource.enabled && sockAvailable)
+            {
+                return SharedEquipmentIds.AbsorbentSock;
+            }
+            if (sockGroup.IsInstalled && !padGroup.IsInstalled && padSource.enabled &&
+                padAvailable)
+            {
+                return SharedEquipmentIds.AbsorbentPad;
+            }
+
+            return null;
+        }
+
+        void SetGripReleaseArmed(SharedXRHand hand, bool armed)
+        {
+            if (hand == SharedXRHand.Left)
+                leftGripReleaseArmed = armed;
+            else if (hand == SharedXRHand.Right)
+                rightGripReleaseArmed = armed;
+        }
+
+        bool TakeGripReleaseArm(SharedXRHand hand)
+        {
+            bool armed = hand == SharedXRHand.Left
+                ? leftGripReleaseArmed
+                : hand == SharedXRHand.Right && rightGripReleaseArmed;
+            SetGripReleaseArmed(hand, false);
+            return armed;
+        }
+
+        void ClearGripReleaseArms()
+        {
+            leftGripReleaseArmed = false;
+            rightGripReleaseArmed = false;
         }
 
         void OnCueCompleted(P102LeakNarrationCue cue)
@@ -197,6 +259,7 @@ namespace VRProject.LeakResponse.Narration
 
         void OnGroupInstalled(PreplacedGhostInstallGroup group)
         {
+            ClearGripReleaseArms();
             if (group == sockGroup)
             {
                 StopPresentationFor(sockSource, false);
@@ -232,7 +295,7 @@ namespace VRProject.LeakResponse.Narration
                 presentedBody.isKinematic = true;
             }
 
-            source.transform.SetParent(anchor, true);
+            source.transform.SetParent(anchor, false);
             source.transform.localPosition = ConcealedLocalOffset;
             source.transform.localRotation = Quaternion.identity;
             source.selectEntered.AddListener(OnPresentedSourceSelected);
@@ -390,9 +453,22 @@ namespace VRProject.LeakResponse.Narration
 
         public bool IsLeftHandInAccessZone()
         {
-            return leftController != null && retrievalZone != null &&
+            return IsHandInAccessZone(SharedXRHand.Left);
+        }
+
+        public bool IsRightHandInAccessZone()
+        {
+            return IsHandInAccessZone(SharedXRHand.Right);
+        }
+
+        bool IsHandInAccessZone(SharedXRHand hand)
+        {
+            Transform controller = hand == SharedXRHand.Left
+                ? leftController
+                : hand == SharedXRHand.Right ? rightController : null;
+            return controller != null && retrievalZone != null &&
                    retrievalZone.enabled && retrievalZone.gameObject.activeInHierarchy &&
-                   retrievalZone.bounds.Contains(leftController.position);
+                   retrievalZone.bounds.Contains(controller.position);
         }
 
         void ResolveStageBindings()
@@ -408,6 +484,9 @@ namespace VRProject.LeakResponse.Narration
 
             if (leftController == null || !leftController.gameObject.activeInHierarchy)
                 leftController = FindActiveTransform(LeftControllerName);
+
+            if (rightController == null || !rightController.gameObject.activeInHierarchy)
+                rightController = FindActiveTransform(RightControllerName);
         }
 
         Transform FindStageTransform(string exactName)
@@ -428,7 +507,7 @@ namespace VRProject.LeakResponse.Narration
 
         static Transform FindActiveTransform(string exactName)
         {
-            var transforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var transforms = FindObjectsByType<Transform>(FindObjectsInactive.Exclude);
             for (var i = 0; i < transforms.Length; i++)
             {
                 var candidate = transforms[i];
@@ -443,6 +522,7 @@ namespace VRProject.LeakResponse.Narration
 
         void UnsubscribeStageState()
         {
+            ClearGripReleaseArms();
             StopPresentation(true);
             ReturnOutstandingCheckouts();
             if (narration != null)

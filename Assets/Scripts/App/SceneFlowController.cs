@@ -66,7 +66,9 @@ namespace HClTraining.App
         public bool ShowStart() => RequestTransition(StartScenePath, TrainingStage.None);
         public bool ShowTitle() => RequestTransition(TitleScenePath, TrainingStage.None);
         public bool ShowStage(TrainingStage stage) => RequestTransition(PathFor(stage), stage);
-        public bool ShowComplete() => RequestTransition(CompleteScenePath, TrainingStage.Complete);
+        public bool ShowComplete() =>
+            session != null && session.HasEndedSelectedTraining &&
+            RequestTransition(CompleteScenePath, TrainingStage.Complete);
 
         bool RequestTransition(string scenePath, TrainingStage stage)
         {
@@ -176,6 +178,7 @@ namespace HClTraining.App
             {
                 if (!xrProfiles.ApplyCompleteProfile(out var completeXrError))
                     errorUI?.Show(completeXrError);
+                telemetry?.CompletionScreenShown();
                 telemetry?.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
             }
             else
@@ -211,6 +214,8 @@ namespace HClTraining.App
 
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
             inputLock.Unlock(false);
+            if (stage != TrainingStage.None && stage != TrainingStage.Complete)
+                lifecycle.NotifyTransitionReadyForInteraction();
             transitionRoutine = null;
         }
 
@@ -247,8 +252,8 @@ namespace HClTraining.App
                 return;
             }
 
-            // Education enters the existing guided course selection. Training is
-            // intentionally kept on the Title screen and shows its coming-soon UI.
+            // Title has one learner-facing entry point. Full-course versus single-Stage
+            // execution is selected on the following Start screen.
             menu.OnEducationSelected.AddListener(() => ShowStart());
             menu.OnExitClicked.AddListener(RequestApplicationExit);
         }
@@ -301,12 +306,30 @@ namespace HClTraining.App
             var preEntryScene = SceneManager.GetSceneByPath(PreEntryScenePath);
             if (preEntryScene.IsValid() && preEntryScene.isLoaded)
                 EntrySafetyStageActivation.Apply(preEntryScene, false);
-            if (!session.MarkCurrentStageComplete())
+            if (!session.EndCurrentStage())
             {
-                yield return RecoverToStart("PreEntry 완료 상태를 기록하지 못했습니다.");
+                yield return RecoverToStart("PreEntry 종료 상태를 기록하지 못했습니다.");
                 yield break;
             }
-            telemetry?.StageCompleted(TrainingStage.PreEntry);
+            var preEntryResult = session.GetStageResult(TrainingStage.PreEntry);
+            telemetry?.StageEnded(
+                TrainingStage.PreEntry,
+                preEntryResult != null && preEntryResult.StageCompleted,
+                preEntryResult);
+            if (preEntryResult != null && preEntryResult.StageCompleted)
+                telemetry?.StageCompleted(TrainingStage.PreEntry);
+
+            // Keep PreEntry loaded as LeakResponse's additive environment. Its activation
+            // contract hides stage-owned interaction objects (including the local bag),
+            // while the dependency preparation releases legacy XR/input ownership.
+            if (preEntryScene.IsValid() && preEntryScene.isLoaded)
+            {
+                if (!xrProfiles.PrepareDependencyScene(preEntryScene, out var dependencyError))
+                {
+                    yield return RecoverToStart(dependencyError);
+                    yield break;
+                }
+            }
 
             session.EnterStage(TrainingStage.LeakResponse);
             if (!xrProfiles.ApplyStageProfile(leakScene, TrainingStage.LeakResponse, out var xrError))
@@ -333,6 +356,7 @@ namespace HClTraining.App
 
             yield return fade.FadeIn();
             inputLock.Unlock(false);
+            lifecycle.NotifyTransitionReadyForInteraction();
             transitionRoutine = null;
         }
 
@@ -521,10 +545,16 @@ namespace HClTraining.App
 
         public void CompleteCurrentStage()
         {
-            var completedStage = session.CurrentStage;
-            if (completionQueued || scenes.IsTransitioning || !session.MarkCurrentStageComplete())
+            var endedStage = session.CurrentStage;
+            if (completionQueued || scenes.IsTransitioning || !session.EndCurrentStage())
                 return;
-            telemetry?.StageCompleted(completedStage);
+            var stageResult = session.GetStageResult(endedStage);
+            telemetry?.StageEnded(
+                endedStage,
+                stageResult != null && stageResult.StageCompleted,
+                stageResult);
+            if (stageResult != null && stageResult.StageCompleted)
+                telemetry?.StageCompleted(endedStage);
             completionQueued = true;
             StartCoroutine(ContinueAfterCompletion());
         }
@@ -545,6 +575,7 @@ namespace HClTraining.App
             yield return new WaitForSecondsRealtime(0.65f);
             var next = session.GetNextStage();
             completionQueued = false;
+
             var transitionStarted = next == TrainingStage.Complete
                 ? scenes.ShowComplete()
                 : scenes.ShowStage(next);
@@ -567,6 +598,38 @@ namespace HClTraining.App
 
         public bool RepeatSelectedTraining() => StartTraining(session.SelectedMode);
 
+        public bool RestartFullTrainingFromPpe()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            telemetry?.CompletionRestartRequested();
+            return StartTraining(TrainingMode.Full);
+        }
+
+        public bool RestartSelectedTrainingFromResult()
+        {
+            if (scenes.IsTransitioning || session.SelectedMode == TrainingMode.None)
+                return false;
+            var mode = session.SelectedMode;
+            telemetry?.CompletionRestartRequested();
+            return StartTraining(mode);
+        }
+
+        public bool ExitCompletedTraining()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+
+            completionQueued = false;
+            telemetry?.CompletionExitRequested();
+            telemetry?.EndSession(
+                TrainingSessionStatus.Completed,
+                TrainingExitReason.UserRequested,
+                "completion_screen_exit");
+            session.ReturnToStart();
+            return scenes.ShowStart();
+        }
+
         public bool ReturnToStart()
         {
             if (scenes.IsTransitioning)
@@ -578,6 +641,36 @@ namespace HClTraining.App
                 "returned_to_start");
             session.ReturnToStart();
             return scenes.ShowStart();
+        }
+
+        public bool ReturnToTitle()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.UserRequested,
+                "returned_to_title");
+            session.ReturnToStart();
+            return scenes.ShowTitle();
+        }
+
+        public bool ExitApplication()
+        {
+            if (scenes.IsTransitioning)
+                return false;
+            completionQueued = false;
+            telemetry?.EndSession(
+                TrainingSessionStatus.Abandoned,
+                TrainingExitReason.UserRequested,
+                "pause_menu_exit");
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+            return true;
         }
     }
 }

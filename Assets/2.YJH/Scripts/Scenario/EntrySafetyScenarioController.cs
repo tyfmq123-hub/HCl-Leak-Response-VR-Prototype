@@ -14,18 +14,11 @@ namespace JH.EntrySafety
         private const float DefaultGazeHoldSeconds = 3f;
         private const float PtPanelGazeHoldSeconds = 2f;
         private const string Goal2SafetyCheckCompleteText =
-            "염화수소 농도와 풍향, {0} 정지와 압력 감소까지 확인했습니다.";
+            "염화수소 농도와 풍향, 설비 정지와 압력 감소까지 확인했습니다. 현장 진입 전 안전 확인이 완료되었습니다.";
         private const string Goal2CheckAccessRestrictionText =
-            "오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
-        private const string EquipDetectorZoneHintText =
-            "왼손을 대응가방에 대고 왼손 Y를 눌러 염화수소 측정기를 꺼내십시오.";
-        private const string EquipDetectorMissingHintText =
-            "대응가방에 염화수소 측정기가 없습니다. 준비 단계에서 측정기를 수납했는지 확인하십시오.";
-        private const float TransientHintSeconds = 2.75f;
-
+            "방호벽은 유지됩니다. 지정된 이동 지점에서 오른손 A를 눌러 누출 대응 구역으로 이동하십시오.";
         [SerializeField] private EntrySafetyCameraGazeAdapter _gazeAdapter;
         [SerializeField] private EntrySafetyInputAdapter _inputAdapter;
-        [SerializeField] private EntrySafetyGuidanceView _guidanceView;
         [SerializeField] private EntrySafetyStepVisuals _stepVisuals;
         [SerializeField] private EntrySafetyEquipmentTransferZone _equipmentTransferZone;
         [SerializeField] private EntrySafetyHclDetectorController _detectorController;
@@ -61,8 +54,6 @@ namespace JH.EntrySafety
         private SessionEquipmentInventory _sessionInventory;
         private bool _detectorCheckedOut;
         private bool _clearAccessStarted;
-        private float _transientHintUntil;
-
         public EntrySafetyStateMachine StateMachine => _stateMachine;
         public bool LeakResponseHandoffAllowed => _allowLeakResponseHandoff;
         public bool InputHandlersSubscribed => _inputHandlersSubscribed;
@@ -72,7 +63,7 @@ namespace JH.EntrySafety
             _sessionInventory = SessionEquipmentInventory.Ensure();
             _sessionInventory?.SeedStandalone(SessionEquipmentPresets.PreEntryStandaloneEquipment);
             EnsureLocalSupportComponents();
-            _isConfigured = _gazeAdapter != null && _inputAdapter != null && _guidanceView != null &&
+            _isConfigured = _gazeAdapter != null && _inputAdapter != null &&
                             _equipmentTransferZone != null && _detectorController != null &&
                             _windChangeController != null && _windsockGazeTarget != null;
             if (!_isConfigured)
@@ -88,13 +79,15 @@ namespace JH.EntrySafety
             _guidanceCoordinator = new EntrySafetyGuidanceCoordinator(_stateMachine);
             _stateMachine.SectionCompleted += OnSectionCompleted;
             _stateMachine.StepChanged += OnStepChanged;
+            _detectorController.DetectorGrabbed += OnDetectorGrabbed;
             SubscribeInputHandlers();
             _lastStep = _stateMachine.CurrentStep;
             _detectorController.ResetDetector();
             _windChangeController.ResetWind();
             _windsockGazeTarget.SetTargetId(EntrySafetyGazeTargetId.InitialWindsock);
             _goal2PtPanel?.ResetPresentation();
-            _noAccessOverlay?.RestoreImmediate();
+            if (_noAccessOverlay != null)
+                _noAccessOverlay.RestoreImmediate();
             SetBarricadeActive(true);
             _clearAccessStarted = false;
         }
@@ -109,6 +102,8 @@ namespace JH.EntrySafety
                 _stateMachine.SectionCompleted -= OnSectionCompleted;
                 _stateMachine.StepChanged -= OnStepChanged;
             }
+            if (_detectorController != null)
+                _detectorController.DetectorGrabbed -= OnDetectorGrabbed;
             UnsubscribeInputHandlers();
         }
 
@@ -121,7 +116,8 @@ namespace JH.EntrySafety
             _allowLeakResponseHandoff = allowed;
             if (!allowed)
             {
-                _noAccessOverlay?.RestoreImmediate();
+                if (_noAccessOverlay != null)
+                    _noAccessOverlay.RestoreImmediate();
                 SetBarricadeActive(true);
             }
         }
@@ -130,9 +126,13 @@ namespace JH.EntrySafety
         {
             StopNarration();
             UnsubscribeInputHandlers();
+            var preEntryAmbient = GetComponent<EntrySafetyLeakAmbientPlayer>();
+            if (preEntryAmbient != null)
+                preEntryAmbient.enabled = false;
             // LeakResponse keeps the PreEntry environment loaded, so restore the
             // authored visible collider as the physical return boundary.
-            _noAccessOverlay?.RestoreImmediate();
+            if (_noAccessOverlay != null)
+                _noAccessOverlay.RestoreImmediate();
             SetBarricadeActive(true);
             if (_inputAdapter != null)
                 _inputAdapter.enabled = false;
@@ -148,6 +148,9 @@ namespace JH.EntrySafety
             }
 
             enabled = true;
+            var preEntryAmbient = GetComponent<EntrySafetyLeakAmbientPlayer>();
+            if (preEntryAmbient != null)
+                preEntryAmbient.enabled = true;
             if (_inputAdapter != null)
                 _inputAdapter.enabled = true;
             SubscribeInputHandlers();
@@ -184,12 +187,17 @@ namespace JH.EntrySafety
             if (!_isConfigured)
                 yield break;
 
-            // Keep intro TTS/subtitle off until scene loading and first frames settle.
-            _guidanceView.SetVisible(false);
+            // Keep the intro TTS off until scene loading and the first frames settle.
             _goal01TtsPlayer?.Stop();
             _goal02TtsPlayer?.Stop();
             yield return null;
-            yield return new WaitForEndOfFrame();
+            // WaitForEndOfFrame is never resumed by Unity's headless batch runner.
+            // Keep the authored rendered-frame delay on Quest/Editor while allowing
+            // clean-checkout PlayMode validation to exercise the same startup flow.
+            if (Application.isBatchMode)
+                yield return null;
+            else
+                yield return new WaitForEndOfFrame();
             if (_introStartDelaySeconds > 0f)
                 yield return new WaitForSeconds(_introStartDelaySeconds);
 
@@ -218,11 +226,6 @@ namespace JH.EntrySafety
                 _equipmentTransferZone.UpdateZone(false, Time.deltaTime);
                 return;
             }
-
-            // Match the other stages: guidance text is a TTS subtitle, not a persistent
-            // objective panel. Once narration has finished, remove both text and backdrop.
-            if (Time.unscaledTime >= _transientHintUntil)
-                _guidanceView.SetVisible(false);
 
             var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.CheckInitialWind || step == EntrySafetyStep.CheckChangedWind)
@@ -307,10 +310,20 @@ namespace JH.EntrySafety
                 return;
             if (IsGuidanceTtsBlocking())
                 return;
+            if (_detectorController.IsEquipped)
+                return;
+            if (_detectorController.IsAwaitingPickup)
+            {
+                // The input adapter only emits another Grip after the first press has
+                // been fully released. Use that second deliberate press to seat the
+                // detector onto the authored Ghost; XRI selection is intentionally not
+                // involved, so a stale select state cannot skip this visible step.
+                _detectorController.TryCompletePickup(_equipmentTransferZone.TrackedLeftHand);
+                return;
+            }
             if (_equipmentTransferZone == null || !_equipmentTransferZone.EvaluateEquipAttempt())
             {
                 SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, false);
-                ShowTransientHint(EquipDetectorZoneHintText);
                 return;
             }
 
@@ -319,27 +332,26 @@ namespace JH.EntrySafety
             {
                 checkedOutNow = _sessionInventory != null &&
                                 _sessionInventory.TryCheckOut(SharedEquipmentIds.GasDetector);
-                if (!checkedOutNow)
-                {
-                    SharedTrainingTelemetry.Current.BagItemRequested(
-                        SharedEquipmentIds.GasDetector,
-                        false);
-                    ShowTransientHint(EquipDetectorMissingHintText);
-                    return;
-                }
-                _detectorCheckedOut = true;
+                _detectorCheckedOut = checkedOutNow;
             }
 
-            if (_detectorController.TryEquip())
-            {
-                SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, true);
-                Advance(EntrySafetyStep.EquipDetector);
-            }
-            else if (checkedOutNow)
+            // The detector is mandatory for this Stage. A stale/missing cross-scene
+            // inventory entry must not make the authored detector disappear or block
+            // progression; checkout remains opportunistic bookkeeping.
+            if (!_detectorController.TryPresentForPickup() && checkedOutNow)
             {
                 _sessionInventory.ReturnCheckedOut(SharedEquipmentIds.GasDetector);
                 _detectorCheckedOut = false;
             }
+        }
+
+        private void OnDetectorGrabbed()
+        {
+            if (_stateMachine == null || _stateMachine.CurrentStep != EntrySafetyStep.EquipDetector)
+                return;
+
+            SharedTrainingTelemetry.Current.BagItemRequested(SharedEquipmentIds.GasDetector, true);
+            Advance(EntrySafetyStep.EquipDetector);
         }
 
         private void TryStoreDetector()
@@ -394,7 +406,6 @@ namespace JH.EntrySafety
         private IEnumerator MoveToPtPanelRoutine()
         {
             _isMovingToPtPanel = true;
-            _guidanceView.SetVisible(false);
             _goal01TtsPlayer?.Stop();
             _goal02TtsPlayer?.Stop();
             yield return _goal2PtPanel.MoveToPanelWithFade();
@@ -481,15 +492,12 @@ namespace JH.EntrySafety
             if (_stateMachine == null || _guidanceCoordinator == null)
                 return;
 
-            _transientHintUntil = 0f;
-
             // TryCompleteStep raises SectionCompleted synchronously. The App handoff listener
             // disables this controller during that callback, then control returns to Advance.
             // Never rebuild/play the terminal MoveToNextArea instruction after completion.
             if (_stateMachine.IsSectionCompleted)
             {
                 StopAllTts();
-                _guidanceView.SetVisible(false);
                 return;
             }
 
@@ -517,7 +525,6 @@ namespace JH.EntrySafety
                 StartCoroutine(ClearAccessRestrictionRoutine());
             }
 
-            ApplyInstruction(instruction);
             _stepVisuals?.SetStep(step);
             _ttsRequestHook?.Request(instruction);
             if (instruction != null && instruction.HasTts)
@@ -532,9 +539,7 @@ namespace JH.EntrySafety
             _stepVisuals?.SetStep(EntrySafetyStep.MoveToNextArea);
 
             yield return PlayTemporaryGoal2Line(
-                string.Format(
-                    Goal2SafetyCheckCompleteText,
-                    "P-102"),
+                Goal2SafetyCheckCompleteText,
                 () => _goal02TtsPlayer != null ? _goal02TtsPlayer.PlaySafetyCheckComplete() : 0f);
 
             if (!_allowLeakResponseHandoff)
@@ -554,27 +559,12 @@ namespace JH.EntrySafety
         private IEnumerator PlayTemporaryGoal2Line(string text, Func<float> playClip)
         {
             var instruction = new EntrySafetyInstruction(text, text);
-            ApplyInstruction(instruction);
             _ttsRequestHook?.Request(instruction);
             var seconds = playClip != null ? playClip() : 0f;
             if (seconds > 0f)
                 yield return new WaitForSeconds(seconds);
             else
                 yield return null;
-        }
-
-        private void ApplyInstruction(EntrySafetyInstruction instruction)
-        {
-            if (instruction != null && instruction.HasTts)
-            {
-                _guidanceView.SetVisible(true);
-                _guidanceView.ShowInstruction(instruction);
-            }
-            else
-            {
-                _guidanceView.ShowInstruction(instruction);
-                _guidanceView.SetVisible(false);
-            }
         }
 
         private void PlayStepTts(EntrySafetyStep step)
@@ -602,19 +592,6 @@ namespace JH.EntrySafety
         {
             StopAllTts();
             _goal2OutroPlaying = false;
-            _transientHintUntil = 0f;
-            if (_guidanceView != null)
-                _guidanceView.SetVisible(false);
-        }
-
-        private void ShowTransientHint(string message)
-        {
-            _transientHintUntil = Time.unscaledTime + TransientHintSeconds;
-            if (_guidanceView == null)
-                return;
-
-            _guidanceView.SetVisible(true);
-            _guidanceView.ShowInstruction(EntrySafetyInstruction.NoTts(message));
         }
 
         private bool IsGuidanceTtsBlocking()
@@ -740,11 +717,14 @@ namespace JH.EntrySafety
 
         private IEnumerator ClearAccessRestrictionRoutine()
         {
-            SetBarricadeActive(false);
+            // The A-button handoff teleports through the controlled transition. Keep
+            // the authored barricade visible as the physical no-walk boundary.
+            SetBarricadeActive(true);
             if (_noAccessOverlay != null)
                 yield return _noAccessOverlay.FadeOutAndClear();
             else
                 yield return null;
+            SetBarricadeActive(true);
 
             if (_stateMachine != null &&
                 _stateMachine.CurrentStep == EntrySafetyStep.ClearAccessRestriction)
@@ -829,6 +809,8 @@ namespace JH.EntrySafety
     /// </summary>
     public static class EntrySafetyStageActivation
     {
+        private const string ResponseBagRootName = "PreEntry_ResponseBag";
+
         private static readonly Dictionary<string, bool> SceneActivation =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
@@ -864,6 +846,9 @@ namespace JH.EntrySafety
             SceneActivation[Normalize(scene.path)] = activate;
             foreach (var root in scene.GetRootGameObjects())
             {
+                if (string.Equals(root.name, ResponseBagRootName, StringComparison.Ordinal))
+                    root.SetActive(activate);
+
                 var poseAnchors = root.GetComponentsInChildren<EntrySafetyInitialPoseAnchor>(true);
                 for (var i = 0; i < poseAnchors.Length; i++)
                     poseAnchors[i].enabled = activate;

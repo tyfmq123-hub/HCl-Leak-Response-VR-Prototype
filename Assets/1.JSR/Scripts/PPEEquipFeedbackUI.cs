@@ -25,11 +25,6 @@ public class PPEEquipFeedbackUI : MonoBehaviour
     [Tooltip("Optional Hangul-capable TMP font. Preferred over OS/dynamic fallbacks.")]
     [SerializeField] TMP_FontAsset preferredHangulFont;
 
-    [Header("Placement (relative to XR camera)")]
-    [SerializeField] float distanceFromCamera = 1.15f;
-    [SerializeField] float verticalOffset = -0.44f;
-    [SerializeField] float canvasWorldScale = 0.0012f;
-
     [Header("Timing")]
     [SerializeField] [Min(0.1f)] float displayDuration = 2f;
     [SerializeField] [Min(0f)] float fadeOutDuration = 0.35f;

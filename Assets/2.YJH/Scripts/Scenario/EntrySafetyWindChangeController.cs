@@ -9,6 +9,7 @@ namespace JH.EntrySafety
         [SerializeField, Min(0.01f)] private float _durationSeconds = 3f;
         [SerializeField, Range(100f, 120f)] private float _localYawDeltaDegrees = 110f;
 
+        private Transform _rotationPivot;
         private Quaternion _initialLocalRotation;
         private Quaternion _targetLocalRotation;
         private float _elapsedSeconds;
@@ -23,10 +24,11 @@ namespace JH.EntrySafety
 
         public void ResetWind()
         {
-            if (_windPivot == null)
+            _rotationPivot = ResolveRotationPivot();
+            if (_rotationPivot == null)
                 return;
 
-            _initialLocalRotation = _windPivot.localRotation;
+            _initialLocalRotation = _rotationPivot.localRotation;
             _targetLocalRotation = _initialLocalRotation * Quaternion.Euler(0f, _localYawDeltaDegrees, 0f);
             _elapsedSeconds = 0f;
             _isRunning = false;
@@ -35,7 +37,7 @@ namespace JH.EntrySafety
 
         public void Begin()
         {
-            if (_windPivot == null || _isRunning || IsComplete)
+            if (_rotationPivot == null || _isRunning || IsComplete)
                 return;
 
             _elapsedSeconds = 0f;
@@ -44,7 +46,7 @@ namespace JH.EntrySafety
 
         public bool UpdateRotation(float deltaTime)
         {
-            if (_windPivot == null || IsComplete)
+            if (_rotationPivot == null || IsComplete)
                 return IsComplete;
 
             if (!_isRunning)
@@ -53,15 +55,24 @@ namespace JH.EntrySafety
             _elapsedSeconds = Mathf.Min(_elapsedSeconds + Mathf.Max(0f, deltaTime), _durationSeconds);
             var progress01 = Mathf.Clamp01(_elapsedSeconds / _durationSeconds);
             var easedProgress = Mathf.SmoothStep(0f, 1f, progress01);
-            _windPivot.localRotation = Quaternion.Slerp(_initialLocalRotation, _targetLocalRotation, easedProgress);
+            _rotationPivot.localRotation = Quaternion.Slerp(_initialLocalRotation, _targetLocalRotation, easedProgress);
 
             if (progress01 < 1f)
                 return false;
 
-            _windPivot.localRotation = _targetLocalRotation;
+            _rotationPivot.localRotation = _targetLocalRotation;
             IsComplete = true;
             _isRunning = false;
             return true;
+        }
+
+        private Transform ResolveRotationPivot()
+        {
+            // WindPivot is authored at the pole connection and its local Y axis is
+            // world-up. Rotating an imported descendant instead uses the FBX's wheel
+            // axis, which lifts the entire vane through a vertical arc. Always rotate
+            // this stable parent so ship+wheel+3d+model turns as one horizontal unit.
+            return _windPivot;
         }
     }
 }

@@ -3,7 +3,6 @@ using UnityEngine;
 
 public static class PPEInnerGloveDebugCommands
 {
-    [MenuItem("Tools/HCl Training/PPE/Debug Force Complete Left InnerGlove Member", false, 90)]
     public static void ForceCompleteLeftInnerGloveMember()
     {
         if (!Application.isPlaying)
@@ -31,7 +30,6 @@ public static class PPEInnerGloveDebugCommands
         Debug.LogWarning("[PPE InnerGlove] No InnerGloves pair coordinator found.");
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Author InnerGlove EquipReference", false, 91)]
     public static void AuthorInnerGloveEquipReferences()
     {
         var coordinators = Object.FindObjectsByType<PPEGlovePairCoordinator>(FindObjectsInactive.Include);

@@ -45,17 +45,23 @@ namespace JH.EntrySafety
 
         public float PlayStopAndPressureConfirmed()
         {
-            return PlayClip(_stopAndPressureConfirmedClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("18_VerifyPressureDecrease") ??
+                       _stopAndPressureConfirmedClip;
+            return PlayClip(clip, null);
         }
 
         public float PlaySafetyCheckComplete()
         {
-            return PlayClip(_safetyCheckCompleteClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("19_SafetyCheckComplete") ??
+                       _safetyCheckCompleteClip;
+            return PlayClip(clip, null);
         }
 
         public float PlayCheckAccessRestriction()
         {
-            return PlayClip(_checkAccessRestrictionClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("20_MoveToLeakResponse") ??
+                       _checkAccessRestrictionClip;
+            return PlayClip(clip, null);
         }
 
         public void Stop()
@@ -91,6 +97,10 @@ namespace JH.EntrySafety
             // after the handoff has already started.
             if (step == EntrySafetyStep.MoveToNextArea)
                 return null;
+
+            var finalCourseClip = EntrySafetyNarrationResources.LoadStep(step);
+            if (finalCourseClip != null)
+                return finalCourseClip;
 
             // The authored Scene predates the explicit automatic pressure-wait step.
             // Reuse this serialized slot for the reduced-pressure gaze cue so the

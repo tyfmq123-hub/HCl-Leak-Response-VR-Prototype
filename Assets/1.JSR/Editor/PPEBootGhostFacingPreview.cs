@@ -9,7 +9,6 @@ public static class PPEBootGhostFacingPreview
     static readonly Vector3 RightToeLocal = new Vector3(0.9860046f, 0f, -0.1667183f);
     static Material previewMaterial;
 
-    [MenuItem("Tools/HCl Training/PPE/Preview Boot Ghost Facing", false, 37)]
     static void Toggle()
     {
         var enabled = !EditorPrefs.GetBool(PrefKey, false);
@@ -18,7 +17,6 @@ public static class PPEBootGhostFacingPreview
         Debug.Log("[PPE Boot Ghost] Facing preview " + (enabled ? "enabled." : "disabled."));
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Preview Boot Ghost Facing", true)]
     static bool ValidateToggle()
     {
         Menu.SetChecked("Tools/HCl Training/PPE/Preview Boot Ghost Facing", EditorPrefs.GetBool(PrefKey, false));
@@ -40,8 +38,7 @@ public static class PPEBootGhostFacingPreview
             return;
 
         var members = Object.FindObjectsByType<PPEGlovePairMember>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         PPEGlovePairMember left = null;
         PPEGlovePairMember right = null;
         for (var i = 0; i < members.Length; i++)

@@ -82,51 +82,9 @@ public class ResponseBagWearableVisual : MonoBehaviour
 
     public void ShowWearable()
     {
-        // Must be set before SetActive — Awake runs synchronously on first enable.
-        suppressStartHidden = true;
-
-        EnsureRoot();
-        ApplyLocalPose();
-        WearableRoot.SetActive(true);
-
-        // Keep base mesh hierarchy visible even when open/closed mode roots exist.
-        EnsureBaseMeshHierarchyActive();
-
-        // Re-enable bag mesh renderers only (do not unfold open-mode contents).
-        var renderers = WearableRoot.GetComponentsInChildren<Renderer>(true);
-        for (var i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] == null)
-                continue;
-
-            // Contents under BagOpenVisual stay managed by the visual controller.
-            if (IsUnderOpenContents(renderers[i].transform))
-                continue;
-
-            renderers[i].enabled = true;
-        }
-
-        if (visualController == null)
-            visualController = GetComponent<WearableResponseBagVisualController>();
-        if (visualController == null)
-            visualController = GetComponentInChildren<WearableResponseBagVisualController>(true);
-
-        if (visualController != null)
-            visualController.InitializeClosedAfterEquip();
-
-        // Awake may still have raced without suppress in older builds — force visible.
-        if (!WearableRoot.activeSelf)
-            WearableRoot.SetActive(true);
-
-        // Snap body anchor so the waist bag is already in place when looking down.
-        var follower = GetComponentInParent<PlayerBodyAnchorFollower>(true);
-        if (follower != null)
-            follower.SnapToTarget();
-
-        Debug.Log(
-            $"[Response Bag Wearable] Shown at {WearableRoot.transform.position} " +
-            $"(active={WearableRoot.activeInHierarchy})",
-            WearableRoot);
+        // Legacy API retained for serialized references. The course now uses one
+        // local bag per Stage, so a body-following bag must never be re-enabled.
+        HideWearable();
     }
 
     void EnsureBaseMeshHierarchyActive()
@@ -178,10 +136,7 @@ public class ResponseBagWearableVisual : MonoBehaviour
 
     public void ToggleWearable()
     {
-        if (IsVisible)
-            HideWearable();
-        else
-            ShowWearable();
+        HideWearable();
     }
 
     public void ResetWearable()

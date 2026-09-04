@@ -83,6 +83,9 @@ public class PPESequenceManager : MonoBehaviour
     /// <summary>True after the player confirmed bag contents once (Y inspect).</summary>
     public bool BagContentsChecked => bagContentsChecked;
 
+    /// <summary>Authoritative completion state used by non-interactive room guidance UI.</summary>
+    public bool IsStepCompleted(PPESequenceStep step) => completedSteps.Contains(step);
+
     /// <summary>Current required step, or null when the sequence is complete.</summary>
     public PPESequenceStep? CurrentRequiredStep
     {
@@ -143,7 +146,7 @@ public class PPESequenceManager : MonoBehaviour
             return;
 
         var found = false;
-        var equipables = FindObjectsByType<PPEEquipable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var equipables = FindObjectsByType<PPEEquipable>(FindObjectsInactive.Include);
         for (var i = 0; i < equipables.Length; i++)
         {
             if (equipables[i] != null
@@ -418,6 +421,12 @@ public class PPESequenceManager : MonoBehaviour
         if (PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy)
             return;
 
+        if (TryGetStep(itemId, out var telemetryStep))
+        {
+            HClTraining.SharedXR.SharedTrainingTelemetry.Current.ContentViewed(
+                "PPE.EquipBlocked." + telemetryStep);
+        }
+
         PPETTSManager.Instance?.NotifyEquipBlocked(itemId);
 
         if (!showBlockedFeedback)
@@ -487,8 +496,7 @@ public class PPESequenceManager : MonoBehaviour
             equipment?.ResetAllEquipment();
 
             var coordinators = FindObjectsByType<PPEGlovePairCoordinator>(
-                FindObjectsInactive.Include,
-                FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             for (var i = 0; i < coordinators.Length; i++)
             {
                 if (coordinators[i] != null)
@@ -496,8 +504,7 @@ public class PPESequenceManager : MonoBehaviour
             }
 
             var storedStates = FindObjectsByType<PPEStoredDisplayState>(
-                FindObjectsInactive.Include,
-                FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             for (var i = 0; i < storedStates.Length; i++)
             {
                 var stored = storedStates[i];
@@ -521,7 +528,7 @@ public class PPESequenceManager : MonoBehaviour
 
     static void CancelWearableSelections()
     {
-        var grabs = FindObjectsByType<PPEHandGrabbable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var grabs = FindObjectsByType<PPEHandGrabbable>(FindObjectsInactive.Include);
         for (var i = 0; i < grabs.Length; i++)
         {
             var grab = grabs[i];
@@ -587,9 +594,13 @@ public class PPESequenceManager : MonoBehaviour
 
     void RefreshRequiredStepHighlights()
     {
-        var highlights = FindObjectsByType<PPEOutlineHighlight>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.InstanceID);
+        var highlights = FindObjectsByType<PPEOutlineHighlight>(FindObjectsInactive.Include);
+        Array.Sort(highlights, (left, right) =>
+        {
+            var leftId = left != null ? left.GetEntityId().GetHashCode() : 0;
+            var rightId = right != null ? right.GetEntityId().GetHashCode() : 0;
+            return leftId.CompareTo(rightId);
+        });
         var required = CurrentRequiredStep;
         var claimedCurrentTarget = false;
 

@@ -35,10 +35,6 @@ public class PPEStoredDisplayState : MonoBehaviour
     [Tooltip("When false, this component never builds a world-AABB assist box. Use for rotated glove roots and authored primitive assists.")]
     bool generateAssistFromBounds = true;
     [SerializeField] Collider assistCollider;
-    [SerializeField]
-    [Tooltip("Existing PPEInteractableOutline already provides hover. Enable only if you want that outline treated as assist feedback; this component never adds glow, icons, or lasers.")]
-    bool optionalHoverFeedback;
-
     PPEHandGrabbable grabbable;
     Rigidbody body;
     Vector3 storedLocalPosition;
@@ -57,6 +53,14 @@ public class PPEStoredDisplayState : MonoBehaviour
     Collider[] recoveryColliders;
     Renderer[] recoveryRenderers;
     Coroutine recoveryRoutine;
+    PPECabinetPhysics activeCabinetShelfSupport;
+    float cabinetShelfSupportUntil;
+    float storedLowestPhysicalPointY;
+    bool capturedStoredLowestPoint;
+
+    const float CabinetShelfSupportGuardSeconds = 1.25f;
+    const float CabinetFallRecoveryDistance = 0.12f;
+    const float CabinetFallRecoveryDelay = 0.35f;
 
     public StorageState State { get; private set; } = StorageState.Stored;
     public bool IsStored => State == StorageState.Stored;
@@ -86,6 +90,8 @@ public class PPEStoredDisplayState : MonoBehaviour
         SanitizeDenseConvexMeshColliders();
         EnsureNearGrabAssistVolume();
         CacheRecoveryBoundsSources();
+        storedLowestPhysicalPointY = LowestPhysicalPointY();
+        capturedStoredLowestPoint = true;
 
         if (grabbable != null)
             grabbable.attachEaseInTime = 0f;
@@ -121,6 +127,15 @@ public class PPEStoredDisplayState : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (State == StorageState.Released && activeCabinetShelfSupport != null)
+        {
+            if (Time.time <= cabinetShelfSupportUntil)
+                activeCabinetShelfSupport.TrySupportReleasedItem(transform, body);
+            else
+                CancelCabinetShelfSupport();
+            return;
+        }
+
         if (State != StorageState.Stored || body == null)
             return;
 
@@ -130,6 +145,7 @@ public class PPEStoredDisplayState : MonoBehaviour
     public void ApplyStoredLock(bool restorePose)
     {
         CancelRecoveryMonitor();
+        CancelCabinetShelfSupport();
         State = StorageState.Stored;
 
         if (restorePose)
@@ -173,6 +189,7 @@ public class PPEStoredDisplayState : MonoBehaviour
     public void NotifyEquipped()
     {
         CancelRecoveryMonitor();
+        CancelCabinetShelfSupport();
         State = StorageState.Equipped;
         DisableWearableThrow();
         if (body == null)
@@ -186,12 +203,18 @@ public class PPEStoredDisplayState : MonoBehaviour
     {
         if (State != StorageState.Held)
             return;
-        ApplyReleasedPhysics();
+
+        // A cabinet wearable is either equipped by the release attempt or put
+        // straight back in its authored slot. Do not hand an invalid release to
+        // gravity: a small PPE can tunnel through the visual FBX shelves and
+        // become unreachable.
+        RestoreToStoredPose();
     }
 
     public void ApplyReleasedPhysics()
     {
         CancelRecoveryMonitor();
+        CancelCabinetShelfSupport();
         State = StorageState.Released;
         DisableWearableThrow();
         if (body != null)
@@ -204,6 +227,13 @@ public class PPEStoredDisplayState : MonoBehaviour
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             body.constraints = RigidbodyConstraints.None;
             IgnorePlayerLocomotionCollisions();
+        }
+
+        var cabinet = ResolveCabinetPhysics();
+        if (cabinet != null && cabinet.TrySupportReleasedItem(transform, body))
+        {
+            activeCabinetShelfSupport = cabinet;
+            cabinetShelfSupportUntil = Time.time + CabinetShelfSupportGuardSeconds;
         }
 
         LogPhysicsSnapshot("PPE Physics After Release");
@@ -219,6 +249,7 @@ public class PPEStoredDisplayState : MonoBehaviour
 
         LogPhysicsSnapshot("PPE Physics Before Grab");
         CancelRecoveryMonitor();
+        CancelCabinetShelfSupport();
         if (State == StorageState.Stored)
             RestoreStoredPose();
         if (body != null)
@@ -243,19 +274,21 @@ public class PPEStoredDisplayState : MonoBehaviour
     void OnGrabbed(PPEGrabHand _)
     {
         CancelRecoveryMonitor();
+        CancelCabinetShelfSupport();
         State = StorageState.Held;
     }
 
     void StartRecoveryMonitor()
     {
-        if (!SupportsUnreachableRecovery())
+        var cabinet = ResolveCabinetPhysics();
+        if (!SupportsUnreachableRecovery() && cabinet == null)
             return;
 
         var recoveryPoint = PPEDroppedItemRecoveryPoint.Resolve();
-        if (recoveryPoint == null)
+        if (recoveryPoint == null && cabinet == null)
             return;
 
-        recoveryRoutine = StartCoroutine(MonitorUnreachableRelease(recoveryPoint));
+        recoveryRoutine = StartCoroutine(MonitorUnreachableRelease(recoveryPoint, cabinet != null));
     }
 
     void CancelRecoveryMonitor()
@@ -266,10 +299,30 @@ public class PPEStoredDisplayState : MonoBehaviour
         recoveryRoutine = null;
     }
 
-    IEnumerator MonitorUnreachableRelease(PPEDroppedItemRecoveryPoint recoveryPoint)
+    void CancelCabinetShelfSupport()
+    {
+        activeCabinetShelfSupport = null;
+        cabinetShelfSupportUntil = 0f;
+    }
+
+    PPECabinetPhysics ResolveCabinetPhysics()
+    {
+        var cabinet = GetComponentInParent<PPECabinetPhysics>();
+        if (cabinet != null)
+            return cabinet;
+
+        return storedParent != null
+            ? storedParent.GetComponentInParent<PPECabinetPhysics>()
+            : null;
+    }
+
+    IEnumerator MonitorUnreachableRelease(
+        PPEDroppedItemRecoveryPoint recoveryPoint,
+        bool restoreToStoredShelf)
     {
         var belowThresholdSince = -1f;
-        var wait = new WaitForSeconds(recoveryPoint.CheckInterval);
+        var belowStoredShelfSince = -1f;
+        var wait = new WaitForSeconds(recoveryPoint != null ? recoveryPoint.CheckInterval : 0.10f);
         while (State == StorageState.Released)
         {
             if (grabbable != null && (grabbable.IsGrabbed || grabbable.isSelected))
@@ -278,7 +331,25 @@ public class PPEStoredDisplayState : MonoBehaviour
                 yield break;
             }
 
-            if (recoveryPoint.IsBelowReachableHeight(LowestPhysicalPointY()))
+            var lowestPointY = LowestPhysicalPointY();
+            if (restoreToStoredShelf && capturedStoredLowestPoint &&
+                lowestPointY < storedLowestPhysicalPointY - CabinetFallRecoveryDistance)
+            {
+                if (belowStoredShelfSince < 0f)
+                    belowStoredShelfSince = Time.time;
+                else if (Time.time - belowStoredShelfSince >= CabinetFallRecoveryDelay)
+                {
+                    recoveryRoutine = null;
+                    RestoreToStoredPose();
+                    yield break;
+                }
+            }
+            else
+            {
+                belowStoredShelfSince = -1f;
+            }
+
+            if (recoveryPoint != null && recoveryPoint.IsBelowReachableHeight(lowestPointY))
             {
                 if (belowThresholdSince < 0f)
                     belowThresholdSince = Time.time;
@@ -304,6 +375,8 @@ public class PPEStoredDisplayState : MonoBehaviour
     {
         if (State != StorageState.Released || recoveryPoint == null)
             return;
+
+        CancelCabinetShelfSupport();
 
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
@@ -807,7 +880,6 @@ public class PPEStoredDisplayState : MonoBehaviour
         enableAssist = true;
         generateAssistFromBounds = true;
         assistDistance = DefaultAssistDistance;
-        optionalHoverFeedback = false;
     }
 
     public void EditorApplyPairMemberDefaults()
@@ -817,7 +889,6 @@ public class PPEStoredDisplayState : MonoBehaviour
         enableAssist = true;
         generateAssistFromBounds = false;
         assistDistance = DefaultAssistDistance;
-        optionalHoverFeedback = false;
     }
 
     void OnDrawGizmosSelected()
