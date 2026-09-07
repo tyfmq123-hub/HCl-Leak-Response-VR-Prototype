@@ -1,5 +1,14 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-07 Integration — PreEntry 대기 중 뚜껑 79cm 낙하 수정
+
+- 실제 원인: `06_LeakResponse` 뚜껑 Rigidbody가 gravity=true/kinematic=false인 상태로 PreEntry의 additive 환경에 먼저 로드됨. Leak 활성화까지 중력으로 떨어지고, 그 뒤 `P102WasteContainerRuntime.Configure`가 바닥 위치를 닫힘 pose로 저장했다.
+- Scene은 해당 Rigidbody 두 필드만 gravity=false/kinematic=true로 변경. 뚜껑/용기/ghost의 작성 transform은 보존.
+- 신규 `P102WasteContainerPhysics`를 bootstrap Awake에서 호출해 Stage 비활성 상태에도 즉시 물리 보호. 열린 입구를 유지하는 16개 몸체 벽+바닥 collider 생성. Configure 재호출은 중복 생성하지 않는다. 기존 작성 solid collider는 보존한다.
+- 변경 코드: `P102LeakRuntimeBootstrap.cs`, `P102WasteContainerRuntime.cs`, 신규 helper/단위 검사/`IntegrationWasteLidLifecycleValidation`(+meta).
+- 수정 전 0.78975m 낙하 재현 FAIL → 수정 후 6초/FixedUpdate 300회 및 handoff 뒤 오차 0m PASS. Edit Mode 167/167, App smoke 33개, 기존 뚜껑·집게 XRI 회귀 PASS. 최종 C# 오류 0.
+- 수동 작업: Play 중지→컴파일→App 재실행. 위치 조정/setup 재생성 불필요. Quest 손 동작 전체 재검수는 미완료. 상세 파일/증거/알려진 제한: [낙하 원인·수정 보고서](../../integration/WASTE_LID_DORMANT_PHYSICS_2026-09-07.md). 추가 Integration 요청 없음.
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.

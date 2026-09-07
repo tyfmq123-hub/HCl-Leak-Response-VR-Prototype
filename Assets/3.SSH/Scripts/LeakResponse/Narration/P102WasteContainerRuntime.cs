@@ -118,6 +118,8 @@ namespace VRProject.LeakResponse.Narration
                 return false;
             }
 
+            P102WasteContainerPhysics.EnsureBodyCollision(containerRoot);
+
             P102RuntimeUtility.HideHandPoseGhostRenderers(lidObject);
 
             originalLidParent = lidObject.transform.parent;
