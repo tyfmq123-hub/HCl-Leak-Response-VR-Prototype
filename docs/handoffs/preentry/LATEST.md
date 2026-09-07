@@ -1,5 +1,21 @@
 # PreEntry → Integration 인수인계
 
+## 2026-09-07 Integration — Game View/씬 전환 후속 정정
+
+- 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
+- App `SceneFlowController`와 새 `SceneLoadingBudget`에서 전환 작업 분산/Player 로딩 예산 제한과 복구를 적용. Stage Scene/Prefab/동작/TTS/작성 pose는 변경하지 않았다.
+- Edit Mode 162/162, App smoke 33개, 뚜껑·집게·물방울·카운트 회귀 PASS. 실제 Quest mirror/시스템 모래시계 소멸은 미검증. 잠깐의 전환 fade와 초기 활성화의 긴 프레임은 남을 수 있다.
+- 수동 작업: Play 중지→컴파일 완료→App 재실행만 필요. setup/Scene 재생성 불필요.
+- 파일·테스트·알려진 문제·검증 제한은 [후속 보고서](../../integration/XR_MIRROR_TRANSITIONS_2026-09-07.md) 참고. 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — 풍향계 gaze / 측정기 수납 음성
+
+- `EntrySafetyCameraGazeAdapter`에서 HMD 중심 시선 기준 7° 획득/10° 유지, `EntrySafetyGazeCoordinator`에서 풍향계만 0.45초 이탈 허용. 풍향계 위치/피벗 및 패널 gaze는 보존했다.
+- `EntrySafetyScenarioController`: gaze 진행률은 음성 중에도 시작하고 완료는 음성 종료 후 처리. 결과 표시와 음성을 동시에 기다려 재측정 결과 후 추가 지연 제거. 수납 안내 중 왼손 Grip 허용. App `StageLifecycleAdapter`의 입력 telemetry창도 동일 시점에 맞춘다.
+- Goal01/02 TTS player는 실제 AudioSource 상태와 Pause를 사용. canonical PreEntry MP3 20개 재생성. 순서는 재측정 결과 → Grip 수납 → 오른손 A 패널 이동이며 상태 머신 전이표는 변경하지 않았다.
+- `05_PreEntry.unity`/Prefab/측정기·ghost pose는 변경하지 않았다. 수동 setup 불필요. 허용각은 adapter Inspector에서 조절 가능하다.
+- Edit Mode 160/160 통과. Quest 시선/손 조작·전체 음성 청취는 미검증. 전체 파일·검증·알려진 제한: [Integration 보고서](../../integration/VR_REGRESSION_2026-09-07.md). 추가 Integration 요청 없음.
+
 ## 2026-09-04 Integration correction — Interaction별 오입력 요약
 
 - 오입력은 활성 `InteractionPrompted`부터 `InteractionCompleted` 사이에서만 수집한다. Gaze/Automatic/Movement 단계, Pause·비활성 시간, 스틱 축·스틱 클릭·메뉴·UI 입력은 제외한다.

@@ -174,8 +174,15 @@ namespace VRProject.LeakResponse.Narration
 
         void LateUpdate()
         {
-            // The countdown is deliberately fixed to the flange after its initial placement.
-            // Following HMD position here makes the panel slide across and cover the leak marker.
+            // Keep its position fixed to the flange, but face the actual viewer after
+            // the App's stage teleport. Configure may run before that teleport occurs.
+            if (countdownRoot == null || !countdownRoot.activeInHierarchy)
+                return;
+            Transform countdownTransform = countdownRoot.transform;
+            viewerCamera = ResolveActiveHeadCamera(viewerCamera);
+            if (viewerCamera != null)
+                countdownTransform.rotation = P102RuntimeUtility.ResolveYawOnlyCanvasRotation(
+                    countdownTransform.position, viewerCamera.position, countdownTransform.rotation);
         }
 
         void OnDestroy()

@@ -135,6 +135,8 @@ namespace VRProject.LeakResponse.Narration
 
             activeInstance = this;
             stageActivated = P102LeakStageActivation.ShouldActivate(gameObject.scene);
+            P102WasteContainerPhysics.PrepareBeforeSimulation(
+                FindSceneObject(gameObject.scene, "INT_WasteContainer_01"));
             HideAuthoredGrabPoseGhosts();
             ConfigureEnvironmentAudio();
         }

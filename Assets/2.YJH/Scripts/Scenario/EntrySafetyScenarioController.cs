@@ -75,7 +75,8 @@ namespace JH.EntrySafety
             }
 
             _stateMachine = new EntrySafetyStateMachine();
-            _gazeCoordinator = new EntrySafetyGazeCoordinator(_stateMachine);
+            _gazeCoordinator = new EntrySafetyGazeCoordinator(_stateMachine,
+                windsockExitGraceSeconds: 0.45f);
             _guidanceCoordinator = new EntrySafetyGuidanceCoordinator(_stateMachine);
             _stateMachine.SectionCompleted += OnSectionCompleted;
             _stateMachine.StepChanged += OnStepChanged;
@@ -203,12 +204,8 @@ namespace JH.EntrySafety
 
             RefreshGuidance();
             ReportPreEntryEntered();
-            var introSeconds = _goal01TtsPlayer != null
-                ? _goal01TtsPlayer.GetClipLength(EntrySafetyStep.SceneIntro)
-                : 0f;
-            if (introSeconds > 0f)
-                yield return new WaitForSeconds(introSeconds);
-            else
+            yield return null;
+            while (_goal01TtsPlayer != null && _goal01TtsPlayer.IsPlaying)
                 yield return null;
             Advance(EntrySafetyStep.SceneIntro);
         }
@@ -218,8 +215,21 @@ namespace JH.EntrySafety
             if (!_isConfigured || _stateMachine == null || _stateMachine.IsSectionCompleted)
                 return;
 
-            // Every step becomes actionable only after its matching guidance TTS has finished.
-            if (IsGuidanceTtsBlocking())
+            var step = _stateMachine.CurrentStep;
+            // Start the result's minimum display time together with its narration,
+            // not one second after that narration has already ended.
+            if ((step == EntrySafetyStep.ConfirmInitialHcl || step == EntrySafetyStep.ConfirmReducedHcl) &&
+                _resultDelayStep != step)
+            {
+                _resultDelayStep = step;
+                StartCoroutine(CompleteResultAfterDelay(step));
+            }
+
+            // Windsock acquisition should respond while the learner follows the
+            // spoken instruction. Completion still waits for that cue below.
+            bool windsockStep = step == EntrySafetyStep.CheckInitialWind ||
+                                step == EntrySafetyStep.CheckChangedWind;
+            if (IsGuidanceTtsBlocking() && !windsockStep)
             {
                 HideWindsockGazeProgress();
                 _gazeAdapter.SetGuideRayVisible(false);
@@ -227,7 +237,6 @@ namespace JH.EntrySafety
                 return;
             }
 
-            var step = _stateMachine.CurrentStep;
             if (step == EntrySafetyStep.CheckInitialWind || step == EntrySafetyStep.CheckChangedWind)
             {
                 UpdateWindsockGaze();
@@ -259,14 +268,6 @@ namespace JH.EntrySafety
                         isLookingAtDetector,
                         Time.deltaTime))
                     Advance(EntrySafetyStep.MeasureReducedHcl);
-            }
-            else if ((step == EntrySafetyStep.ConfirmInitialHcl || step == EntrySafetyStep.ConfirmReducedHcl) &&
-                     _resultDelayStep != step)
-            {
-                HideWindsockGazeProgress();
-                _resultDelayStep = step;
-                _gazeAdapter.SetGuideRayVisible(false);
-                StartCoroutine(CompleteResultAfterDelay(step));
             }
             else if (step == EntrySafetyStep.WaitWindChange)
             {
@@ -358,9 +359,6 @@ namespace JH.EntrySafety
         {
             if (_stateMachine == null || _stateMachine.CurrentStep != EntrySafetyStep.StoreDetector)
                 return;
-            if (IsGuidanceTtsBlocking())
-                return;
-
             if (_detectorController.TryStore())
             {
                 if (_detectorCheckedOut)
@@ -560,10 +558,9 @@ namespace JH.EntrySafety
         {
             var instruction = new EntrySafetyInstruction(text, text);
             _ttsRequestHook?.Request(instruction);
-            var seconds = playClip != null ? playClip() : 0f;
-            if (seconds > 0f)
-                yield return new WaitForSeconds(seconds);
-            else
+            playClip?.Invoke();
+            yield return null;
+            while (_goal02TtsPlayer != null && _goal02TtsPlayer.IsPlaying)
                 yield return null;
         }
 
@@ -587,6 +584,13 @@ namespace JH.EntrySafety
         }
 
         public bool IsNarrationPlaying => IsGuidanceTtsBlocking();
+
+        // Store/gaze are already usable during their spoken instruction. Keep the
+        // telemetry input window aligned with those actual interaction rules.
+        public bool IsInteractionInputBlockedByNarration => IsGuidanceTtsBlocking() &&
+            (_stateMachine == null || (_stateMachine.CurrentStep != EntrySafetyStep.StoreDetector &&
+             _stateMachine.CurrentStep != EntrySafetyStep.CheckInitialWind &&
+             _stateMachine.CurrentStep != EntrySafetyStep.CheckChangedWind));
 
         public void StopNarration()
         {
@@ -674,8 +678,9 @@ namespace JH.EntrySafety
         {
             // Keep aiming assist for windsock gaze; text guidance UI stays removed.
             _gazeAdapter.SetGuideRayVisible(true);
-            var hasTarget = _gazeAdapter.TryGetTarget(out var targetId);
-            _gazeCoordinator.Update(targetId, hasTarget, Time.deltaTime);
+            var hasTarget = _gazeAdapter.TryGetWindsockTarget(_windsockGazeTarget, out var targetId);
+            _gazeCoordinator.Update(targetId, hasTarget, Time.deltaTime,
+                allowCompletion: !IsGuidanceTtsBlocking());
             // Keep the bar visible for the whole windsock gaze step; fill only advances while tracking.
             UpdateWindsockGazeProgress(true);
         }
