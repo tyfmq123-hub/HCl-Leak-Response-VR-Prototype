@@ -41,8 +41,9 @@ namespace VRProject.LeakResponse.Narration
         bool sockGuidanceCompleted;
         Coroutine grabConfirmationRoutine;
         float lastProgressTime;
-        readonly Dictionary<XRBaseInputInteractor, XRBaseInputInteractor.InputTriggerType>
-            originalSelectTriggers = new();
+        XRBaseInputInteractor carryingInteractor;
+        P102CarryInputLock carryInputLock;
+        bool returnGripArmed;
         Transform heldInteractorAttach;
         Transform tongsOriginalParent;
         Vector3 heldLocalPosition;
@@ -53,6 +54,7 @@ namespace VRProject.LeakResponse.Narration
         public P102RecoveryItemState HeldItem => heldItem;
         public Collider HandleGrabCollider => handleGrabCollider;
         public bool IsGrabEnabled => grabInteractable != null && grabInteractable.enabled;
+        public bool IsCarryLocked => carryingInteractor != null && carryInputLock != null && !returned;
 
         public bool Configure(GameObject newTongsRoot, Transform newTongsGhost,
             P102RecoveryRuntime recoveryRuntime, P102WasteContainerRuntime wasteRuntime,
@@ -151,7 +153,10 @@ namespace VRProject.LeakResponse.Narration
             grabInteractable.activated.AddListener(OnActivated);
             grabInteractable.deactivated.AddListener(OnDeactivated);
             if (narration != null)
+            {
+                narration.CueStarted += OnCueStarted;
                 narration.CueCompleted += OnCueCompleted;
+            }
             if (waste != null)
             {
                 waste.ItemDeposited += OnItemDeposited;
@@ -164,6 +169,7 @@ namespace VRProject.LeakResponse.Narration
 
         void Update()
         {
+            UpdateReturnInput();
             if (!recoveryActionEnabled || !pickupGuidanceStarted || heldItem != null ||
                 recovery == null || narration == null || narration.IsPlaying)
                 return;
@@ -189,7 +195,7 @@ namespace VRProject.LeakResponse.Narration
             tongsRoot.transform.SetPositionAndRotation(
                 heldInteractorAttach.TransformPoint(heldLocalPosition),
                 heldInteractorAttach.rotation * heldLocalRotation);
-            if (tongsRigidbody != null)
+            if (tongsRigidbody != null && !tongsRigidbody.isKinematic)
             {
                 tongsRigidbody.linearVelocity = Vector3.zero;
                 tongsRigidbody.angularVelocity = Vector3.zero;
@@ -203,6 +209,8 @@ namespace VRProject.LeakResponse.Narration
 
         void OnTongsSelected(SelectEnterEventArgs args)
         {
+            if (carryingInteractor != null && ReferenceEquals(args?.interactorObject, carryingInteractor))
+                return;
             P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
 
             if (!equipmentUseReported)
@@ -213,11 +221,10 @@ namespace VRProject.LeakResponse.Narration
 
             if (args?.interactorObject is XRBaseInputInteractor inputInteractor)
             {
-                if (!originalSelectTriggers.ContainsKey(inputInteractor))
-                    originalSelectTriggers.Add(
-                        inputInteractor, inputInteractor.selectActionTrigger);
-                inputInteractor.selectActionTrigger =
-                    XRBaseInputInteractor.InputTriggerType.Toggle;
+                carryingInteractor = inputInteractor;
+                returnGripArmed = false;
+                carryInputLock?.Dispose();
+                carryInputLock = new P102CarryInputLock(inputInteractor);
             }
 
             heldInteractorAttach = P102RuntimeUtility.ResolveStableControllerAnchor(
@@ -253,12 +260,7 @@ namespace VRProject.LeakResponse.Narration
         void OnTongsReleased(SelectExitEventArgs args)
         {
             StopGrabConfirmation();
-            if (args?.interactorObject is XRBaseInputInteractor inputInteractor &&
-                originalSelectTriggers.TryGetValue(inputInteractor, out var originalTrigger))
-            {
-                inputInteractor.selectActionTrigger = originalTrigger;
-                originalSelectTriggers.Remove(inputInteractor);
-            }
+            RestoreSelectTriggers();
             heldInteractorAttach = null;
             if (tongsRoot != null)
                 tongsRoot.transform.SetParent(tongsOriginalParent, true);
@@ -285,6 +287,37 @@ namespace VRProject.LeakResponse.Narration
 
             P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, true);
             StartCoroutine(EnableReleasedTongsPhysics());
+        }
+
+        void UpdateReturnInput()
+        {
+            if (carryingInteractor == null || returned || !returnEnabled ||
+                SharedTrainingPause.IsPaused)
+                return;
+            // The return instruction must finish and the grip must be released once.
+            // Only a fresh press AT the visible return ghost can detach the tool.
+            carryInputLock.ReadPhysicalGrip(out bool gripHeld, out bool gripPressed);
+            if (!gripHeld)
+                returnGripArmed = true;
+            if (returnGripArmed && gripPressed)
+            {
+                returnGripArmed = false;
+                TryReturnAtGhost();
+            }
+        }
+
+        public bool TryReturnAtGhost()
+        {
+            if (!returnEnabled || returned || heldItem != null || tongsGhost == null ||
+                !tongsGhost.gameObject.activeInHierarchy || tongsRoot == null ||
+                Vector3.Distance(tongsRoot.transform.position, tongsGhost.position) > 0.3f ||
+                carryingInteractor == null || carryInputLock == null || !grabInteractable.isSelected)
+                return false;
+            var interactor = carryingInteractor;
+            RestoreSelectTriggers();
+            grabInteractable.interactionManager.SelectExit(interactor,
+                (IXRSelectInteractable)grabInteractable);
+            return true;
         }
 
         IEnumerator ConfirmTongsAttached(IXRSelectInteractor interactor)
@@ -465,8 +498,11 @@ namespace VRProject.LeakResponse.Narration
             {
                 heldOriginalIsKinematic = heldBody.isKinematic;
                 heldOriginalUseGravity = heldBody.useGravity;
-                heldBody.linearVelocity = Vector3.zero;
-                heldBody.angularVelocity = Vector3.zero;
+                if (!heldBody.isKinematic)
+                {
+                    heldBody.linearVelocity = Vector3.zero;
+                    heldBody.angularVelocity = Vector3.zero;
+                }
                 heldBody.useGravity = false;
                 heldBody.isKinematic = true;
             }
@@ -497,10 +533,13 @@ namespace VRProject.LeakResponse.Narration
                 released.transform.SetParent(heldOriginalParent, true);
                 if (heldBody != null)
                 {
-                    heldBody.linearVelocity = Vector3.zero;
-                    heldBody.angularVelocity = Vector3.zero;
                     heldBody.useGravity = heldOriginalUseGravity;
                     heldBody.isKinematic = heldOriginalIsKinematic;
+                    if (!heldBody.isKinematic)
+                    {
+                        heldBody.linearVelocity = Vector3.zero;
+                        heldBody.angularVelocity = Vector3.zero;
+                    }
                 }
                 for (int i = 0; i < heldColliders.Length; ++i)
                 {
@@ -516,6 +555,14 @@ namespace VRProject.LeakResponse.Narration
             heldColliderStates = Array.Empty<bool>();
         }
 
+        void OnCueStarted(P102LeakNarrationCue cue)
+        {
+            // Show the destination as it is mentioned, not after the entire sentence.
+            // Detaching is still gated until the return instruction has completed.
+            if (cue == P102LeakNarrationCue.AllSocksRecovered && tongsGhost != null)
+                tongsGhost.gameObject.SetActive(true);
+        }
+
         void OnCueCompleted(P102LeakNarrationCue cue)
         {
             if (cue == P102LeakNarrationCue.ContainerLidStowed)
@@ -525,6 +572,7 @@ namespace VRProject.LeakResponse.Narration
             else if (cue == P102LeakNarrationCue.AllSocksRecovered)
             {
                 returnEnabled = true;
+                returnGripArmed = false;
                 if (tongsGhost != null)
                     tongsGhost.gameObject.SetActive(true);
                 if (tongsGhost == null)
@@ -545,8 +593,11 @@ namespace VRProject.LeakResponse.Narration
         {
             returned = true;
             P102RuntimeUtility.SetHandPoseGhostRenderersVisible(tongsRoot, false);
-            tongsRigidbody.linearVelocity = Vector3.zero;
-            tongsRigidbody.angularVelocity = Vector3.zero;
+            if (!tongsRigidbody.isKinematic)
+            {
+                tongsRigidbody.linearVelocity = Vector3.zero;
+                tongsRigidbody.angularVelocity = Vector3.zero;
+            }
             tongsRigidbody.useGravity = false;
             tongsRigidbody.isKinematic = true;
             Vector3 startPosition = tongsRoot.transform.position;
@@ -583,7 +634,10 @@ namespace VRProject.LeakResponse.Narration
             }
             RestoreSelectTriggers();
             if (narration != null)
+            {
+                narration.CueStarted -= OnCueStarted;
                 narration.CueCompleted -= OnCueCompleted;
+            }
             if (waste != null)
             {
                 waste.ItemDeposited -= OnItemDeposited;
@@ -611,12 +665,9 @@ namespace VRProject.LeakResponse.Narration
 
         void RestoreSelectTriggers()
         {
-            foreach (var entry in originalSelectTriggers)
-            {
-                if (entry.Key != null)
-                    entry.Key.selectActionTrigger = entry.Value;
-            }
-            originalSelectTriggers.Clear();
+            carryInputLock?.Dispose();
+            carryInputLock = null;
+            carryingInteractor = null;
         }
 
         void OnItemDeposited(P102RecoveryItemState item)

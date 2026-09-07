@@ -21,11 +21,12 @@ namespace JH.EntrySafety
         [SerializeField] private AudioClip _checkAccessRestrictionClip;
 
         private EntrySafetyStep? _playingStep;
-        private float _playingUntilUnscaledTime;
+        private int _playRequestedFrame = -2;
 
         public bool IsPlaying =>
-            (_audioSource != null && _audioSource.isPlaying) ||
-            SharedTrainingPause.UnscaledTime < _playingUntilUnscaledTime;
+            _audioSource != null && _audioSource.clip != null &&
+            (_audioSource.isPlaying || Time.frameCount <= _playRequestedFrame + 1 ||
+             SharedTrainingPause.IsPaused || AudioListener.pause);
 
         public float GetClipLength(EntrySafetyStep step)
         {
@@ -67,9 +68,12 @@ namespace JH.EntrySafety
         public void Stop()
         {
             if (_audioSource != null)
+            {
                 _audioSource.Stop();
+                _audioSource.clip = null;
+            }
             _playingStep = null;
-            _playingUntilUnscaledTime = 0f;
+            _playRequestedFrame = -2;
         }
 
         private float PlayClip(AudioClip clip, EntrySafetyStep? step)
@@ -79,14 +83,17 @@ namespace JH.EntrySafety
 
             _audioSource.Stop();
             _playingStep = null;
-            _playingUntilUnscaledTime = 0f;
+            _playRequestedFrame = -2;
             if (clip == null)
                 return 0f;
 
             _audioSource.clip = clip;
+            _audioSource.ignoreListenerPause = false;
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+                clip.LoadAudioData();
             _audioSource.Play();
             _playingStep = step;
-            _playingUntilUnscaledTime = SharedTrainingPause.UnscaledTime + clip.length;
+            _playRequestedFrame = Time.frameCount;
             return clip.length;
         }
 

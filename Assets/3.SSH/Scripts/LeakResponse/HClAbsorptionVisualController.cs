@@ -104,6 +104,7 @@ namespace VRProject.LeakResponse
         bool puddleScaleCaptured;
         bool absorptionIsTransitioning;
         bool particleEmissionCaptured;
+        ParticleSystem capturedEmissionSource;
         bool completionCleanupApplied;
 
         public event Action AbsorptionCompleted;
@@ -333,6 +334,11 @@ namespace VRProject.LeakResponse
 
         void CaptureFallingDropsEmission()
         {
+            // Awake/OnEnable can already apply the initial valve intensity before the
+            // Integration bootstrap binds this same system again. Never capture our
+            // own scaled (possibly zero) value as the authored emission rate.
+            if (particleEmissionCaptured && capturedEmissionSource == fallingDrops)
+                return;
             if (fallingDrops == null)
             {
                 Debug.LogWarning(
@@ -343,6 +349,7 @@ namespace VRProject.LeakResponse
 
             ParticleSystem.EmissionModule emission = fallingDrops.emission;
             authoredEmissionRateMultiplier = Mathf.Max(0f, emission.rateOverTimeMultiplier);
+            capturedEmissionSource = fallingDrops;
             particleEmissionCaptured = true;
         }
 
@@ -609,12 +616,13 @@ namespace VRProject.LeakResponse
 
             if (shouldEmit)
             {
+                emission.enabled = true;
                 if (fallingDrops.gameObject.activeInHierarchy && !fallingDrops.isPlaying)
-                    fallingDrops.Play(true);
+                    fallingDrops.Play(false);
             }
             else if (fallingDrops.isPlaying || fallingDrops.isEmitting)
             {
-                fallingDrops.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                fallingDrops.Stop(false, ParticleSystemStopBehavior.StopEmitting);
             }
         }
 

@@ -1,5 +1,21 @@
 # PPE Integration Handoff
 
+## 2026-09-07 Integration — Game View/씬 전환 후속 정정
+
+- 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
+- App `SceneFlowController`와 새 `SceneLoadingBudget`에서 전환 작업 분산/Player 로딩 예산 제한과 복구를 적용. Stage Scene/Prefab/동작/TTS/작성 pose는 변경하지 않았다.
+- Edit Mode 162/162, App smoke 33개, 뚜껑·집게·물방울·카운트 회귀 PASS. 실제 Quest mirror/시스템 모래시계 소멸은 미검증. 잠깐의 전환 fade와 초기 활성화의 긴 프레임은 남을 수 있다.
+- 수동 작업: Play 중지→컴파일 완료→App 재실행만 필요. setup/Scene 재생성 불필요.
+- 파일·테스트·알려진 문제·검증 제한은 [후속 보고서](../../integration/XR_MIRROR_TRANSITIONS_2026-09-07.md) 참고. 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — 대본/화이트보드/화질 회귀 수정
+
+- `PPETTSManager`의 중복 재생 시간 대기를 제거하고 실제 `CueStarted`를 `Whiteboard/PPEProcessDiagramController`에 연결했다. 화이트보드 위험 위치를 보는 실제 음성이 끝난 뒤 준비 순서로 바뀐다.
+- canonical PPE MP3 37개와 전체 대본을 현행 Grip 잡기/착용 위치에서 놓기, 3종 장비 수납 후 가방 Grip, 수거용기 바라보기+Grip 기준으로 검토/재생성했다. 과거 Y/B 안내로 되돌리지 않는다.
+- `04_PPE.unity`/Prefab/네임태그 작성 위치는 변경하지 않았다. 공용 App UI 깊이 분리 및 camera clip/품질 수정은 Integration에서 관리한다. 수동 setup 실행 불필요.
+- Edit Mode 160/160 통과(음성 83개 해시·대본·Unity 디코딩 포함). Quest 실제 착용 및 음성 청취 검수는 미검증. 서버 기능은 변경하지 않았다.
+- 전체 변경 파일·검증 결과·알려진 제한·수동 확인: [Integration 보고서](../../integration/VR_REGRESSION_2026-09-07.md). 추가 Integration 요청 없음.
+
 ## 2026-09-04 Integration correction — Interaction별 오입력 요약
 
 - 오입력은 활성 `InteractionPrompted`부터 `InteractionCompleted` 사이에서만 수집한다. Gaze/Automatic/Movement 단계, Pause·비활성 시간, 스틱 축·스틱 클릭·메뉴·UI 입력은 제외한다.

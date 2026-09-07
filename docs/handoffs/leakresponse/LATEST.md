@@ -1,5 +1,33 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-07 Integration — PreEntry 대기 중 뚜껑 79cm 낙하 수정
+
+- 실제 원인: `06_LeakResponse` 뚜껑 Rigidbody가 gravity=true/kinematic=false인 상태로 PreEntry의 additive 환경에 먼저 로드됨. Leak 활성화까지 중력으로 떨어지고, 그 뒤 `P102WasteContainerRuntime.Configure`가 바닥 위치를 닫힘 pose로 저장했다.
+- Scene은 해당 Rigidbody 두 필드만 gravity=false/kinematic=true로 변경. 뚜껑/용기/ghost의 작성 transform은 보존.
+- 신규 `P102WasteContainerPhysics`를 bootstrap Awake에서 호출해 Stage 비활성 상태에도 즉시 물리 보호. 열린 입구를 유지하는 16개 몸체 벽+바닥 collider 생성. Configure 재호출은 중복 생성하지 않는다. 기존 작성 solid collider는 보존한다.
+- 변경 코드: `P102LeakRuntimeBootstrap.cs`, `P102WasteContainerRuntime.cs`, 신규 helper/단위 검사/`IntegrationWasteLidLifecycleValidation`(+meta).
+- 수정 전 0.78975m 낙하 재현 FAIL → 수정 후 6초/FixedUpdate 300회 및 handoff 뒤 오차 0m PASS. Edit Mode 167/167, App smoke 33개, 기존 뚜껑·집게 XRI 회귀 PASS. 최종 C# 오류 0.
+- 수동 작업: Play 중지→컴파일→App 재실행. 위치 조정/setup 재생성 불필요. Quest 손 동작 전체 재검수는 미완료. 상세 파일/증거/알려진 제한: [낙하 원인·수정 보고서](../../integration/WASTE_LID_DORMANT_PHYSICS_2026-09-07.md). 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — Game View/씬 전환 후속 정정
+
+- 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
+- App `SceneFlowController`와 새 `SceneLoadingBudget`에서 전환 작업 분산/Player 로딩 예산 제한과 복구를 적용. Stage Scene/Prefab/동작/TTS/작성 pose는 변경하지 않았다.
+- Edit Mode 162/162, App smoke 33개, 뚜껑·집게·물방울·카운트 회귀 PASS. 실제 Quest mirror/시스템 모래시계 소멸은 미검증. 잠깐의 전환 fade와 초기 활성화의 긴 프레임은 남을 수 있다.
+- 수동 작업: Play 중지→컴파일 완료→App 재실행만 필요. setup/Scene 재생성 불필요.
+- 파일·테스트·알려진 문제·검증 제한은 [후속 보고서](../../integration/XR_MIRROR_TRANSITIONS_2026-09-07.md) 참고. 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — 집게 유지 / 뚜껑 / 물방울 / 카운트 방향
+
+- `P102CarryInputLock` + `P102RecoveryTongsRuntime`: 잡은 집게의 Select를 유지하고 Trigger는 그대로 흡착재 작업에 사용한다. 마지막 반납 안내 완료 후 고스트 30cm 안에서 새 Grip 입력만 반납한다. 반납 고스트는 안내 시작에 표시한다.
+- `P102WasteContainerRuntime`: 사용자 작성 닫힘 Pose 보존, 잡기 취소/놓치기 때 복원, 실제 release pose로 고스트 판정. `P102RuntimeUtility`의 복제 ghost는 원본 world scale 유지.
+- `HClAbsorptionVisualController`: 0으로 숨겼던 물방울 emission을 재연결 때 원래 값으로 잘못 저장하지 않도록 수정. App runtime에서 rate=7/살아 있는 물방울 확인.
+- `P102FlangeGazeRuntime`: 고정 위치를 유지하며 실제 App camera 쪽으로 countdown 방향 갱신. Unity 렌더에서 정방향 `3초` 확인.
+- `P102LeakNarrationController`와 canonical MP3 26개: 실제 재생 종료/정지 상태 사용, 단계별 Grip/Trigger 및 반납 안내 정리. 집게/뚜껑의 kinematic 속도 설정 경고도 제거한다.
+- `06_LeakResponse.unity`/Prefab/뚜껑·고스트 작성 위치는 변경하지 않았다. setup menu 재실행 불필요.
+- Edit Mode 160/160 통과, App 로딩/실제 XRI 선택·해제/버튼 반복/반납/뚜껑 복원 검사 및 렌더 확인. Cue 전이는 테스트에서 주입했으며 Quest 실제 착용 검증과 구분한다.
+- 전체 파일·최종 검증 결과·알려진 제한: [Integration 보고서](../../integration/VR_REGRESSION_2026-09-07.md). 추가 Integration 요청 없음.
+
 ## 2026-09-04 Integration correction — 폐기물 수거용기 뚜껑 닫힘 높이
 
 - `06_LeakResponse`의 실제 메시를 Unity에서 측정한 결과, 노란 용기 테두리 최고점은 월드 Y `0.9574m`, 검은 뚜껑판 최저점은 `0.8926m`로 뚜껑판이 테두리 안쪽에 약 `6.5cm` 파고들어 노란 테두리가 검은 뚜껑 위로 보였다.

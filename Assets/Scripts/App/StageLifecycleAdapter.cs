@@ -599,7 +599,7 @@ namespace HClTraining.App
             if (boundStage == TrainingStage.PPE)
                 return PPETTSManager.Instance != null && PPETTSManager.Instance.IsBusy;
             if (boundStage == TrainingStage.PreEntry)
-                return entryController != null && entryController.IsNarrationPlaying;
+                return entryController != null && entryController.IsInteractionInputBlockedByNarration;
             if (boundStage == TrainingStage.LeakResponse)
                 return leakNarration != null && (leakNarration.IsPlaying || leakNarration.PendingCount > 0);
             return false;

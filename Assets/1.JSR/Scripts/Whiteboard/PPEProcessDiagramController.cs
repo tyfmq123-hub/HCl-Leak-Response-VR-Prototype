@@ -81,6 +81,7 @@ namespace HClTraining.PPE
         readonly List<TMP_Text> completionMarks = new List<TMP_Text>();
         readonly List<bool> completionMarkStates = new List<bool>();
         PPESequenceManager sequence;
+        PPETTSManager narration;
 
         void Awake()
         {
@@ -96,8 +97,22 @@ namespace HClTraining.PPE
         {
             sequence = PPESequenceManager.Resolve();
             RefreshCompletionMarks();
+            narration = PPETTSManager.Instance;
+            if (narration != null && narration.PlaysIntroOnStart)
+            {
+                narration.CueStarted += OnNarrationCueStarted;
+                return;
+            }
             if (playPreviewOnStart)
                 PlayPreviewSequence();
+        }
+
+        void OnNarrationCueStarted(PPETTSCue cue)
+        {
+            if (cue == PPETTSCue.EmergencyIntro || cue == PPETTSCue.WearEssentialPPE)
+                HighlightLeakFlange();
+            else if (cue == PPETTSCue.WearInOrder || cue == PPETTSCue.WearInnerGloves)
+                ShowPreparationOrderBoard();
         }
 
         void LateUpdate()
@@ -652,6 +667,7 @@ namespace HClTraining.PPE
 
         void OnDestroy()
         {
+            if (narration != null) narration.CueStarted -= OnNarrationCueStarted;
             for (var i = 0; i < runtimeBakedMeshes.Count; i++)
             {
                 if (runtimeBakedMeshes[i] != null)

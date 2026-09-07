@@ -19,6 +19,8 @@ public class PPETTSManager : MonoBehaviour
     }
 
     public static PPETTSManager Instance { get; private set; }
+    public event Action<PPETTSCue> CueStarted;
+    public bool PlaysIntroOnStart => playIntroTutorialOnStart;
 
     [SerializeField] List<CueClip> clips = new List<CueClip>();
     [SerializeField] [Range(0f, 1f)] float volume = 1f;
@@ -229,7 +231,7 @@ public class PPETTSManager : MonoBehaviour
         source.spatialize = false;
         source.mute = false;
         source.volume = 1f;
-        source.ignoreListenerPause = true;
+        source.ignoreListenerPause = false;
         source.bypassListenerEffects = true;
         source.priority = 0;
         source.dopplerLevel = 0f;
@@ -427,6 +429,7 @@ public class PPETTSManager : MonoBehaviour
             audioSource.clip = clip;
             // Play() (not PlayOneShot) so isPlaying / Stop stay reliable on Quest.
             audioSource.Play();
+            CueStarted?.Invoke(cue);
 
             LogPlaybackDiagnostics(cue, clip, "Play");
 
@@ -443,18 +446,11 @@ public class PPETTSManager : MonoBehaviour
             var wait = Mathf.Max(0.05f, clip.length / Mathf.Max(0.01f, audioSource != null ? audioSource.pitch : 1f));
             ShowSubtitleForCue(cue, wait);
 
-            var elapsed = 0f;
-            while (elapsed < wait)
-            {
-                elapsed += SharedTrainingPause.UnscaledDeltaTime;
+            // Audio playback is the clock. A second training-time countdown can lag
+            // behind the audible clip after focus/presence changes and insert silence.
+            while (audioSource != null && audioSource.clip == clip &&
+                   (audioSource.isPlaying || SharedTrainingPause.IsPaused || AudioListener.pause))
                 yield return null;
-            }
-
-            if (audioSource != null && audioSource.isPlaying)
-            {
-                while (audioSource != null && audioSource.isPlaying)
-                    yield return null;
-            }
         }
 
         playRoutine = null;

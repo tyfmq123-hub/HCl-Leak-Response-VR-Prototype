@@ -263,6 +263,10 @@ namespace VRProject.LeakResponse.Narration
                 {
                     if (clip.loadState == AudioDataLoadState.Unloaded)
                         clip.LoadAudioData();
+                    float loadingStartedAt = Time.realtimeSinceStartup;
+                    while (clip.loadState == AudioDataLoadState.Loading &&
+                           Time.realtimeSinceStartup - loadingStartedAt < 8f)
+                        yield return null;
 
                     narrationSource.Stop();
                     narrationSource.clip = clip;
@@ -270,7 +274,9 @@ namespace VRProject.LeakResponse.Narration
                     narrationSource.Play();
                     Debug.Log($"[LeakResponse TTS] Playing {(int)cue:00}_{cue} clip='{clip.name}'.", this);
 
-                    while (stageActivated && narrationSource != null && narrationSource.isPlaying)
+                    yield return null;
+                    while (stageActivated && narrationSource != null &&
+                           (narrationSource.isPlaying || AudioListener.pause))
                         yield return null;
                 }
 
@@ -294,7 +300,7 @@ namespace VRProject.LeakResponse.Narration
             narrationSource.loop = false;
             narrationSource.spatialBlend = 0f;
             narrationSource.spatialize = false;
-            narrationSource.ignoreListenerPause = true;
+            narrationSource.ignoreListenerPause = false;
             narrationSource.priority = 0;
             narrationSource.volume = narrationVolume;
         }

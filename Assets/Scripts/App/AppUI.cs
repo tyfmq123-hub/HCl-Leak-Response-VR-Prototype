@@ -293,6 +293,9 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            // World-space parent/child surfaces must not share the same depth.
+            // At the standard canvas scale this is 2.5 mm, not a layout change.
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -2f);
             var image = go.GetComponent<Image>();
             image.color = color ?? new Color(Navy.r, Navy.g, Navy.b, 0.97f);
             return image;
@@ -307,6 +310,7 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -1f);
             var tmp = go.GetComponent<TextMeshProUGUI>();
             tmp.text = text;
             tmp.font = GetFont();
@@ -327,6 +331,7 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -2f);
             var image = go.GetComponent<Image>();
             var normalColor = backgroundColor ?? (primary ? Yellow : Blue);
             image.color = normalColor;

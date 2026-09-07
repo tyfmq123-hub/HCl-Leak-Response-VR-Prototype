@@ -460,6 +460,9 @@ namespace VRProject.LeakResponse.Narration
             GameObject ghost = UnityEngine.Object.Instantiate(source);
             ghost.name = ghostName;
             ghost.transform.SetParent(null, true);
+            // Instantiate without a parent copies localScale, not the source's
+            // accumulated world scale. Preserve the visible size of the authored lid.
+            ghost.transform.localScale = source.transform.lossyScale;
             ghost.transform.SetPositionAndRotation(worldPosition, worldRotation);
 
             Collider[] colliders = ghost.GetComponentsInChildren<Collider>(true);
