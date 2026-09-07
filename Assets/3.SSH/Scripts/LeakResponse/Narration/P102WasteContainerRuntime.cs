@@ -42,6 +42,13 @@ namespace VRProject.LeakResponse.Narration
         Quaternion designatedContainerRotation;
         Transform originalLidParent;
         Transform heldLidControllerAnchor;
+        Vector3 closedLocalPosition;
+        Quaternion closedLocalRotation;
+        Vector3 authoredLidLocalScale;
+        Vector3 heldLidLocalPosition;
+        Quaternion heldLidLocalRotation;
+        Vector3 releasedLidPosition;
+        Quaternion releasedLidRotation;
         Bounds depositBounds;
         bool hasDepositBounds;
         bool lidStowEnabled;
@@ -121,6 +128,9 @@ namespace VRProject.LeakResponse.Narration
             lidObject.transform.SetParent(originalLidParent, true);
             closedPosition = lidObject.transform.position;
             closedRotation = lidObject.transform.rotation;
+            closedLocalPosition = lidObject.transform.localPosition;
+            closedLocalRotation = lidObject.transform.localRotation;
+            authoredLidLocalScale = lidObject.transform.localScale;
 
             GameObject existingClosedGhost =
                 P102RuntimeUtility.FindSceneObject("HazWasteContainer_Lid_ClosedGhost_Runtime");
@@ -132,8 +142,11 @@ namespace VRProject.LeakResponse.Narration
             SetGhostVisible(closedGhost, false);
 
             lidRigidbody = P102RuntimeUtility.GetOrAdd<Rigidbody>(lidObject);
-            lidRigidbody.linearVelocity = Vector3.zero;
-            lidRigidbody.angularVelocity = Vector3.zero;
+            if (!lidRigidbody.isKinematic)
+            {
+                lidRigidbody.linearVelocity = Vector3.zero;
+                lidRigidbody.angularVelocity = Vector3.zero;
+            }
             lidRigidbody.useGravity = false;
             lidRigidbody.isKinematic = true;
             BoxCollider lidCollider = P102RuntimeUtility.EnsureBoundsCollider(lidObject, false);
@@ -184,6 +197,32 @@ namespace VRProject.LeakResponse.Narration
         void OnDestroy()
         {
             Unsubscribe();
+        }
+
+        void LateUpdate()
+        {
+            if (lidObject == null || lidGrab == null || snappingLid || lidReleaseRoutine != null)
+                return;
+            if (lidGrab.isSelected)
+            {
+                if (heldLidControllerAnchor != null)
+                    lidObject.transform.SetPositionAndRotation(
+                        heldLidControllerAnchor.TransformPoint(heldLidLocalPosition),
+                        heldLidControllerAnchor.rotation * heldLidLocalRotation);
+                return;
+            }
+            // A cancelled selection or another grab component's late release update
+            // must not leave an unheld lid inside the bin. Scene-authored pose is the
+            // sole closed-pose authority; no bounds-based recalculation is performed.
+            lidObject.transform.SetParent(originalLidParent, true);
+            lidObject.transform.localScale = authoredLidLocalScale;
+            if (lidStowed && !depositGate.IsLocked && sideGhost != null)
+                lidObject.transform.SetPositionAndRotation(sideGhost.position, sideGhost.rotation);
+            else
+            {
+                lidObject.transform.localPosition = closedLocalPosition;
+                lidObject.transform.localRotation = closedLocalRotation;
+            }
         }
 
         public bool IsWithinDepositZone(Vector3 worldPosition)
@@ -341,20 +380,32 @@ namespace VRProject.LeakResponse.Narration
                 // Keep the lid under the tracked controller, never under Near/Far's movable
                 // attach transform. Thumbstick anchor manipulation must not move or rotate it.
                 lidObject.transform.SetParent(heldLidControllerAnchor, true);
+                heldLidLocalPosition = lidObject.transform.localPosition;
+                heldLidLocalRotation = lidObject.transform.localRotation;
                 lidGrab.trackPosition = false;
                 lidGrab.trackRotation = false;
             }
             if (lidRigidbody == null)
                 return;
 
-            lidRigidbody.linearVelocity = Vector3.zero;
-            lidRigidbody.angularVelocity = Vector3.zero;
+            if (!lidRigidbody.isKinematic)
+            {
+                lidRigidbody.linearVelocity = Vector3.zero;
+                lidRigidbody.angularVelocity = Vector3.zero;
+            }
             lidRigidbody.useGravity = false;
             lidRigidbody.isKinematic = true;
         }
 
         void OnLidSelectExited(SelectExitEventArgs args)
         {
+            if (lidObject != null)
+            {
+                releasedLidPosition = heldLidControllerAnchor != null
+                    ? heldLidControllerAnchor.TransformPoint(heldLidLocalPosition) : lidObject.transform.position;
+                releasedLidRotation = heldLidControllerAnchor != null
+                    ? heldLidControllerAnchor.rotation * heldLidLocalRotation : lidObject.transform.rotation;
+            }
             heldLidControllerAnchor = null;
             if (lidObject != null)
                 lidObject.transform.SetParent(originalLidParent, true);
@@ -378,14 +429,22 @@ namespace VRProject.LeakResponse.Narration
 
         IEnumerator TrySnapLidAfterRelease()
         {
-            // XR Grab finishes its release bookkeeping after selectExited. Evaluate the
-            // visible lid on the next frame so the capture test uses the settled pose.
+            // XR's cached rigidbody target predates our controller-parented pose.
+            // Restore the actual release pose after XRI detach bookkeeping, before
+            // testing the ghost. Otherwise a far-away release can snap from the bin.
             yield return null;
             lidReleaseRoutine = null;
             if (lidGrab == null || lidGrab.isSelected || snappingLid || lidObject == null ||
                 depositGate.IsLocked)
             {
                 yield break;
+            }
+
+            lidObject.transform.SetPositionAndRotation(releasedLidPosition, releasedLidRotation);
+            if (lidRigidbody != null)
+            {
+                lidRigidbody.position = releasedLidPosition;
+                lidRigidbody.rotation = releasedLidRotation;
             }
 
             if (!lidStowed && lidStowEnabled && sideGhost != null &&
@@ -420,8 +479,11 @@ namespace VRProject.LeakResponse.Narration
             snappingLid = true;
             if (lidGrab != null)
                 lidGrab.enabled = false;
-            lidRigidbody.linearVelocity = Vector3.zero;
-            lidRigidbody.angularVelocity = Vector3.zero;
+            if (!lidRigidbody.isKinematic)
+            {
+                lidRigidbody.linearVelocity = Vector3.zero;
+                lidRigidbody.angularVelocity = Vector3.zero;
+            }
             lidRigidbody.useGravity = false;
             lidRigidbody.isKinematic = true;
             Vector3 startPosition = lidObject.transform.position;

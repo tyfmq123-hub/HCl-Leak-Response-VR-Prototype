@@ -23,7 +23,52 @@ namespace JH.EntrySafety
         private Renderer _guideMarkerRenderer;
         private Material _guideMaterial;
 
+        [SerializeField, Range(1f, 15f)] private float _windsockAcquireAngle = 7f;
+        [SerializeField, Range(1f, 20f)] private float _windsockRetainAngle = 10f;
+        private bool _trackingWindsock;
+        private EntrySafetyGazeTargetId _lastWindsockId;
+
         public Camera GazeCamera => PreferCamera();
+
+        // A distant windsock must not require hitting a few pixels with a mono viewport ray.
+        // Use the head's centre direction and the authored target bounds; keep panel gaze precise.
+        public bool TryGetWindsockTarget(EntrySafetyGazeTargetBehaviour target,
+            out EntrySafetyGazeTargetId targetId)
+        {
+            targetId = EntrySafetyGazeTargetId.None;
+            var camera = PreferCamera();
+            if (camera == null || target == null || !target.isActiveAndEnabled)
+            {
+                _trackingWindsock = false;
+                return false;
+            }
+            if (_lastWindsockId != target.TargetId)
+                _trackingWindsock = false;
+            _lastWindsockId = target.TargetId;
+
+            var collider = target.GetComponent<Collider>();
+            if (collider == null || !collider.enabled)
+                return _trackingWindsock = false;
+            var ray = new Ray(camera.transform.position, camera.transform.forward);
+            var bounds = collider.bounds;
+            float depth = Vector3.Dot(bounds.center - ray.origin, ray.direction);
+            var nearest = bounds.ClosestPoint(ray.GetPoint(Mathf.Max(0f, depth)));
+            float angle = _trackingWindsock ? _windsockRetainAngle : _windsockAcquireAngle;
+            _trackingWindsock = IsInsideGazeCone(ray, nearest, angle, Mathf.Max(60f, _maxDistance));
+            UpdateGuideRay(camera, ray, _trackingWindsock ? Mathf.Max(0.1f, depth) : _guideRayIdleLength,
+                _trackingWindsock);
+            if (_trackingWindsock)
+                targetId = target.TargetId;
+            return _trackingWindsock;
+        }
+
+        public static bool IsInsideGazeCone(Ray headRay, Vector3 target, float angle, float maxDistance)
+        {
+            Vector3 offset = target - headRay.origin;
+            return offset.sqrMagnitude <= maxDistance * maxDistance &&
+                   Vector3.Dot(headRay.direction, offset) > 0f &&
+                   Vector3.Angle(headRay.direction, offset) <= angle;
+        }
 
         public bool TryGetTarget(out EntrySafetyGazeTargetId targetId)
         {

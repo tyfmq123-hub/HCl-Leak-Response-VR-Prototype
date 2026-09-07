@@ -1,5 +1,16 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-07 Integration — 집게 유지 / 뚜껑 / 물방울 / 카운트 방향
+
+- `P102CarryInputLock` + `P102RecoveryTongsRuntime`: 잡은 집게의 Select를 유지하고 Trigger는 그대로 흡착재 작업에 사용한다. 마지막 반납 안내 완료 후 고스트 30cm 안에서 새 Grip 입력만 반납한다. 반납 고스트는 안내 시작에 표시한다.
+- `P102WasteContainerRuntime`: 사용자 작성 닫힘 Pose 보존, 잡기 취소/놓치기 때 복원, 실제 release pose로 고스트 판정. `P102RuntimeUtility`의 복제 ghost는 원본 world scale 유지.
+- `HClAbsorptionVisualController`: 0으로 숨겼던 물방울 emission을 재연결 때 원래 값으로 잘못 저장하지 않도록 수정. App runtime에서 rate=7/살아 있는 물방울 확인.
+- `P102FlangeGazeRuntime`: 고정 위치를 유지하며 실제 App camera 쪽으로 countdown 방향 갱신. Unity 렌더에서 정방향 `3초` 확인.
+- `P102LeakNarrationController`와 canonical MP3 26개: 실제 재생 종료/정지 상태 사용, 단계별 Grip/Trigger 및 반납 안내 정리. 집게/뚜껑의 kinematic 속도 설정 경고도 제거한다.
+- `06_LeakResponse.unity`/Prefab/뚜껑·고스트 작성 위치는 변경하지 않았다. setup menu 재실행 불필요.
+- Edit Mode 160/160 통과, App 로딩/실제 XRI 선택·해제/버튼 반복/반납/뚜껑 복원 검사 및 렌더 확인. Cue 전이는 테스트에서 주입했으며 Quest 실제 착용 검증과 구분한다.
+- 전체 파일·최종 검증 결과·알려진 제한: [Integration 보고서](../../integration/VR_REGRESSION_2026-09-07.md). 추가 Integration 요청 없음.
+
 ## 2026-09-04 Integration correction — 폐기물 수거용기 뚜껑 닫힘 높이
 
 - `06_LeakResponse`의 실제 메시를 Unity에서 측정한 결과, 노란 용기 테두리 최고점은 월드 Y `0.9574m`, 검은 뚜껑판 최저점은 `0.8926m`로 뚜껑판이 테두리 안쪽에 약 `6.5cm` 파고들어 노란 테두리가 검은 뚜껑 위로 보였다.
