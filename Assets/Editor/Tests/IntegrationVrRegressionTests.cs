@@ -6,7 +6,6 @@ using System.IO;
 using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using VRProject.LeakResponse;
@@ -53,64 +52,6 @@ public sealed class IntegrationVrRegressionTests
         Assert.That(state.CurrentStep, Is.EqualTo(EntrySafetyStep.WaitWindChange));
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
-    public void FullEyeShader_CopiesWholeTextureAndArraySliceWithBlackBars(bool array)
-    {
-        var shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Editor/XRGameViewFullFrame.shader");
-        Assert.That(shader.isSupported, Is.True);
-        var material = new Material(shader);
-        var source = new Texture2D(8, 8, TextureFormat.RGBA32, false, true);
-        var sourceArray = new Texture2DArray(8, 8, 2, TextureFormat.RGBA32, false, true);
-        var target = new RenderTexture(64, 32, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
-        var readback = new Texture2D(64, 32, TextureFormat.RGBA32, false, true);
-        var previous = RenderTexture.active;
-        var cmd = new CommandBuffer();
-        try
-        {
-            var pixels = new Color[64];
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = i % 8 < 4 ? Color.red : Color.green;
-            source.SetPixels(pixels); source.Apply();
-            sourceArray.SetPixels(pixels, 1); sourceArray.Apply();
-            material.SetTexture("_EyeTexture", array ? (Texture)sourceArray : source);
-            material.SetVector("_SourceRect", new Vector4(1, 1, 0, 0));
-            material.SetFloat("_EyeSlice", 1);
-            material.SetFloat("_ManualSRGBRead", 0);
-            if (array) material.EnableKeyword("EYE_ARRAY");
-            target.Create();
-            cmd.SetRenderTarget(target);
-            cmd.ClearRenderTarget(false, true, Color.black);
-            cmd.SetViewport(XRGameViewFullFrame.FitViewport(8, 8, 64, 32));
-            cmd.DrawProcedural(Matrix4x4.identity, material, 0, MeshTopology.Triangles, 3);
-            Graphics.ExecuteCommandBuffer(cmd);
-            RenderTexture.active = target;
-            readback.ReadPixels(new Rect(0, 0, 64, 32), 0, 0); readback.Apply();
-            Assert.That(readback.GetPixel(4, 16).maxColorComponent, Is.LessThan(0.02f));
-            Assert.That(readback.GetPixel(20, 16).r, Is.GreaterThan(0.9f));
-            Assert.That(readback.GetPixel(44, 16).g, Is.GreaterThan(0.9f));
-            Assert.That(readback.GetPixel(60, 16).maxColorComponent, Is.LessThan(0.02f));
-        }
-        finally
-        {
-            RenderTexture.active = previous;
-            cmd.Dispose(); target.Release();
-            UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(material);
-            UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(sourceArray);
-            UnityEngine.Object.DestroyImmediate(readback);
-        }
-    }
-    [TestCase(1920, 1080)]
-    [TestCase(1000, 1000)]
-    [TestCase(800, 1200)]
-    public void FullEyeMirror_FitsWithoutCroppingOrStretching(int width, int height)
-    {
-        Rect fit = XRGameViewFullFrame.FitViewport(1832, 1920, width, height);
-        Assert.That(fit.width / fit.height, Is.EqualTo(1832f / 1920f).Within(0.0001f));
-        Assert.That(fit.xMin, Is.GreaterThanOrEqualTo(-0.001f));
-        Assert.That(fit.yMin, Is.GreaterThanOrEqualTo(-0.001f));
-        Assert.That(fit.xMax, Is.LessThanOrEqualTo(width + 0.001f));
-        Assert.That(fit.yMax, Is.LessThanOrEqualTo(height + 0.001f));
-    }
     [Test]
     public void Drops_RebindingAfterZeroIntensity_DoesNotCaptureZeroAsAuthoredRate()
     {

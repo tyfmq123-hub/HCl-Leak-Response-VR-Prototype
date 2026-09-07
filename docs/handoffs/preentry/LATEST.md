@@ -1,5 +1,13 @@
 # PreEntry → Integration 인수인계
 
+## 2026-09-07 Integration — Game View/씬 전환 후속 정정
+
+- 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
+- App `SceneFlowController`와 새 `SceneLoadingBudget`에서 전환 작업 분산/Player 로딩 예산 제한과 복구를 적용. Stage Scene/Prefab/동작/TTS/작성 pose는 변경하지 않았다.
+- Edit Mode 162/162, App smoke 33개, 뚜껑·집게·물방울·카운트 회귀 PASS. 실제 Quest mirror/시스템 모래시계 소멸은 미검증. 잠깐의 전환 fade와 초기 활성화의 긴 프레임은 남을 수 있다.
+- 수동 작업: Play 중지→컴파일 완료→App 재실행만 필요. setup/Scene 재생성 불필요.
+- 파일·테스트·알려진 문제·검증 제한은 [후속 보고서](../../integration/XR_MIRROR_TRANSITIONS_2026-09-07.md) 참고. 추가 Integration 요청 없음.
+
 ## 2026-09-07 Integration — 풍향계 gaze / 측정기 수납 음성
 
 - `EntrySafetyCameraGazeAdapter`에서 HMD 중심 시선 기준 7° 획득/10° 유지, `EntrySafetyGazeCoordinator`에서 풍향계만 0.45초 이탈 허용. 풍향계 위치/피벗 및 패널 gaze는 보존했다.

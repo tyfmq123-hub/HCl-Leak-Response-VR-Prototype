@@ -1,5 +1,7 @@
 # Integration VR 회귀 수정 — 2026-09-07
 
+> 후속 정정: 이 문서의 `XRGameViewFullFrame` 미러 확장은 사용자의 빈 Game View 보고로 철회·삭제했다. Unity 기본 XR mirror를 복구했으며, 상세 변경과 현재 검증 범위는 [미러/씬 전환 후속 보고서](XR_MIRROR_TRANSITIONS_2026-09-07.md)를 따른다. 아래 160개 테스트 결과는 삭제 전의 역사적 결과이며 실제 Quest mirror 검증이 아니었다.
+
 ## 적용 범위와 보존
 
 - 검증 브랜치: `integration/vr-regression-20260907`, 기준 `origin/develop`의 `cc7ccb732ce4064e11ae6580bae5561486602ba1`.

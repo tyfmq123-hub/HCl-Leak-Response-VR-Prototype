@@ -34,6 +34,21 @@ namespace HClTraining.App
         Scene contentScene;
         readonly List<Scene> contentScenes = new List<Scene>();
         Coroutine transitionRoutine;
+        SceneLoadingBudget loadingBudget;
+
+        SceneLoadingBudget BeginLoadingBudget()
+        {
+            RestoreLoadingBudget();
+            return loadingBudget = new SceneLoadingBudget();
+        }
+
+        void RestoreLoadingBudget()
+        {
+            loadingBudget?.Dispose();
+            loadingBudget = null;
+        }
+
+        void OnDestroy() => RestoreLoadingBudget();
 
         public bool IsTransitioning => transitionRoutine != null;
         public Scene CurrentContentScene => contentScene;
@@ -80,15 +95,19 @@ namespace HClTraining.App
 
         IEnumerator TransitionRoutine(string scenePath, TrainingStage stage)
         {
+            using var budget = BeginLoadingBudget();
             errorUI?.Hide();
             var isCompletionTransition = stage == TrainingStage.Complete;
             yield return fade.FadeOut(isCompletionTransition ? 0.8f : 0.25f);
 
             lifecycle.Unbind();
+            yield return null;
             inventory.ReturnAllToStorage();
             sharedEquipment?.RestoreBodyRelativePlacement();
             yield return null;
             yield return UnloadContentScenes();
+            // Submit a frame after destruction before starting another scene's activation.
+            yield return null;
 
             var plan = BuildLoadPlan(scenePath, stage);
             var loadOrder = plan.BuildLoadOrder();
@@ -155,6 +174,11 @@ namespace HClTraining.App
                     yield return RecoverToStart(dependencyError);
                     yield break;
                 }
+                // Let inactive dependency setup finish in its own frame. Do not add a
+                // delay between primary Stage activation and BindStage: narration's
+                // existing startup handoff relies on that ordering.
+                if (!PathsMatch(path, plan.PrimaryScenePath))
+                    yield return null;
             }
 
             contentScene = SceneManager.GetSceneByPath(plan.PrimaryScenePath);
@@ -213,6 +237,7 @@ namespace HClTraining.App
             AppBootstrap.Instance?.SharedInput?.EnsureActionsEnabled();
 
             yield return fade.FadeIn(isCompletionTransition ? 0.65f : 0.3f);
+            RestoreLoadingBudget();
             inputLock.Unlock(false);
             if (stage != TrainingStage.None && stage != TrainingStage.Complete)
                 lifecycle.NotifyTransitionReadyForInteraction();
@@ -281,6 +306,7 @@ namespace HClTraining.App
 
         IEnumerator HandoffPreEntryToLeakRoutine()
         {
+            using var budget = BeginLoadingBudget();
             errorUI?.Hide();
             yield return fade.FadeOut();
 
@@ -322,6 +348,7 @@ namespace HClTraining.App
             // Keep PreEntry loaded as LeakResponse's additive environment. Its activation
             // contract hides stage-owned interaction objects (including the local bag),
             // while the dependency preparation releases legacy XR/input ownership.
+            yield return null;
             if (preEntryScene.IsValid() && preEntryScene.isLoaded)
             {
                 if (!xrProfiles.PrepareDependencyScene(preEntryScene, out var dependencyError))
@@ -344,6 +371,10 @@ namespace HClTraining.App
                 yield break;
             }
 
+            // Rebinding the shared rig and configuring Leak helpers are separate work units.
+            // Input remains locked and the persistent App camera keeps rendering the fade.
+            yield return null;
+
             contentScene = leakScene;
             SceneManager.SetActiveScene(leakScene);
             // Leak-owned runtime objects created during activation must be authored
@@ -355,6 +386,7 @@ namespace HClTraining.App
             telemetry?.StageEntered(TrainingStage.LeakResponse);
 
             yield return fade.FadeIn();
+            RestoreLoadingBudget();
             inputLock.Unlock(false);
             lifecycle.NotifyTransitionReadyForInteraction();
             transitionRoutine = null;
@@ -434,6 +466,7 @@ namespace HClTraining.App
             if (!xrProfiles.ApplyStartProfile(out var startXrError))
                 errorUI?.Show(startXrError);
             yield return fade.FadeIn();
+            RestoreLoadingBudget();
             inputLock.Unlock(false);
             transitionRoutine = null;
         }
