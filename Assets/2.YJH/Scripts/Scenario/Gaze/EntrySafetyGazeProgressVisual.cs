@@ -27,10 +27,24 @@ namespace JH.EntrySafety
 
         private float _progress01;
         private bool _isComplete;
+        private Transform _followVisual;
+        private Vector3 _followWorldOffsetFromBoundsCenter;
+        private bool _hasFollowOffset;
 
         public void SetBillboardCamera(Camera camera)
         {
             _billboardCamera = camera;
+        }
+
+        /// <summary>
+        /// Tracks the visible windsock mesh the same way the step arrow does:
+        /// follow renderer bounds, not the gaze-collider origin. The authored
+        /// world offset from that visual center is kept so the bar translates
+        /// with the sock after WindPivot rotation.
+        /// </summary>
+        public void Follow(Transform visual)
+        {
+            _followVisual = visual;
         }
 
         private void Awake()
@@ -65,6 +79,7 @@ namespace JH.EntrySafety
 
         private void LateUpdate()
         {
+            ApplyFollow();
             if (!_faceCameraWhilePlaying)
                 return;
             if (_visualRoot == null || !_visualRoot.gameObject.activeSelf)
@@ -79,6 +94,7 @@ namespace JH.EntrySafety
         public void SetVisible(bool visible)
         {
             EnsureVisuals();
+            ApplyFollow();
             if (_visualRoot != null)
                 _visualRoot.gameObject.SetActive(visible);
 
@@ -100,6 +116,49 @@ namespace JH.EntrySafety
         public float GetFillRightEdgeLocalX()
         {
             return -_barWidth * 0.5f + _barWidth * _progress01;
+        }
+
+        private void ApplyFollow()
+        {
+            if (_followVisual == null || !TryGetRendererBounds(_followVisual, out var bounds))
+                return;
+
+            if (bounds.size.sqrMagnitude < 0.0001f)
+                return;
+
+            if (!_hasFollowOffset)
+            {
+                _followWorldOffsetFromBoundsCenter = transform.position - bounds.center;
+                _hasFollowOffset = true;
+            }
+
+            transform.position = bounds.center + _followWorldOffsetFromBoundsCenter;
+        }
+
+        private static bool TryGetRendererBounds(Transform root, out Bounds bounds)
+        {
+            bounds = default;
+            if (root == null)
+                return false;
+
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            var found = false;
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null)
+                    continue;
+                if (!found)
+                {
+                    bounds = renderers[i].bounds;
+                    found = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+            }
+
+            return found;
         }
 
         private void FaceCamera()

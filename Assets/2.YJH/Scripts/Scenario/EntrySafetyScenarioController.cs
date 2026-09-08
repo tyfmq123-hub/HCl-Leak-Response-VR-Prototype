@@ -86,6 +86,8 @@ namespace JH.EntrySafety
             _detectorController.ResetDetector();
             _windChangeController.ResetWind();
             _windsockGazeTarget.SetTargetId(EntrySafetyGazeTargetId.InitialWindsock);
+            if (_windsockGazeProgress != null)
+                _windsockGazeProgress.Follow(GetWindsockFollowVisual());
             _goal2PtPanel?.ResetPresentation();
             if (_noAccessOverlay != null)
                 _noAccessOverlay.RestoreImmediate();
@@ -699,6 +701,7 @@ namespace JH.EntrySafety
             if (_gazeAdapter != null)
                 _windsockGazeProgress.SetBillboardCamera(_gazeAdapter.GazeCamera);
 
+            _windsockGazeProgress.Follow(GetWindsockFollowVisual());
             _windsockGazeProgress.SetVisible(true);
             var progress01 = _gazeCoordinator != null ? _gazeCoordinator.Progress01 : 0f;
             _windsockGazeProgress.SetProgress(progress01, progress01 >= 0.999f);
@@ -710,6 +713,22 @@ namespace JH.EntrySafety
                 return;
 
             _windsockGazeProgress.SetVisible(false);
+        }
+
+        private Transform GetWindsockFollowVisual()
+        {
+            if (_windsockGazeTarget == null)
+                return null;
+
+            var current = _windsockGazeTarget.transform;
+            while (current != null)
+            {
+                if (current.name == "Windsock_UnityReady")
+                    return current;
+                current = current.parent;
+            }
+
+            return _windsockGazeTarget.transform;
         }
 
         private void EnsureLocalSupportComponents()
