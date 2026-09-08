@@ -7,6 +7,41 @@
 - 수동 작업: Play 종료 후 `01_App` 다시 열기. setup 실행 금지/불필요. 실기기 Link 바닥 높이와 실제 턱/숙이기는 별도 확인 필요. Stage 직접 Play 리그는 수정하지 않았다.
 - 추가 Integration 요청 없음. 이번 패치 commit/push 미실행.
 
+## 2026-09-08 PreEntry — 풍향 변환 후 확인 게이지 추적
+
+- 역할: PreEntry
+- 브랜치: `feature/preentry` (`origin/develop` `5770f85`에 fast-forward한 뒤 게이지 수정을 다시 적용)
+- commit: 이 작업에서 `feature/preentry`에 커밋·푸시 (main 직접 반영 없음)
+- 작성자/작성일: PreEntry Codex / 2026-09-08
+
+### 변경 목적과 동작
+
+- `WaitWindChange`에서 `WindPivot`이 회전하면 풍향계 메시는 새 위치로 가지만, `EntrySafetyWindsockGazeProgress`는 Runtime Root 아래 초기 world 좌표에 고정되어 있었다.
+- 게이지는 화살표(`EntrySafetyStepVisuals`)와 같이 `Windsock_UnityReady` 렌더러 bounds 중심을 따라간다. 초기 배치에서 bounds 중심까지의 world 오프셋을 한 번 저장하고, 변환 중에도 숨긴 채로 그 오프셋을 유지한다.
+- 풍향계를 가리키는 노란 화살표는 기존 `EntrySafetyStepVisuals` 동작이다. 이번 작업에서 화살표 코드/씬 배치는 수정하지 않았다.
+- 풍향계 피벗/위치, gaze 타깃 Collider, 상태 머신, TTS는 변경하지 않았다. Scene/Prefab 수동 작업 없음.
+
+### 변경 파일
+
+- `Assets/2.YJH/Scripts/Scenario/Gaze/EntrySafetyGazeProgressVisual.cs`
+- `Assets/2.YJH/Scripts/Scenario/EntrySafetyScenarioController.cs`
+- `docs/handoffs/preentry/LATEST.md`
+
+### 검증
+
+- 수행한 테스트: 코드 정적 확인. Unity PlayMode/Quest 실기기 미검증
+- Console compile error: 미검증 / Missing Script: 미검증
+- 허용 범위 밖 변경: 없음
+
+### 알려진 문제와 위험
+
+- PlayMode에서 `CheckChangedWind` 게이지가 회전한 풍향계 메시(화살표가 가리키는 위치) 옆에 붙는지 확인이 필요하다.
+- 게이지는 bounds 중심의 world 이동만 따라간다. 화살표처럼 메시 바로 위로 붙이는 보정은 넣지 않았다.
+
+### Integration 요청
+
+- 없음
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
