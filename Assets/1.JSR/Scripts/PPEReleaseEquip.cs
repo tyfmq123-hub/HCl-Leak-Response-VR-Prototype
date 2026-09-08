@@ -54,19 +54,26 @@ public static class PPEReleaseEquip
         var maxDistance = member.PlacementDistance;
         var sequenceAllowed = IsSequenceAllowed(member.LogicalEquipable);
         var correctHolding = member.IsOppositeHandGrab(capturedHolding);
-        var distance = equipRef != null && targetValid
-            ? Vector3.Distance(equipRef.position, target.position)
-            : float.PositiveInfinity;
+        var evaluation = PPEPlacementValidation.Evaluate(
+            equipRef,
+            target,
+            targetValid,
+            sequenceAllowed,
+            maxDistance,
+            member.UseRotationValidation,
+            member.PlacementAngleTolerance);
 
         string result;
         if (!correctHolding)
             result = "WRONG_HOLDING_HAND";
-        else if (!targetValid)
+        else if (!evaluation.TargetValid)
             result = "NO_VALID_TARGET_POSE";
-        else if (!sequenceAllowed)
+        else if (!evaluation.SequenceValid)
             result = "SEQUENCE_BLOCKED";
-        else if (distance > maxDistance)
+        else if (!evaluation.DistanceValid)
             result = "TOO_FAR";
+        else if (!evaluation.AngleValid)
+            result = "ANGLE";
         else
             result = member.GloveSide == PPEGrabHand.Right ? "EQUIP_RIGHT" : "EQUIP_LEFT";
 
@@ -77,7 +84,7 @@ public static class PPEReleaseEquip
                 capturedHolding,
                 target != null ? target.position : Vector3.zero,
                 equipRef,
-                distance,
+                evaluation.Distance,
                 maxDistance,
                 targetValid,
                 result);
@@ -88,7 +95,7 @@ public static class PPEReleaseEquip
                 ItemLabel(member),
                 TargetLabel(member),
                 targetValid,
-                distance,
+                evaluation.Distance,
                 maxDistance,
                 sequenceAllowed,
                 result);
@@ -121,17 +128,24 @@ public static class PPEReleaseEquip
         var equipRef = item.EnsurePlacementReference();
         var maxDistance = item.EquipDistance;
         var sequenceAllowed = IsSequenceAllowed(item);
-        var distance = equipRef != null && targetValid
-            ? Vector3.Distance(equipRef.position, target.position)
-            : float.PositiveInfinity;
+        var evaluation = PPEPlacementValidation.Evaluate(
+            equipRef,
+            target,
+            targetValid,
+            sequenceAllowed,
+            maxDistance,
+            item.UseRotationValidation,
+            item.EquipAngleTolerance);
 
         string result;
-        if (!targetValid)
+        if (!evaluation.TargetValid)
             result = "NO_VALID_TARGET_POSE";
-        else if (!sequenceAllowed)
+        else if (!evaluation.SequenceValid)
             result = "SEQUENCE_BLOCKED";
-        else if (distance > maxDistance)
+        else if (!evaluation.DistanceValid)
             result = "TOO_FAR";
+        else if (!evaluation.AngleValid)
+            result = "ANGLE";
         else
             result = "EQUIPPED";
 
@@ -143,7 +157,7 @@ public static class PPEReleaseEquip
                 equipRef,
                 targetValid,
                 sequenceAllowed,
-                distance,
+                evaluation.Distance,
                 maxDistance,
                 result);
         }
@@ -153,7 +167,7 @@ public static class PPEReleaseEquip
                 ItemLabel(item),
                 targetLabel,
                 targetValid,
-                distance,
+                evaluation.Distance,
                 maxDistance,
                 sequenceAllowed,
                 result);

@@ -30,10 +30,11 @@ namespace VRProject.Valves
         [SerializeField, Range(1f, 179f)] float maximumAngularStep = 90f;
 
         [Header("Rotation")]
-        [SerializeField, Min(0f)] float oneHandRotationGain = 0.55f;
+        [Tooltip("Legacy serialized value. One-hand rotation is disabled; two distinct hands are required.")]
+        [SerializeField, HideInInspector, Min(0f)] float oneHandRotationGain;
         [SerializeField, Min(0f)] float twoHandRotationGain = 1f;
         [Tooltip("Minimum angular movement required from each hand while in two-hand mode.")]
-        [SerializeField, Min(0f)] float twoHandMinimumDeltaDegrees = 0.05f;
+        [SerializeField, Min(0f)] float twoHandMinimumDeltaDegrees = 0.02f;
 
         [Header("Limits")]
         [Tooltip("Maximum counter-clockwise rotation from the initial wheel pose.")]
@@ -50,7 +51,7 @@ namespace VRProject.Valves
         [SerializeField, Range(1, SupportedHandCapacity)] int maximumHands = SupportedHandCapacity;
 
         [Header("Surface Proximity")]
-        [SerializeField, Min(0f)] float maxGrabSurfaceDistance = 0.08f;
+        [SerializeField, Min(0f)] float maxGrabSurfaceDistance = 0.15f;
 
         readonly IXRSelectInteractor[] activeInteractors = new IXRSelectInteractor[SupportedHandCapacity];
         readonly Vector3[] previousHandDirections = new Vector3[SupportedHandCapacity];
@@ -95,7 +96,7 @@ namespace VRProject.Valves
         protected override RegistrationMode registrationMode => RegistrationMode.None;
 
         public bool canProcessOnDrop => false;
-        public bool IsGrabProcessActive => grabIsValid && activeHandCount > 0;
+        public bool IsGrabProcessActive => grabIsValid && HasRequiredHandPair();
         public int CurrentHandCount => activeHandCount;
         public HandMode CurrentMode => ModeForHandCount(activeHandCount);
         public float CurrentRotationGain => GainForHandCount(activeHandCount, oneHandRotationGain, twoHandRotationGain);
@@ -234,14 +235,24 @@ namespace VRProject.Valves
             for (int i = 0; i < activeHandCount; ++i)
                 CaptureHandDelta(grabInteractable, i);
 
-            bool hasCombinedDelta = activeHandCount == 1
-                ? TryUseSingleHandDelta(handDeltaAngles[0], handDeltaValid[0], out float combinedDelta)
-                : TryCombineHandDeltas(handDeltaAngles[0], handDeltaValid[0],
-                    handDeltaAngles[1], handDeltaValid[1], twoHandMinimumDeltaDegrees,
+            float combinedDelta = 0f;
+            bool hasCombinedDelta = false;
+            if (activeHandCount < SupportedHandCapacity)
+            {
+                lastTwoHandReason = "WAITING_FOR_BOTH_HANDS";
+            }
+            else if (!HasRequiredHandPair())
+            {
+                lastTwoHandReason = "LEFT_AND_RIGHT_REQUIRED";
+            }
+            else
+            {
+                hasCombinedDelta = TryCombineHandDeltas(
+                    handDeltaAngles[0], handDeltaValid[0],
+                    handDeltaAngles[1], handDeltaValid[1],
+                    twoHandMinimumDeltaDegrees,
                     out combinedDelta, out lastTwoHandReason);
-
-            if (activeHandCount == 1)
-                lastTwoHandReason = "SINGLE_HAND";
+            }
 
             lastEvaluationFrame = Time.frameCount;
             lastCombinedDeltaAngle = combinedDelta;
@@ -302,8 +313,20 @@ namespace VRProject.Valves
                     return true;
             }
 
-            return CanAcceptAdditionalHand(grabInteractable.interactorsSelecting.Count, maximumHands) &&
-                TryEvaluateSurfaceProximity(interactor, grabInteractable, out _, out _, out _);
+            if (grabInteractable.interactorsSelecting.Count == 1 &&
+                !HasRequiredHandPair(
+                    HandSortKey(grabInteractable.interactorsSelecting[0]),
+                    HandSortKey(interactor)))
+            {
+                return false;
+            }
+
+            // XRI already requires this interactable's rim Collider to be a valid
+            // selection target. Rechecking the controller attach point against that
+            // Collider rejects legitimate direct grabs because the rendered hand can
+            // touch the rim while its tracking origin remains farther away.
+            return CanAcceptAdditionalHand(
+                grabInteractable.interactorsSelecting.Count, maximumHands);
         }
 
         public bool TryEvaluateSurfaceProximity(IXRSelectInteractor interactor,
@@ -550,12 +573,6 @@ namespace VRProject.Valves
                 $"result={result}", this);
         }
 
-        static bool TryUseSingleHandDelta(float delta, bool valid, out float result)
-        {
-            result = valid && float.IsFinite(delta) ? delta : 0f;
-            return valid && float.IsFinite(delta);
-        }
-
         public static bool TryCombineHandDeltas(float leftDelta, bool leftValid,
             float rightDelta, bool rightValid, float minimumDeltaDegrees,
             out float combinedDelta, out string reason)
@@ -565,34 +582,35 @@ namespace VRProject.Valves
             combinedDelta = 0f;
             float minimum = float.IsFinite(minimumDeltaDegrees) ? Mathf.Max(0f, minimumDeltaDegrees) : 0f;
 
-            if (!leftValid)
+            bool leftMoving = leftValid && Mathf.Abs(leftDelta) >= minimum;
+            bool rightMoving = rightValid && Mathf.Abs(rightDelta) >= minimum;
+            if (!leftMoving && !rightMoving)
             {
-                reason = "INVALID_LEFT_VECTOR";
-                return false;
-            }
-            if (!rightValid)
-            {
-                reason = "INVALID_RIGHT_VECTOR";
+                reason = !leftValid && !rightValid
+                    ? "INVALID_BOTH_VECTORS"
+                    : "BOTH_HANDS_STATIONARY";
                 return false;
             }
 
-            if (Mathf.Abs(leftDelta) < minimum)
+            // Both hands must remain selected before this method is called. Tracking
+            // updates for the two controllers do not necessarily arrive in the same
+            // rendered frame, so a valid delta from either held hand must be usable.
+            if (!leftMoving || !rightMoving)
             {
-                reason = "LEFT_NOT_MOVING";
-                return false;
+                combinedDelta = leftMoving ? leftDelta : rightDelta;
+                reason = leftMoving
+                    ? "LEFT_TRACKED_WITH_TWO_HAND_GRAB"
+                    : "RIGHT_TRACKED_WITH_TWO_HAND_GRAB";
+                return float.IsFinite(combinedDelta);
             }
-            if (Mathf.Abs(rightDelta) < minimum)
-            {
-                reason = "RIGHT_NOT_MOVING";
-                return false;
-            }
+
             if (Mathf.Sign(leftDelta) != Mathf.Sign(rightDelta))
             {
                 reason = "OPPOSITE_DIRECTION";
                 return false;
             }
 
-            combinedDelta = Mathf.Sign(leftDelta) * Mathf.Min(Mathf.Abs(leftDelta), Mathf.Abs(rightDelta));
+            combinedDelta = (leftDelta + rightDelta) * 0.5f;
             reason = "BOTH_HANDS_APPLIED";
             return float.IsFinite(combinedDelta);
         }
@@ -600,7 +618,7 @@ namespace VRProject.Valves
         public static float ApplyRotationGain(float rawDelta, int handCount,
             float oneHandGain, float twoHandGain, bool handSetChanged)
         {
-            if (handSetChanged || handCount <= 0 || !float.IsFinite(rawDelta))
+            if (handSetChanged || handCount < SupportedHandCapacity || !float.IsFinite(rawDelta))
                 return 0f;
 
             float gain = GainForHandCount(handCount, oneHandGain, twoHandGain);
@@ -610,11 +628,21 @@ namespace VRProject.Valves
 
         public static float GainForHandCount(int handCount, float oneHandGain, float twoHandGain)
         {
-            if (handCount <= 0)
+            if (handCount < SupportedHandCapacity)
                 return 0f;
-            float gain = handCount == 1 ? oneHandGain : twoHandGain;
+            float gain = twoHandGain;
             return float.IsFinite(gain) ? Mathf.Max(0f, gain) : 0f;
         }
+
+        public static bool HasRequiredHandPair(int firstHandKey, int secondHandKey) =>
+            (firstHandKey == 0 && secondHandKey == 1) ||
+            (firstHandKey == 1 && secondHandKey == 0);
+
+        bool HasRequiredHandPair() =>
+            activeHandCount == SupportedHandCapacity &&
+            HasRequiredHandPair(
+                HandSortKey(activeInteractors[0]),
+                HandSortKey(activeInteractors[1]));
 
         public static HandMode ModeForHandCount(int handCount) => handCount <= 0
             ? HandMode.None
@@ -633,11 +661,25 @@ namespace VRProject.Valves
                     return 1;
             }
 
-            string interactorName = interactor is Component component ? component.name : string.Empty;
-            if (interactorName.IndexOf("Left", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                return 0;
-            if (interactorName.IndexOf("Right", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                return 1;
+            return interactor is Component component
+                ? HandKeyFromTransformHierarchy(component.transform)
+                : 2;
+        }
+
+        public static int HandKeyFromTransformHierarchy(Transform interactorTransform)
+        {
+            for (Transform current = interactorTransform;
+                 current != null;
+                 current = current.parent)
+            {
+                if (current.name.IndexOf(
+                        "Left", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return 0;
+                if (current.name.IndexOf(
+                        "Right", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return 1;
+            }
+
             return 2;
         }
 
@@ -812,15 +854,15 @@ namespace VRProject.Valves
                 maxCloseRotationDegrees = 252f;
             minimumHandRadius = Mathf.Max(0.001f, minimumHandRadius);
             maximumAngularStep = Mathf.Clamp(maximumAngularStep, 1f, 179f);
-            oneHandRotationGain = Mathf.Max(0f, oneHandRotationGain);
+            oneHandRotationGain = 0f;
             twoHandRotationGain = Mathf.Max(0f, twoHandRotationGain);
             twoHandMinimumDeltaDegrees = float.IsFinite(twoHandMinimumDeltaDegrees)
                 ? Mathf.Max(0f, twoHandMinimumDeltaDegrees)
-                : 0.05f;
+                : 0.02f;
             maximumHands = Mathf.Clamp(maximumHands, 1, SupportedHandCapacity);
             maxGrabSurfaceDistance = float.IsFinite(maxGrabSurfaceDistance)
                 ? Mathf.Max(0f, maxGrabSurfaceDistance)
-                : 0.08f;
+                : 0.15f;
             if (hingeJoint == null)
                 hingeJoint = GetComponent<HingeJoint>();
             ApplyConfiguredJointLimits();

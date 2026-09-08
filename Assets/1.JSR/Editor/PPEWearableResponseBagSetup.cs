@@ -25,7 +25,6 @@ public static class PPEWearableResponseBagSetup
     static readonly Vector3 DefaultWearableLocalEuler = new Vector3(0f, 90f, 8f);
     static readonly Vector3 DefaultWearableLocalScale = new Vector3(0.85f, 0.85f, 0.85f);
 
-    [MenuItem("Tools/PPE/Setup Wearable Response Bag", false, 34)]
     public static void SetupWearableResponseBag()
     {
         var scene = SceneManager.GetActiveScene();

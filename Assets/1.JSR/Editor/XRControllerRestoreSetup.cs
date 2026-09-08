@@ -16,7 +16,6 @@ public static class XRControllerRestoreSetup
     const string RightVisualGuid = "9f3369e30fbd31f4bb596b1a99babe83";
     const string RayInteractorGuid = "ad818c36731146e994540a1896ad8f24";
 
-    [MenuItem("Tools/VR/Restore XR Controllers (Quest models + Ray)", false, 20)]
     public static void RestoreControllers()
     {
         var scene = SceneManager.GetActiveScene();

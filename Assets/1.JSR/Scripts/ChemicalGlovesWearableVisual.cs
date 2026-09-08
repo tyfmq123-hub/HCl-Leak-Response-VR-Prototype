@@ -28,10 +28,6 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     [SerializeField] bool disableRayInteractorsWhileWorn = false;
     [SerializeField] XRRayInteractor[] rayInteractors;
 
-    [Header("Start")]
-    [Tooltip("Host should start inactive in the scene; gloves start inactive under Visuals.")]
-    [SerializeField] bool startHidden = true;
-
     bool applyingPersistentState;
     bool capturedGloveRotation;
     Quaternion capturedLeftGloveRotation;
@@ -446,7 +442,6 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
         questControllerMeshes = questMeshes ?? System.Array.Empty<GameObject>();
         disableRayInteractorsWhileWorn = false;
         rayInteractors = System.Array.Empty<XRRayInteractor>();
-        startHidden = true;
         SetBareHandsActive(false, false);
         SetGlovesActive(false);
         SetQuestMeshesActive(true);

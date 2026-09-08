@@ -14,7 +14,6 @@ public static class CreateOutdoorConcreteFloorMaterial
     private const int Size = 1024;
     private const string OutputFolder = "Assets/PlantUtilityTools/Generated/OutdoorConcrete";
 
-    [MenuItem("Tools/Plant Utility Tools/Materials/Create Outdoor Concrete Floor Material")]
     public static void CreateMaterial()
     {
         Directory.CreateDirectory(OutputFolder);

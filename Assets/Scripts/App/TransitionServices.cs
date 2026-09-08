@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using HClTraining.SharedXR;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 
 namespace HClTraining.App
@@ -13,6 +14,14 @@ namespace HClTraining.App
     {
         readonly Dictionary<LocomotionProvider, bool> locomotionStates =
             new Dictionary<LocomotionProvider, bool>();
+        readonly Dictionary<GameObject, bool> pauseRayObjectStates =
+            new Dictionary<GameObject, bool>();
+        readonly Dictionary<Behaviour, bool> pauseRayBehaviourStates =
+            new Dictionary<Behaviour, bool>();
+        readonly Dictionary<LineRenderer, bool> pauseRayRendererStates =
+            new Dictionary<LineRenderer, bool>();
+        readonly Dictionary<XRRayInteractor, bool> pauseRayUiStates =
+            new Dictionary<XRRayInteractor, bool>();
 
         StageLifecycleAdapter lifecycle;
         SharedXRInputContract sharedInput;
@@ -64,6 +73,7 @@ namespace HClTraining.App
                     provider.enabled = false;
                 }
             }
+            EnablePauseMenuRays();
         }
 
         public void ResumeTraining()
@@ -74,12 +84,70 @@ namespace HClTraining.App
             foreach (var pair in locomotionStates)
                 if (pair.Key != null) pair.Key.enabled = pair.Value;
             locomotionStates.Clear();
+            RestorePauseMenuRays();
 
             lifecycle?.SetMenuPaused(false);
             sharedInput?.SetGameplayInputSuppressed(false);
             AudioListener.pause = previousAudioPause;
             Time.timeScale = previousTimeScale;
             SharedTrainingPause.SetPaused(false);
+        }
+
+        void EnablePauseMenuRays()
+        {
+            pauseRayObjectStates.Clear();
+            pauseRayBehaviourStates.Clear();
+            pauseRayRendererStates.Clear();
+            pauseRayUiStates.Clear();
+            if (commonXrRoot == null)
+                return;
+
+            var rays = commonXrRoot.GetComponentsInChildren<XRRayInteractor>(true);
+            for (var i = 0; i < rays.Length; i++)
+            {
+                var ray = rays[i];
+                if (ray == null)
+                    continue;
+
+                pauseRayObjectStates[ray.gameObject] = ray.gameObject.activeSelf;
+                pauseRayUiStates[ray] = ray.enableUIInteraction;
+                ray.gameObject.SetActive(true);
+                ray.enableUIInteraction = true;
+
+                var behaviours = ray.GetComponents<Behaviour>();
+                for (var j = 0; j < behaviours.Length; j++)
+                {
+                    var behaviour = behaviours[j];
+                    if (behaviour == null)
+                        continue;
+                    pauseRayBehaviourStates[behaviour] = behaviour.enabled;
+                    behaviour.enabled = true;
+                }
+
+                var line = ray.GetComponent<LineRenderer>();
+                if (line != null)
+                {
+                    pauseRayRendererStates[line] = line.enabled;
+                    line.enabled = true;
+                }
+            }
+        }
+
+        void RestorePauseMenuRays()
+        {
+            foreach (var pair in pauseRayUiStates)
+                if (pair.Key != null) pair.Key.enableUIInteraction = pair.Value;
+            foreach (var pair in pauseRayBehaviourStates)
+                if (pair.Key != null) pair.Key.enabled = pair.Value;
+            foreach (var pair in pauseRayRendererStates)
+                if (pair.Key != null) pair.Key.enabled = pair.Value;
+            foreach (var pair in pauseRayObjectStates)
+                if (pair.Key != null) pair.Key.SetActive(pair.Value);
+
+            pauseRayUiStates.Clear();
+            pauseRayBehaviourStates.Clear();
+            pauseRayRendererStates.Clear();
+            pauseRayObjectStates.Clear();
         }
 
         void OnDestroy()
@@ -154,7 +222,7 @@ namespace HClTraining.App
 
         static void SetButtonsInteractable(bool interactable)
         {
-            var buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var buttons = FindObjectsByType<Button>(FindObjectsInactive.Include);
             for (var i = 0; i < buttons.Length; i++)
             {
                 if (buttons[i] != null)

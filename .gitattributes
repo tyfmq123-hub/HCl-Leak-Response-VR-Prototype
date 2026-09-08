@@ -23,6 +23,7 @@
 *.shader                text
 
 # Unity JSON files
+*.json                  unity-json
 *.asmdef                unity-json
 *.asmref                unity-json
 *.index                 unity-json

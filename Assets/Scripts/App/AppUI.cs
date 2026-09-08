@@ -217,6 +217,9 @@ namespace HClTraining.App
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.worldCamera = Camera.main;
+            var scaler = go.GetComponent<CanvasScaler>();
+            scaler.dynamicPixelsPerUnit = 20f;
+            scaler.referencePixelsPerUnit = 100f;
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.localScale = Vector3.one * (cameraAttached ? 0.00075f : 0.00125f);
@@ -249,7 +252,7 @@ namespace HClTraining.App
 
             Transform surface = null;
             var transforms = UnityEngine.Object.FindObjectsByType<Transform>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             for (var i = 0; i < transforms.Length; i++)
             {
                 if (transforms[i] != null && transforms[i].name == objectName)
@@ -290,6 +293,9 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            // World-space parent/child surfaces must not share the same depth.
+            // At the standard canvas scale this is 2.5 mm, not a layout change.
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -2f);
             var image = go.GetComponent<Image>();
             image.color = color ?? new Color(Navy.r, Navy.g, Navy.b, 0.97f);
             return image;
@@ -304,13 +310,14 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -1f);
             var tmp = go.GetComponent<TextMeshProUGUI>();
             tmp.text = text;
             tmp.font = GetFont();
             tmp.fontSize = fontSize;
             tmp.alignment = alignment;
             tmp.color = color ?? Color.white;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.raycastTarget = false;
             return tmp;
         }
@@ -324,6 +331,7 @@ namespace HClTraining.App
             var rect = go.GetComponent<RectTransform>();
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            rect.localPosition = new Vector3(rect.localPosition.x, rect.localPosition.y, -2f);
             var image = go.GetComponent<Image>();
             var normalColor = backgroundColor ?? (primary ? Yellow : Blue);
             image.color = normalColor;

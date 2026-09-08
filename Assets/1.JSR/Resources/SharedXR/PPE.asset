@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: HClTraining.SharedXR.Runtime::HClTraining.SharedXR.StageXRRequirements
   scenePath: Assets/Scenes/04_PPE.unity
   spawnPosition: {x: 0, y: 0, z: 0}
-  spawnEulerAngles: {x: 0, y: 0, z: 0}
+  spawnEulerAngles: {x: 0, y: -90, z: 0}
   farInteraction: 0
   nearInteraction: 1
   uiInteraction: 1
@@ -22,5 +22,5 @@ MonoBehaviour:
   haptics: 1
   movement: 1
   turning: 1
-  comfortVignette: 0
+  comfortVignette: 1
   handVisualMode: 3

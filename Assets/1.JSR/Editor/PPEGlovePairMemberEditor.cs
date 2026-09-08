@@ -36,30 +36,11 @@ public sealed class PPEGlovePairMemberEditor : Editor
             }
         }
 
-        using (new EditorGUILayout.HorizontalScope())
+        if (GUILayout.Button("Select GhostPoseCalibration"))
         {
-            if (GUILayout.Button("Preview Glove Ghost Calibration"))
-                EditorApplication.ExecuteMenuItem("Tools/HCl Training/PPE/Preview Glove Ghost Calibration");
-            if (GUILayout.Button("Select GhostPoseCalibration"))
-            {
-                var calib = member.EnsureGhostPoseCalibration();
-                if (calib != null)
-                    Selection.activeTransform = calib;
-            }
-        }
-
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            if (GUILayout.Button("Reset Ghost Calibration"))
-                EditorApplication.ExecuteMenuItem("Tools/HCl Training/PPE/Reset Ghost Calibration");
-            if (GUILayout.Button("Align Ghost To Reference Hand"))
-                EditorApplication.ExecuteMenuItem("Tools/HCl Training/PPE/Align Ghost To Reference Hand");
-        }
-
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            if (GUILayout.Button("Copy Mirrored Calibration"))
-                EditorApplication.ExecuteMenuItem("Tools/HCl Training/PPE/Copy Mirrored Calibration");
+            var calib = member.EnsureGhostPoseCalibration();
+            if (calib != null)
+                Selection.activeTransform = calib;
         }
     }
 }

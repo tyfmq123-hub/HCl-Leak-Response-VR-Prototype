@@ -335,7 +335,7 @@ public class PPEEquipmentManager : MonoBehaviour
         preparedLookup.Clear();
         preparedItemIds.Clear();
 
-        var items = FindObjectsByType<PPEEquipable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var items = FindObjectsByType<PPEEquipable>(FindObjectsInactive.Include);
         for (int i = 0; i < items.Length; i++)
         {
             if (items[i] != null)
@@ -353,8 +353,7 @@ public class PPEEquipmentManager : MonoBehaviour
             response.ResetResponseBag();
 
         var wasteContainers = FindObjectsByType<WasteContainerPrepareInteractable>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         for (var i = 0; i < wasteContainers.Length; i++)
         {
             if (wasteContainers[i] != null)

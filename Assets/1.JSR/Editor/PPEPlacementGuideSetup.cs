@@ -12,7 +12,6 @@ public static class PPEPlacementGuideSetup
     const string NotReadyMaterialPath = "Assets/1.JSR/Materials/PPE_GuideNotReady.mat";
     const string ReadyMaterialPath = "Assets/1.JSR/Materials/PPE_GuideReady.mat";
 
-    [MenuItem("Tools/PPE/Setup STEP 4 Placement Guides", false, 29)]
     public static void SetupPlacementGuides()
     {
         var scene = SceneManager.GetActiveScene();
@@ -79,7 +78,6 @@ public static class PPEPlacementGuideSetup
         Debug.Log(report.ToString());
     }
 
-    [MenuItem("Tools/PPE/Setup STEP 5 Placement Auto Equip", false, 30)]
     public static void SetupPlacementAutoEquip()
     {
         SetupPlacementGuides();

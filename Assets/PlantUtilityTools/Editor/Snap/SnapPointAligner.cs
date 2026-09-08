@@ -19,7 +19,6 @@ public static class SnapPointTools
     // =========================================================
     // X축 방향으로 긴 파이프에 사용.
     // Snap_Left, Snap_Right를 만든다.
-    [MenuItem("Tools/Plant Utility Tools/Snap/Create Straight Pipe Snap Points X Axis")]
     public static void CreateStraightPipeSnapPointsXAxis()
     {
         GameObject selected = Selection.activeGameObject;
@@ -54,7 +53,6 @@ public static class SnapPointTools
 
     // Z축 방향으로 긴 파이프에 사용.
     // Snap_Back, Snap_Front를 만든다.
-    [MenuItem("Tools/Plant Utility Tools/Snap/Create Straight Pipe Snap Points Z Axis")]
     public static void CreateStraightPipeSnapPointsZAxis()
     {
         GameObject selected = Selection.activeGameObject;
@@ -90,7 +88,6 @@ public static class SnapPointTools
     // =========================================================
     // X축에서 들어와 Y축으로 나가는 엘보 기준.
     // 즉, 바닥 방향/수평 방향 모델에 따라 미세 조정 필요.
-    [MenuItem("Tools/Plant Utility Tools/Snap/Create Elbow Snap Points X To Y")]
     public static void CreateElbowSnapPointsXToY()
     {
         GameObject selected = Selection.activeGameObject;
@@ -126,7 +123,6 @@ public static class SnapPointTools
     }
 
     // X축에서 Z축으로 나가는 엘보 기준.
-    [MenuItem("Tools/Plant Utility Tools/Snap/Create Elbow Snap Points X To Z")]
     public static void CreateElbowSnapPointsXToZ()
     {
         GameObject selected = Selection.activeGameObject;
@@ -160,7 +156,6 @@ public static class SnapPointTools
     // =========================================================
     // 3. 선택한 SnapPoint를 다른 SnapPoint에 위치만 맞추기
     // =========================================================
-    [MenuItem("Tools/Plant Utility Tools/Snap/Align SnapPoint Position Only")]
 public static void AlignSnapPointPositionOnly()
 {
     Transform[] selected = Selection.transforms;
@@ -202,7 +197,6 @@ public static void AlignSnapPointPositionOnly()
     // =========================================================
     // 4. 선택한 SnapPoint를 다른 SnapPoint에 위치 + 회전 맞추기
     // =========================================================
-    [MenuItem("Tools/Plant Utility Tools/Snap/Align Selected Snap Point To Target Position And Rotation")]
     public static void AlignSelectedSnapPointToTargetPositionAndRotation()
     {
         Transform[] selected = Selection.transforms;

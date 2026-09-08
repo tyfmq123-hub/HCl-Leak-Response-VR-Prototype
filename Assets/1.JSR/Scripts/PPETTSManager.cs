@@ -19,6 +19,8 @@ public class PPETTSManager : MonoBehaviour
     }
 
     public static PPETTSManager Instance { get; private set; }
+    public event Action<PPETTSCue> CueStarted;
+    public bool PlaysIntroOnStart => playIntroTutorialOnStart;
 
     [SerializeField] List<CueClip> clips = new List<CueClip>();
     [SerializeField] [Range(0f, 1f)] float volume = 1f;
@@ -57,7 +59,7 @@ public class PPETTSManager : MonoBehaviour
         audioSource = GetComponent<AudioSource>();
         ConfigureAudioSource(audioSource);
         RebuildLookup();
-        Debug.Log($"[PPE TTS] Ready. assignedClips={lookup.Count}/36 playIntro={playIntroTutorialOnStart}", this);
+        Debug.Log($"[PPE TTS] Ready. assignedClips={lookup.Count}/37 playIntro={playIntroTutorialOnStart}", this);
     }
 
     void OnEnable()
@@ -110,7 +112,7 @@ public class PPETTSManager : MonoBehaviour
         AudioListener.pause = false;
         AudioListener.volume = 1f;
 
-        var listenerCount = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+        var listenerCount = FindObjectsByType<AudioListener>(FindObjectsInactive.Include).Length;
         Debug.Log(
             $"[PPE TTS] AudioSource on '{gameObject.name}' enabled={audioSource.enabled} vol={audioSource.volume} mute={audioSource.mute} spatial={audioSource.spatialBlend} parent='{(transform.parent != null ? transform.parent.name : "null")}' listeners={listenerCount}.",
             this);
@@ -143,10 +145,18 @@ public class PPETTSManager : MonoBehaviour
     void RebuildLookup()
     {
         lookup.Clear();
+        var fromFinalCourseResources = 0;
         var fromInspector = 0;
-        var fromResources = 0;
+        var fromLegacyResources = 0;
 
-        // 1) Prefer Inspector / scene-assigned clips (Assets/1.JSR/Audio/PPE/TTS — PCM + preload).
+        // 1) The final-course narration is authored centrally so the additive App flow and
+        // standalone PPE scene say exactly the same thing without Scene reference rewrites.
+        var finalCourseClips = AddNumberedResourceClips(
+            "TrainingNarration/PPE",
+            overwriteExisting: true,
+            ref fromFinalCourseResources);
+
+        // 2) Keep Inspector / scene-assigned PCM clips as a compatibility fallback.
         if (clips != null)
         {
             for (var i = 0; i < clips.Count; i++)
@@ -154,46 +164,59 @@ public class PPETTSManager : MonoBehaviour
                 var entry = clips[i];
                 if (entry == null || entry.clip == null || entry.clip.samples <= 0)
                     continue;
+                if (lookup.ContainsKey(entry.cue))
+                    continue;
                 lookup[entry.cue] = entry.clip;
                 fromInspector++;
             }
         }
 
-        // 2) Fill MISSING cues only from Resources/PPE/TTS.
-        //    Do NOT overwrite Inspector clips — Resources copies were imported with
-        //    preloadAudioData=0 / Vorbis and previously caused silent playback.
-        var resourceClips = Resources.LoadAll<AudioClip>("PPE/TTS");
-        if (resourceClips != null)
-        {
-            for (var i = 0; i < resourceClips.Length; i++)
-            {
-                var clip = resourceClips[i];
-                if (clip == null || string.IsNullOrEmpty(clip.name))
-                    continue;
-
-                // Expect names like 01_EmergencyIntro (no extension in Resources path).
-                var underscore = clip.name.IndexOf('_');
-                if (underscore < 2)
-                    continue;
-                if (!int.TryParse(clip.name.Substring(0, underscore), out var index))
-                    continue;
-                if (index < 1 || index > 36)
-                    continue;
-
-                var cue = (PPETTSCue)index;
-                if (lookup.ContainsKey(cue))
-                    continue;
-                if (clip.samples <= 0)
-                    continue;
-
-                lookup[cue] = clip;
-                fromResources++;
-            }
-        }
+        // 3) Preserve the older Resources path as the final fallback.
+        var legacyResourceClips = AddNumberedResourceClips(
+            "PPE/TTS",
+            overwriteExisting: false,
+            ref fromLegacyResources);
 
         Debug.Log(
-            $"[PPE TTS] Lookup built: {lookup.Count}/36 inspector={fromInspector} resourcesFill={fromResources} resourceFiles={(resourceClips != null ? resourceClips.Length : 0)}.",
+            $"[PPE TTS] Lookup built: {lookup.Count}/37 final={fromFinalCourseResources} " +
+            $"inspectorFallback={fromInspector} legacyFallback={fromLegacyResources} " +
+            $"finalFiles={(finalCourseClips != null ? finalCourseClips.Length : 0)} " +
+            $"legacyFiles={(legacyResourceClips != null ? legacyResourceClips.Length : 0)}.",
             this);
+    }
+
+    AudioClip[] AddNumberedResourceClips(string path, bool overwriteExisting, ref int addedCount)
+    {
+        var resourceClips = Resources.LoadAll<AudioClip>(path);
+        if (resourceClips == null)
+            return null;
+
+        for (var i = 0; i < resourceClips.Length; i++)
+        {
+            var clip = resourceClips[i];
+            if (clip == null || string.IsNullOrEmpty(clip.name))
+                continue;
+
+            // Expect names like 01_EmergencyIntro (no extension in Resources path).
+            var underscore = clip.name.IndexOf('_');
+            if (underscore < 2)
+                continue;
+            if (!int.TryParse(clip.name.Substring(0, underscore), out var index))
+                continue;
+            if (index < 1 || index > 37)
+                continue;
+
+            var cue = (PPETTSCue)index;
+            if (!overwriteExisting && lookup.ContainsKey(cue))
+                continue;
+            if (clip.samples <= 0)
+                continue;
+
+            lookup[cue] = clip;
+            addedCount++;
+        }
+
+        return resourceClips;
     }
 
     static void ConfigureAudioSource(AudioSource source)
@@ -208,7 +231,7 @@ public class PPETTSManager : MonoBehaviour
         source.spatialize = false;
         source.mute = false;
         source.volume = 1f;
-        source.ignoreListenerPause = true;
+        source.ignoreListenerPause = false;
         source.bypassListenerEffects = true;
         source.priority = 0;
         source.dopplerLevel = 0f;
@@ -287,7 +310,8 @@ public class PPETTSManager : MonoBehaviour
         // Placement guides now teach the interaction while the current-step prompt names the PPE.
         Enqueue(
             PPETTSCue.EmergencyIntro,
-            PPETTSCue.WearEssentialPPE);
+            PPETTSCue.WearEssentialPPE,
+            PPETTSCue.WearInOrder);
 
         var sequence = PPESequenceManager.Resolve();
         EnqueuePromptForStep(sequence != null ? sequence.CurrentRequiredStep : null);
@@ -405,6 +429,7 @@ public class PPETTSManager : MonoBehaviour
             audioSource.clip = clip;
             // Play() (not PlayOneShot) so isPlaying / Stop stay reliable on Quest.
             audioSource.Play();
+            CueStarted?.Invoke(cue);
 
             LogPlaybackDiagnostics(cue, clip, "Play");
 
@@ -421,18 +446,11 @@ public class PPETTSManager : MonoBehaviour
             var wait = Mathf.Max(0.05f, clip.length / Mathf.Max(0.01f, audioSource != null ? audioSource.pitch : 1f));
             ShowSubtitleForCue(cue, wait);
 
-            var elapsed = 0f;
-            while (elapsed < wait)
-            {
-                elapsed += SharedTrainingPause.UnscaledDeltaTime;
+            // Audio playback is the clock. A second training-time countdown can lag
+            // behind the audible clip after focus/presence changes and insert silence.
+            while (audioSource != null && audioSource.clip == clip &&
+                   (audioSource.isPlaying || SharedTrainingPause.IsPaused || AudioListener.pause))
                 yield return null;
-            }
-
-            if (audioSource != null && audioSource.isPlaying)
-            {
-                while (audioSource != null && audioSource.isPlaying)
-                    yield return null;
-            }
         }
 
         playRoutine = null;
@@ -715,7 +733,41 @@ public class PPETTSManager : MonoBehaviour
 
     public void NotifyStepCompleted(PPESequenceStep step)
     {
-        _ = step;
+        PPETTSCue completionCue;
+        switch (step)
+        {
+            case PPESequenceStep.InnerGloves:
+                completionCue = PPETTSCue.InnerGlovesEquipped;
+                break;
+            case PPESequenceStep.ProtectiveSuit:
+                completionCue = PPETTSCue.ChemicalSuitEquipped;
+                break;
+            case PPESequenceStep.ChemicalBoots:
+                completionCue = PPETTSCue.ChemicalBootsEquipped;
+                break;
+            case PPESequenceStep.Respirator:
+                completionCue = PPETTSCue.RespiratorEquipped;
+                break;
+            case PPESequenceStep.FaceProtection:
+                completionCue = PPETTSCue.FaceProtectionEquipped;
+                break;
+            case PPESequenceStep.ProtectiveGloves:
+                completionCue = PPETTSCue.OuterGlovesEquipped;
+                break;
+            case PPESequenceStep.ResponseBag:
+                completionCue = PPETTSCue.ResponseBagReady;
+                break;
+            case PPESequenceStep.WasteContainer:
+                completionCue = PPETTSCue.WasteContainerReady;
+                break;
+            default:
+                return;
+        }
+
+        // A completed action must acknowledge immediately. Leaving the old step prompt
+        // in the queue made the confirmation arrive several seconds late and delayed the
+        // following ResponseBag -> WasteContainer prompt.
+        PlayNow(completionCue);
     }
 
 #if UNITY_EDITOR

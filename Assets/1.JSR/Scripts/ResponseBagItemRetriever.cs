@@ -14,22 +14,6 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 [DisallowMultipleComponent]
 public class ResponseBagItemRetriever : MonoBehaviour
 {
-    // 손이 이미 다른 장비를 들고 있습니다.
-    static readonly string HandBusyMessage =
-        "\uC190\uC774 \uC774\uBBF8 \uB2E4\uB978 \uC7A5\uBE44\uB97C \uB4E4\uACE0 \uC788\uC2B5\uB2C8\uB2E4.";
-
-    // 런타임 장비 프리팹이 없습니다. Inspector에 프리팹을 지정해 주세요.
-    static readonly string MissingPrefabMessage =
-        "\uB7F0\uD0C0\uC784 \uC7A5\uBE44 \uD504\uB9AC\uD339\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. Inspector\uC5D0 \uD504\uB9AC\uD339\uC744 \uC9C0\uC815\uD574 \uC8FC\uC138\uC694.";
-
-    // 선택한 손을 찾을 수 없습니다.
-    static readonly string NoHandMessage =
-        "\uC120\uD0DD\uD55C \uC190\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
-
-    // 장비 프리팹에 XRGrabInteractable이 없습니다.
-    static readonly string NoGrabMessage =
-        "\uC7A5\uBE44 \uD504\uB9AC\uD339\uC5D0 XRGrabInteractable\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
-
     [Header("Runtime Prefabs (assign in Inspector)")]
     [SerializeField] GameObject gasDetectorRuntimePrefab;
     [SerializeField] GameObject absorbentSockRuntimePrefab;
@@ -172,7 +156,7 @@ public class ResponseBagItemRetriever : MonoBehaviour
             Time.unscaledTime - XRUISelectHandCapture.LastSelectTime < 0.5f)
             return XRUISelectHandCapture.LastSelectInteractor;
 
-        var rays = FindObjectsByType<XRRayInteractor>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var rays = FindObjectsByType<XRRayInteractor>(FindObjectsInactive.Exclude);
         IXRSelectInteractor fallback = null;
         for (var i = 0; i < rays.Length; i++)
         {

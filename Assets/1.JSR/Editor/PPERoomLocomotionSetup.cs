@@ -41,7 +41,6 @@ public static class PPERoomLocomotionSetup
         "Jump",
     };
 
-    [MenuItem("Tools/PPE/Setup Room Locomotion + Comfort", false, 40)]
     public static void SetupRoomLocomotion()
     {
         EnsurePreferredSceneLoaded();
@@ -127,7 +126,7 @@ public static class PPERoomLocomotionSetup
                 return child.gameObject;
         }
 
-        var origins = Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var origins = Object.FindObjectsByType<XROrigin>(FindObjectsInactive.Include);
         return origins.Length > 0 ? origins[0].gameObject : null;
     }
 

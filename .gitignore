@@ -124,3 +124,6 @@ Recordings/
 
 # Unity/IDE-generated solution format
 *.slnx
+
+# Local one-off inventory generated while auditing feedback/telemetry scripts
+/hcl-feedback-script-paths.txt

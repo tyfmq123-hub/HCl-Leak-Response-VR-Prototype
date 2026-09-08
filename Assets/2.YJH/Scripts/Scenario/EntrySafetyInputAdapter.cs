@@ -17,6 +17,9 @@ namespace JH.EntrySafety
         [SerializeField] private InputActionReference _simulatorTriggerAction;
         [SerializeField] private InputActionReference _simulatorGazeConfirmAction;
         [SerializeField, Range(0f, 1f)] private float _triggerThreshold = 0.75f;
+        [SerializeField, Range(0.5f, 1f)] private float _equipGripIntentThreshold = 0.7f;
+        [SerializeField, Range(0f, 0.45f)] private float _equipGripReleaseThreshold = 0.2f;
+        [SerializeField, Min(0.05f)] private float _equipGripReleaseArmSeconds = 0.12f;
 
         public event Action EquipDetectorPressed;
         public event Action StoreDetectorPressed;
@@ -66,18 +69,18 @@ namespace JH.EntrySafety
             }
         }
 
-        private bool _equipDetectorButtonWasPressed;
-        private bool _storeDetectorButtonWasPressed;
+        private bool _equipGripArmed;
+        private float _equipGripReleaseHeldSeconds;
         private bool _moveToPtButtonWasPressed;
         private bool _rightTriggerWasPressed;
 
         private void OnEnable()
         {
+            _equipGripArmed = false;
+            _equipGripReleaseHeldSeconds = 0f;
             _sharedInput = SharedXRInputContract.Instance;
             if (_sharedInput != null)
                 _sharedInput.Performed += OnSharedInputPerformed;
-            else if (_equipDetectorAction != null && _equipDetectorAction.action != null)
-                _equipDetectorAction.action.performed += OnEquipDetectorPerformed;
 #if UNITY_EDITOR
             if (_simulatorEquipDetectorAction != null && _simulatorEquipDetectorAction.action != null)
             {
@@ -102,10 +105,10 @@ namespace JH.EntrySafety
 
         private void OnDisable()
         {
+            _equipGripArmed = false;
+            _equipGripReleaseHeldSeconds = 0f;
             if (_sharedInput != null)
                 _sharedInput.Performed -= OnSharedInputPerformed;
-            else if (_equipDetectorAction != null && _equipDetectorAction.action != null)
-                _equipDetectorAction.action.performed -= OnEquipDetectorPerformed;
             _sharedInput = null;
 #if UNITY_EDITOR
             if (_simulatorEquipDetectorAction != null && _simulatorEquipDetectorAction.action != null)
@@ -143,19 +146,9 @@ namespace JH.EntrySafety
             LeftTriggerValue = Mathf.Max(leftTriggerValue, simulatorTriggerValue);
             UpdateRightHandPose();
 
-            // Keep a raw Quest/OpenXR fallback even when the shared semantic contract
-            // exists. Some runtimes expose face-button features but do not resolve the
-            // generic Input System SecondaryButton binding used by the contract.
-            UpdatePhysicalButton(
-                isRightHand: false,
-                controlName: "secondaryButton",
-                ref _equipDetectorButtonWasPressed,
-                EquipDetectorPressed);
-            UpdatePhysicalButton(
-                isRightHand: true,
-                controlName: "secondaryButton",
-                ref _storeDetectorButtonWasPressed,
-                StoreDetectorPressed);
+            // A full release arms exactly one command. The next deliberate squeeze
+            // emits once, so the opening squeeze cannot also complete the pickup.
+            UpdateDeliberateLeftGrip();
             UpdatePhysicalButton(
                 isRightHand: true,
                 controlName: "primaryButton",
@@ -192,11 +185,9 @@ namespace JH.EntrySafety
 
         private void OnSharedInputPerformed(SharedXRHand hand, SharedXRControl control)
         {
-            if (hand == SharedXRHand.Left && control == SharedXRControl.SecondaryButton)
-                EquipDetectorPressed?.Invoke();
-            else if (hand == SharedXRHand.Right && control == SharedXRControl.SecondaryButton)
-                StoreDetectorPressed?.Invoke();
-            else if (hand == SharedXRHand.Right && control == SharedXRControl.PrimaryButton)
+            // Left Grip is intentionally handled by UpdateDeliberateLeftGrip so the
+            // SharedXR performed event cannot bypass its analog threshold/debounce.
+            if (hand == SharedXRHand.Right && control == SharedXRControl.PrimaryButton)
                 MoveToPtPressed?.Invoke();
             else if (hand == SharedXRHand.Right && control == SharedXRControl.Activate)
                 RightTriggerPressed?.Invoke();
@@ -205,11 +196,84 @@ namespace JH.EntrySafety
         private void OnEquipDetectorPerformed(InputAction.CallbackContext context)
         {
             EquipDetectorPressed?.Invoke();
+            StoreDetectorPressed?.Invoke();
         }
 
         private void OnSimulationGazeConfirmPerformed(InputAction.CallbackContext context)
         {
             SimulationGazeConfirmPressed?.Invoke();
+        }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Drives the same release/press gate used by Quest Grip so the integration
+        /// smoke can exercise the complete input -> zone -> detector flow.
+        /// </summary>
+        public bool SimulateLeftGripForIntegrationSmoke(float gripValue, float deltaTime)
+        {
+            if (!AdvanceEquipGripGate(Mathf.Clamp01(gripValue), Mathf.Max(0f, deltaTime)))
+                return false;
+
+            EquipDetectorPressed?.Invoke();
+            StoreDetectorPressed?.Invoke();
+            return true;
+        }
+#endif
+
+        private void UpdateDeliberateLeftGrip()
+        {
+            if (AdvanceEquipGripGate(ReadLeftGripValue(), Time.unscaledDeltaTime))
+            {
+                EquipDetectorPressed?.Invoke();
+                StoreDetectorPressed?.Invoke();
+            }
+        }
+
+        private bool AdvanceEquipGripGate(float gripValue, float deltaTime)
+        {
+            var releaseThreshold = Mathf.Min(_equipGripReleaseThreshold, _equipGripIntentThreshold - 0.05f);
+            if (gripValue <= releaseThreshold)
+            {
+                _equipGripReleaseHeldSeconds += Mathf.Max(0f, deltaTime);
+                if (_equipGripReleaseHeldSeconds >= _equipGripReleaseArmSeconds)
+                    _equipGripArmed = true;
+                return false;
+            }
+
+            // A one-frame device/action transition must not turn one physical squeeze
+            // into the presentation press and the pickup press. Only a sustained full
+            // release above arms the next command.
+            _equipGripReleaseHeldSeconds = 0f;
+            if (!_equipGripArmed || gripValue < _equipGripIntentThreshold)
+                return false;
+
+            _equipGripArmed = false;
+            return true;
+        }
+
+        private float ReadLeftGripValue()
+        {
+            // The App-owned action is authoritative in integrated play. Do not take
+            // the maximum across every LeftHand-tagged device: additive/editor devices
+            // can retain a stale value and prevent the release latch from ever arming.
+            if (_sharedInput != null && _sharedInput.IsReady)
+                return Mathf.Clamp01(_sharedInput.ReadValue(SharedXRHand.Left, SharedXRControl.Grip));
+
+            var xrDevice = UnityEngine.XR.InputDevices.GetDeviceAtXRNode(UnityEngine.XR.XRNode.LeftHand);
+            if (xrDevice.isValid &&
+                xrDevice.TryGetFeatureValue(UnityEngine.XR.CommonUsages.grip, out var xrGrip))
+                return Mathf.Clamp01(xrGrip);
+
+            foreach (var device in InputSystem.devices)
+            {
+                if (!HasUsage(device, CommonUsages.LeftHand))
+                    continue;
+                var grip = device.TryGetChildControl<AxisControl>("grip");
+                if (grip != null)
+                    return Mathf.Clamp01(grip.ReadValue());
+            }
+
+            return 0f;
         }
 
         private static void UpdatePhysicalButton(
@@ -265,6 +329,11 @@ namespace JH.EntrySafety
                     return device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primaryButton, out pressed) && pressed;
                 case "secondaryButton":
                     return device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.secondaryButton, out pressed) && pressed;
+                case "gripButton":
+                    if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.gripButton, out pressed) && pressed)
+                        return true;
+                    return device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.grip, out var grip) &&
+                           grip >= axisThreshold;
                 case "triggerPressed":
                     if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.triggerButton, out pressed) && pressed)
                         return true;

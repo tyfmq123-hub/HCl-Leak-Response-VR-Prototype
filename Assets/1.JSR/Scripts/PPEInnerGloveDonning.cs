@@ -423,7 +423,7 @@ public sealed class PPEInnerGloveDonning : MonoBehaviour
             overlayLabel.fontSize = 0.09f;
             overlayLabel.alignment = TextAlignmentOptions.TopLeft;
             overlayLabel.rectTransform.sizeDelta = new Vector2(1.8f, 1.6f);
-            overlayLabel.enableWordWrapping = false;
+            overlayLabel.textWrappingMode = TextWrappingModes.NoWrap;
             overlayLabel.raycastTarget = false;
         }
 

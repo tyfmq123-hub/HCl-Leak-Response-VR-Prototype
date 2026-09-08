@@ -77,10 +77,13 @@ public sealed class ResponseBagPackableItem : MonoBehaviour
         EnsureGrab();
         if (body == null)
             return;
+        if (!body.isKinematic)
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
         body.isKinematic = true;
         body.useGravity = false;
-        body.linearVelocity = Vector3.zero;
-        body.angularVelocity = Vector3.zero;
         IgnorePlayerLocomotionCollisions();
     }
 

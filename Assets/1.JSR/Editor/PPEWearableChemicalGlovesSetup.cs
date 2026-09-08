@@ -53,25 +53,21 @@ public static class PPEWearableChemicalGlovesSetup
     // is owned by App SharedXRAimPoseDriver and must never copy this rotation.
     static readonly Vector3 WearableModelEulerCorrection = new Vector3(70f, 0f, 0f);
 
-    [MenuItem("Tools/PPE/Setup Wearable Chemical Gloves on Controllers", false, 27)]
     public static void SetupWearableChemicalGloves()
     {
         SetupWearablesFromPaths(LeftAssetPath, RightAssetPath, "VR Hands");
     }
 
-    [MenuItem("Tools/PPE/Replace PPE Wearable With VR Hands", false, 26)]
     public static void ReplacePpeWearableWithVrHands()
     {
         SetupWearablesFromPaths(LeftAssetPath, RightAssetPath, "VR Hands");
     }
 
-    [MenuItem("Tools/PPE/Restore Wearable Chemical Glove FBX", false, 27)]
     public static void RestoreWearableChemicalGloveFbx()
     {
         SetupWearablesFromPaths(LeftChemicalGlovePath, RightChemicalGlovePath, "Chemical Glove FBX");
     }
 
-    [MenuItem("Tools/PPE/Align Wearable Gloves To XR Hands", false, 28)]
     public static void AlignWearableGlovesToXrHands()
     {
         EnsurePreferredSceneLoaded();
@@ -126,7 +122,6 @@ public static class PPEWearableChemicalGlovesSetup
         Debug.Log(report.ToString(), leftGlove);
     }
 
-    [MenuItem("Tools/PPE/Verify Shared Controller Aim Ownership", false, 29)]
     public static void AlignControllerRaysForNaturalGrip()
     {
         EnsurePreferredSceneLoaded();

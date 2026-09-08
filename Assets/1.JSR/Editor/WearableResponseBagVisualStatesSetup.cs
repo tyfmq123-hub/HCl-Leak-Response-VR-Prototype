@@ -45,7 +45,6 @@ public static class WearableResponseBagVisualStatesSetup
     static readonly Vector3 PadLocalEuler = new Vector3(80f, 0f, 8f);
     const float PadScale = 0.16f;
 
-    [MenuItem("Tools/PPE/Setup Wearable Response Bag Visual States", false, 35)]
     public static void SetupVisualStates()
     {
         var report = new StringBuilder();
@@ -583,7 +582,7 @@ public static class WearableResponseBagVisualStatesSetup
         tmp.fontSize = 32f;
         tmp.alignment = TMPro.TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
         var font = Resources.Load<TMPro.TMP_FontAsset>("PPE/PPE_HangulFont");
         if (font != null)
             tmp.font = font;

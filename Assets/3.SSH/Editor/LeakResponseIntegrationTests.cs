@@ -71,6 +71,12 @@ namespace VRProject.LeakResponse.EditorTests
                 Transform p102Pump = CreateRoot(scene, "Pump_102", new Vector3(4f, 0f, 0f));
                 Transform responseBag = CreateRoot(scene, "LeakResponse_ResponseBag", Vector3.zero);
                 responseBag.SetParent(functionalRig, false);
+                Transform environment = CreateRoot(scene, "ENV", Vector3.zero);
+                GameObject pipe = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                SceneManager.MoveGameObjectToScene(pipe, scene);
+                pipe.name = "ENV_LeakPipe_Test";
+                pipe.transform.SetParent(environment, false);
+                UnityEngine.Object.DestroyImmediate(pipe.GetComponent<Collider>());
                 Transform runtimeRoot = CreateRoot(scene, "LeakResponse Runtime", Vector3.zero);
                 P102LeakEnvironmentSetup setup =
                     runtimeRoot.gameObject.AddComponent<P102LeakEnvironmentSetup>();
@@ -82,6 +88,75 @@ namespace VRProject.LeakResponse.EditorTests
                 Assert.That(p102Pump.position, Is.EqualTo(new Vector3(4f, 0f, 0f)));
                 Assert.That(setup.ResponseBagRoot, Is.Not.Null);
                 Assert.That(setup.ResponseBagRoot.IsChildOf(functionalRig), Is.True);
+                BoxCollider generatedCollider = pipe.GetComponent<BoxCollider>();
+                Assert.That(generatedCollider, Is.Not.Null,
+                    "Visible static environment meshes must block locomotion.");
+                Assert.That(generatedCollider.isTrigger, Is.False);
+                Assert.That(setup.AddedColliderCount, Is.EqualTo(1));
+
+                setup.SetStageActive(false);
+                Assert.That(generatedCollider.enabled, Is.False);
+                setup.SetStageActive(true);
+                Assert.That(generatedCollider.enabled, Is.True);
+            }
+            finally
+            {
+                EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
+        [Test]
+        public void SockContainmentBoundary_BlocksCharacterControllerButIgnoresTongs()
+        {
+            Scene scene = EditorSceneManager.NewPreviewScene();
+
+            try
+            {
+                Transform runtimeRoot = CreateRoot(scene, "LeakResponse Runtime", Vector3.zero);
+                var targets = new Transform[4];
+                Vector3[] positions =
+                {
+                    new Vector3(-1f, 0.1f, 0f),
+                    new Vector3(1f, 0.1f, 0f),
+                    new Vector3(0f, 0.1f, -1f),
+                    new Vector3(0f, 0.1f, 1f),
+                };
+                for (int i = 0; i < targets.Length; ++i)
+                {
+                    GameObject ghost = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    SceneManager.MoveGameObjectToScene(ghost, scene);
+                    ghost.name = $"INT_AbsorbentSock_ObjectGhost{i + 1}";
+                    ghost.transform.position = positions[i];
+                    UnityEngine.Object.DestroyImmediate(ghost.GetComponent<Collider>());
+                    targets[i] = ghost.transform;
+                }
+
+                Transform player = CreateRoot(scene, "XR Origin Test", new Vector3(0f, 0f, -3f));
+                CharacterController characterController =
+                    player.gameObject.AddComponent<CharacterController>();
+
+                GameObject tongs = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                SceneManager.MoveGameObjectToScene(tongs, scene);
+                tongs.name = "INT_RecoveryTongs_01";
+                Rigidbody tongsBody = tongs.AddComponent<Rigidbody>();
+                tongsBody.isKinematic = true;
+                Collider tongsCollider = tongs.GetComponent<Collider>();
+
+                P102AbsorbentPlayerBoundaryRuntime boundary =
+                    runtimeRoot.gameObject.AddComponent<P102AbsorbentPlayerBoundaryRuntime>();
+                Assert.That(boundary.Configure(scene, targets), Is.True);
+                Assert.That(boundary.BoundaryCollider, Is.Not.Null);
+                Assert.That(boundary.BoundaryCollider.isTrigger, Is.False);
+                Assert.That(boundary.BoundaryCollider.size.x, Is.GreaterThan(2f));
+                Assert.That(boundary.BoundaryCollider.size.z, Is.GreaterThan(2f));
+                Assert.That(
+                    Physics.GetIgnoreCollision(boundary.BoundaryCollider, characterController),
+                    Is.False,
+                    "The locomotion CharacterController must be blocked.");
+                Assert.That(
+                    Physics.GetIgnoreCollision(boundary.BoundaryCollider, tongsCollider),
+                    Is.True,
+                    "Tongs must pass through the player-only cleanup boundary.");
             }
             finally
             {
@@ -100,6 +175,33 @@ namespace VRProject.LeakResponse.EditorTests
             Assert.That(medium, Is.GreaterThan(silent));
             Assert.That(full, Is.GreaterThan(medium));
             Assert.That(LeakResponseSpatialLeakAudio.ResolveVolume(5f), Is.EqualTo(full));
+        }
+
+        [Test]
+        public void SpatialLeakDistanceCurve_RetainsAudibleFarFloor()
+        {
+            const float farFloor = 0.2f;
+            AnimationCurve curve =
+                LeakResponseSpatialLeakAudio.CreateAudibleDistanceCurve(farFloor);
+
+            Assert.That(curve.Evaluate(0f), Is.EqualTo(1f).Within(0.001f));
+            Assert.That(curve.Evaluate(0.5f), Is.GreaterThan(farFloor));
+            Assert.That(curve.Evaluate(1f), Is.EqualTo(farFloor).Within(0.001f));
+        }
+
+        [Test]
+        public void DiagonalMistEmission_FollowsLeakIntensity()
+        {
+            Material material = Resources.Load<Material>("LeakVFX/M_DiagonalMist");
+            float stopped = LeakResponseDiagonalMistRuntime.ResolveEmissionRate(0f);
+            float partial = LeakResponseDiagonalMistRuntime.ResolveEmissionRate(0.25f);
+            float full = LeakResponseDiagonalMistRuntime.ResolveEmissionRate(1f);
+
+            Assert.That(material, Is.Not.Null,
+                "Quest build must include the Resources-backed particle material.");
+            Assert.That(stopped, Is.Zero);
+            Assert.That(partial, Is.GreaterThan(stopped));
+            Assert.That(full, Is.GreaterThan(partial));
         }
 
         [Test]
@@ -126,7 +228,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void TelemetryReporter_DeduplicatesStepAndContentEvents()
+        public void TelemetryReporter_DeduplicatesStepEventsWithoutNarrationContentNoise()
         {
             var telemetry = new TelemetryProbe();
             var incident = new IncidentProbe();
@@ -158,7 +260,8 @@ namespace VRProject.LeakResponse.EditorTests
                     TrainingStepId.AbsorbentSock,
                     TrainingStepId.DischargeValve,
                 }));
-                Assert.That(telemetry.ContentIds.Count, Is.EqualTo(2));
+                Assert.That(telemetry.ContentIds, Is.Empty,
+                    "Narration completion is not user content interaction telemetry.");
                 Assert.That(incident.LeakState, Is.EqualTo(LeakState.Isolated));
             }
             finally

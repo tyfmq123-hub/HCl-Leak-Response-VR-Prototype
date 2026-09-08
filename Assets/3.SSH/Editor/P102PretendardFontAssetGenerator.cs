@@ -13,9 +13,7 @@ namespace VRProject.LeakResponse.Editor
         const string SourceFontPath = "Assets/3.SSH/Font/Pretendard-SemiBold.otf";
         const string ResourceFolderPath = "Assets/3.SSH/Resources/P102";
         const string FontAssetPath = ResourceFolderPath + "/Pretendard-SemiBold SDF.asset";
-        const string CsvAssetPath = ResourceFolderPath + "/Unity_TTS_Map.csv";
 
-        [MenuItem("Tools/P102/Generate Pretendard TMP Font Asset")]
         static void EnsureFontAssetOnce()
         {
             TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontAssetPath);
@@ -96,9 +94,8 @@ namespace VRProject.LeakResponse.Editor
         {
             var unique = new HashSet<char>();
             var builder = new StringBuilder();
-            TextAsset csv = AssetDatabase.LoadAssetAtPath<TextAsset>(CsvAssetPath);
-            string source = (csv != null ? csv.text : string.Empty) +
-                            "누출 위치를 바라보십시오 확인 중 흡입측 밸브 폐쇄 토출측 0123456789%P-102SUCDis";
+            const string source =
+                "누출 위치를 바라보십시오 확인 중 흡입측 밸브 폐쇄 토출측 0123456789%P-102SUCDis";
             for (int i = 0; i < source.Length; ++i)
             {
                 char character = source[i];

@@ -90,23 +90,29 @@ namespace VRProject.LeakResponse.Narration
 
         public static int HideHandPoseGhostRenderers(GameObject root)
         {
+            return SetHandPoseGhostRenderersVisible(root, false);
+        }
+
+        public static int SetHandPoseGhostRenderersVisible(GameObject root, bool visible)
+        {
             Transform ghostsRoot = FindDescendantTransform(root, HandPoseGhostsRootName);
             if (ghostsRoot == null)
                 return 0;
 
+            ghostsRoot.gameObject.SetActive(visible);
             Renderer[] renderers = ghostsRoot.GetComponentsInChildren<Renderer>(true);
-            int hiddenCount = 0;
+            int changedCount = 0;
             for (int i = 0; i < renderers.Length; ++i)
             {
                 Renderer renderer = renderers[i];
                 if (renderer == null)
                     continue;
 
-                renderer.enabled = false;
-                ++hiddenCount;
+                renderer.enabled = visible;
+                ++changedCount;
             }
 
-            return hiddenCount;
+            return changedCount;
         }
 
         public static bool IsHandPoseGhostTransform(Transform candidate, Transform rootLimit)
@@ -454,6 +460,9 @@ namespace VRProject.LeakResponse.Narration
             GameObject ghost = UnityEngine.Object.Instantiate(source);
             ghost.name = ghostName;
             ghost.transform.SetParent(null, true);
+            // Instantiate without a parent copies localScale, not the source's
+            // accumulated world scale. Preserve the visible size of the authored lid.
+            ghost.transform.localScale = source.transform.lossyScale;
             ghost.transform.SetPositionAndRotation(worldPosition, worldRotation);
 
             Collider[] colliders = ghost.GetComponentsInChildren<Collider>(true);

@@ -30,13 +30,11 @@ public static class PPEChemicalGlovesStorageSetup
 
     const string PreferredScenePath = "Assets/Scenes/04_PPE.unity";
 
-    [MenuItem("Tools/PPE/Install Chemical Gloves Into Storage", false, 26)]
     public static void InstallChemicalGlovesIntoStorage()
     {
         InstallVrHandsIntoStorage();
     }
 
-    [MenuItem("Tools/PPE/Install VR Hands Into PPE Storage", false, 25)]
     public static void InstallVrHandsIntoStorage()
     {
         EnsurePreferredSceneLoaded();
@@ -668,7 +666,6 @@ public static class PPEChemicalGlovesStorageSetup
         report.AppendLine($"Added {added} convex MeshCollider(s) matching glove meshes.");
     }
 
-    [MenuItem("Tools/PPE/Fix Gloves Mesh Collider And Outline", false, 30)]
     public static void FixGlovesMeshColliderAndOutline()
     {
         EnsurePreferredSceneLoaded();

@@ -30,7 +30,6 @@ public static class AppIntegrationBuilder
         public bool openedByBuilder;
     }
 
-    [MenuItem("Tools/HCl Training/Build Integrated App")]
     public static void BuildAll()
     {
         Directory.CreateDirectory("Logs");

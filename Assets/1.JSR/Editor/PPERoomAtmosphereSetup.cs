@@ -45,7 +45,6 @@ public static class PPERoomAtmosphereSetup
     // Soft fill light color
     static readonly Color FillLightColor = new Color(0.96f, 0.98f, 1f, 1f);
 
-    [MenuItem("Tools/PPE/Brighten Room Atmosphere", false, 31)]
     public static void BrightenRoomAtmosphere()
     {
         var scene = SceneManager.GetActiveScene();
@@ -333,7 +332,7 @@ public static class PPERoomAtmosphereSetup
     {
         var light = Object.FindAnyObjectByType<Light>();
         Light directional = null;
-        var lights = Object.FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var lights = Object.FindObjectsByType<Light>(FindObjectsInactive.Include);
         for (var i = 0; i < lights.Length; i++)
         {
             if (lights[i] != null && lights[i].type == LightType.Directional)

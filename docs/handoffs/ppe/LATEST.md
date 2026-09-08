@@ -1,5 +1,121 @@
 # PPE Integration Handoff
 
+## 2026-09-07 Integration — Game View/씬 전환 후속 정정
+
+- 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
+- App `SceneFlowController`와 새 `SceneLoadingBudget`에서 전환 작업 분산/Player 로딩 예산 제한과 복구를 적용. Stage Scene/Prefab/동작/TTS/작성 pose는 변경하지 않았다.
+- Edit Mode 162/162, App smoke 33개, 뚜껑·집게·물방울·카운트 회귀 PASS. 실제 Quest mirror/시스템 모래시계 소멸은 미검증. 잠깐의 전환 fade와 초기 활성화의 긴 프레임은 남을 수 있다.
+- 수동 작업: Play 중지→컴파일 완료→App 재실행만 필요. setup/Scene 재생성 불필요.
+- 파일·테스트·알려진 문제·검증 제한은 [후속 보고서](../../integration/XR_MIRROR_TRANSITIONS_2026-09-07.md) 참고. 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — 대본/화이트보드/화질 회귀 수정
+
+- `PPETTSManager`의 중복 재생 시간 대기를 제거하고 실제 `CueStarted`를 `Whiteboard/PPEProcessDiagramController`에 연결했다. 화이트보드 위험 위치를 보는 실제 음성이 끝난 뒤 준비 순서로 바뀐다.
+- canonical PPE MP3 37개와 전체 대본을 현행 Grip 잡기/착용 위치에서 놓기, 3종 장비 수납 후 가방 Grip, 수거용기 바라보기+Grip 기준으로 검토/재생성했다. 과거 Y/B 안내로 되돌리지 않는다.
+- `04_PPE.unity`/Prefab/네임태그 작성 위치는 변경하지 않았다. 공용 App UI 깊이 분리 및 camera clip/품질 수정은 Integration에서 관리한다. 수동 setup 실행 불필요.
+- Edit Mode 160/160 통과(음성 83개 해시·대본·Unity 디코딩 포함). Quest 실제 착용 및 음성 청취 검수는 미검증. 서버 기능은 변경하지 않았다.
+- 전체 변경 파일·검증 결과·알려진 제한·수동 확인: [Integration 보고서](../../integration/VR_REGRESSION_2026-09-07.md). 추가 Integration 요청 없음.
+
+## 2026-09-04 Integration correction — Interaction별 오입력 요약
+
+- 오입력은 활성 `InteractionPrompted`부터 `InteractionCompleted` 사이에서만 수집한다. Gaze/Automatic/Movement 단계, Pause·비활성 시간, 스틱 축·스틱 클릭·메뉴·UI 입력은 제외한다.
+- 각 완료 이벤트에 요구 손·요구 control·Quest 버튼명, 첫/마지막 오입력, 총 물리 오입력 횟수, 서로 다른 오입력 목록, 반복 횟수와 입력 패턴을 함께 저장한다. Primary/Secondary는 손에 따라 A/X와 B/Y로 구분한다.
+- 같은 Interaction에서 같은 잘못된 손·키를 반복해도 `InteractionAttempted`는 한 번만 발행한다. 빠르게 여러 버튼을 누른 경우 `RapidMultiButtonInput`과 `Low` 신뢰도로 표시해 한 사용자의 연타가 전체 키 통계를 지배하지 않게 했다.
+- 성공 입력이 명시되지 않은 완료 콜백에서 마지막 오입력을 성공 키로 재사용하지 않는다. 마지막 관측 입력이 요구 손·키와 일치할 때만 사용하고, 아니면 요구 입력으로 완료를 기록한다.
+- 회귀 검사 4/4 통과: 기존 v1 JSON/Batch, 아날로그 눌림 중복 제거, A/B/X/Y 문맥 요약·스틱 제외, 마지막 오입력의 성공 키 오인 방지. Scene/Prefab/훈련 진행은 변경하지 않았다.
+
+## 2026-09-04 Integration correction — 입력 통계 중복 방지
+
+- `SharedXRInputContract`의 Grip/Trigger 값이 한 번 누른 상태에서 미세하게 변하며 `performed`를 여러 번 발생시켜, 같은 물리 입력이 잘못된 입력 여러 건으로 부풀려지던 문제를 수정했다.
+- `TrainingTelemetryRuntimeMonitor`가 버튼을 `performed -> canceled` 한 주기로 추적한다. 스틱 축과 스틱 클릭은 서비스에서 오입력 수집 대상에서 제외하며, 훈련 Pause와 앱 Pause에서는 눌림 상태를 안전하게 초기화한다.
+- 로컬 JSONL로 확인한 `Trigger -> Grip 95건`, `SecondaryButton -> Grip 36건`, `PrimaryButton -> Grip 35건`의 대부분은 2026-09-03 17:35에 시작한 수정 전 단일 세션에서 발생했다. 이미 서버에 저장된 과거 이벤트는 변경하거나 삭제하지 않는다.
+- 새 입력 회귀 검사들을 포함한 집중 검사 4/4 통과. 임시 테스트 실행기는 제거했으며 최종 Unity 도메인 리로드의 C# 컴파일 오류는 0개다.
+- 변경 파일: `Assets/Scripts/App/TrainingTelemetryService.cs`, `Assets/Scripts/App/TrainingTelemetryRuntimeMonitor.cs`, `Assets/Editor/Tests/AppFlowStateTests.cs`, 세 Stage 인수인계 문서. Scene/Prefab/훈련 진행은 변경하지 않았다.
+- 서버 대시보드에서 같은 요구 키를 한 행으로 합치는 작업은 서버 소스에서 별도로 처리해야 한다.
+
+## 2026-09-03 Integration correction — interaction-button narration
+
+- Every normal PPE wear prompt now states the actual two-step input: select the highlighted item with `Grip`, then press `Grip` again to equip it.
+- Response-bag guidance now states the complete live sequence: select with `Grip`, inspect contents with left `Y`, then press `Grip` again to finish preparation.
+- The Korean subtitle source and the matching runtime MP3 files were updated together. The respirator wording remains `전면형 호흡보호구` without the pronunciation-breaking space.
+- Changed runtime narration: `PPETTSSubtitles.cs` and PPE clips `08`, `10`, `12`, `14`, `16`, `18`, `21` under `Assets/Resources/TrainingNarration/PPE`.
+- Unity 6000.4.8f1 reimported all changed clips and completed the final domain reload with 0 current C# compiler errors. Quest audio timing and pronunciation remain the final device check.
+- No commit or push was made. Integration branch remains `integration-windsock-pivot`.
+
+## 2026-09-03 PPE presentation, narration, and telemetry correction
+
+- The app-loaded PPE room now preserves the five authored `NameTag_*` objects. `PPEEquipmentWallLabels` waits for the additive scene to finish initializing and only generates fallback labels when the complete authored label set is genuinely absent.
+- The preparation whiteboard order is now `Inner Gloves -> Chemical Suit -> Boots -> Respirator -> Face Shield -> Outer Gloves -> Response Bag -> Waste Container`. Each item receives a green completion check driven by `PPESequenceManager` state.
+- The HCl leak-location preview remains visible for at least seven seconds and the preparation board for at least twelve seconds. The opening narration explicitly directs the trainee to inspect the right-side equipment rack.
+- PPE step-completion narration now interrupts stale guidance immediately. The following step prompt remains queued behind that completion cue, preventing delayed speech and the response-bag-to-waste-container narration stall.
+- Interrupted or user-ended sessions now emit a partial `StageEnded` event for the active PPE stage, using the pause-aware active duration. Interaction prompts also carry `previous_interaction_id` and pause-aware `transition_active_duration_ms`.
+- Quest render scale was raised from `0.8` to `1.0`; the existing 4x MSAA remains enabled. This targets the blurred/shimmering edges visible in the PPE room.
+- The local JSONL proves the reported dashboard row was not produced by the latest PPE run: the session is `PPEOnly`/`PPE`, while the local telemetry upload key is empty. The live v0.6 dashboard also calculates transition gaps from raw UTC timestamps, so it includes headset-focus loss unless the server is updated to consume `transition_active_duration_ms`.
+
+### Files changed in this pass
+
+- `Assets/1.JSR/Scripts/PPEEquipmentWallLabels.cs`
+- `Assets/1.JSR/Scripts/PPESequenceManager.cs`
+- `Assets/1.JSR/Scripts/Whiteboard/PPEProcessDiagramController.cs`
+- `Assets/1.JSR/Scripts/PPETTSManager.cs`
+- `Assets/1.JSR/Scripts/PPETTSSubtitles.cs`
+- `Assets/Resources/TrainingNarration/PPE/02_WearEssentialPPE.mp3`
+- `Assets/Resources/TrainingNarration/PPE/03_WearInOrder.mp3`
+- `Assets/Scripts/App/TrainingTelemetryService.cs`
+- `Assets/Settings/Mobile_RPAsset.asset`
+- `Assets/Editor/IntegrationSceneValidator.cs`
+- `Assets/Editor/Tests/AppFlowStateTests.cs`
+- `docs/audio/FULL_COURSE_TTS_SCRIPT.md`
+- this handoff
+
+### Validation
+
+- Unity 6000.4.8f1 Asset Pipeline compile: 0 current C# errors.
+- Integration scene validation: all seven scenes, XR profiles, serialization, and Build Settings passed.
+- New telemetry regression tests: 2/2 passed.
+- Full existing EditMode suite: 48 passed, 5 failed. The five failures are pre-existing regression expectations in PPE hand-visual post-processing and LeakResponse/P102 tests; they are outside this scoped correction and were not hidden or deleted.
+- Quest headset verification is still required for final label legibility, whiteboard check placement, narration timing, and shimmer reduction.
+- No commit or push was made. Integration branch remains `integration-windsock-pivot`.
+
+## Cabinet shelf release support (2026-08-28)
+
+- `04_PPE` now stores nine solid shelf BoxColliders under `PPE_StorageRoot/Physics`: one full-width bottom support plus four left and four right compartment supports. The two shelf columns match the authored PPE slots while leaving the hanging-suit bay clear.
+- The cabinet model's nested, scaled PPE transforms do not line up with the old fixed `1.7 m` cabinet width. At runtime, an additional solid `Shelf_Item_*_Collider` is therefore fitted directly below every authored `PPEStoredDisplayState` physical bound. Inner gloves and protective gloves no longer depend on guessed cabinet-column coordinates.
+- The cabinet's full-size player blocker excludes the held/released PPE physics layer instead of disabling shelf collisions. Shelf colliders remain on Default and continue to collide with every released cabinet PPE object.
+- When cabinet PPE is released near its shelf, its solid bounds are lifted out of any initial shelf penetration and all shelf/item collision pairs are restored.
+- Final release policy: if the release does not successfully equip the PPE, it is restored to its authored cabinet pose immediately in the same release flow. Gravity is not enabled for that invalid release, so even a very small drop cannot pass through a shelf. This applies to every cabinet PPE object using `PPEStoredDisplayState`, including inner gloves, protective gloves, boots, respirator, and face shield. Successful equip releases are unchanged.
+
+### Files
+
+- `Assets/1.JSR/Scripts/PPECabinetPhysics.cs`
+- `Assets/1.JSR/Scripts/PPEStoredDisplayState.cs`
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED: Unity C# manual compile completed with 0 errors
+- SCENE VERIFIED: nine shelf BoxColliders are enabled, solid, and serialized; duplicate YAML document IDs: 0
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
+## Whiteboard inner gloves + packed bag final Grip (2026-08-28)
+
+- Whiteboard item `01 속장갑` now uses the same flat, front-facing pair presentation as item `07 외부 보호장갑`; the other seven item poses are unchanged.
+- After the detector, absorbent pad, and absorbent sock are packed, enabling the bag confirmation interaction now also enables the collider registered to `XRSimpleInteractable`. The next Grip can therefore call the existing bag-preparation flow, hide the bag, and continue the PPE sequence.
+
+### Files
+
+- `Assets/1.JSR/Scripts/Whiteboard/PPEProcessDiagramController.cs`
+- `Assets/1.JSR/Scripts/ResponseBagPackingController.cs`
+- this handoff
+
+### Validation
+
+- CODE VERIFIED: Unity C# manual compile completed with 0 errors
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
+
 ## Work metadata
 
 - Role: PPE
@@ -1896,3 +2012,49 @@ Earlier uncommitted PPE STEP 2-8 files and Scene changes remain in the same work
 - DEVICE TEST REQUIRED: use a Development Quest build to tune/confirm each glove visible palm/wrist overlap within `0-3 cm`.
 - DEVICE TEST REQUIRED: hold each boot, turn Body Yaw by 90 degrees, and confirm both toes rotate together while looking further down does not tilt them.
 - DEVICE TEST BLOCKED: Helmet cannot be physically tested until an approved PPE-owned Helmet object is authored and an explicit SOP sequence position is chosen.
+
+## 2026-08-28 HCl whiteboard integration
+
+- Moved the existing HCl process whiteboard content from the PPE worktree into `Assets/Scenes/04_PPE.unity` without replacing the current integrated scene.
+- Added `HCl_Whiteboard_WallMount` as a child of `Wall_Left`; the board, diagram layers, description panel, and runtime PPE preparation-order board all use this shared wall-relative mount.
+- Added only the whiteboard-owned art and controller under `Assets/1.JSR/Art/Whiteboard` and `Assets/1.JSR/Scripts/Whiteboard`.
+- Unity reimported and reopened `04_PPE.unity` successfully. Scene file IDs, asset GUID references, hierarchy links, and conflict markers were checked.
+- A current `Assembly-CSharp` compile completed with exit code 0. Existing deprecation and unused-field warnings remain outside this transfer.
+- Runtime headset viewing and final wall-offset confirmation remain for the scene owner.
+
+## 2026-08-28 PPE board/start/bag integration correction
+
+- The preparation board now copies only the active left/right physical members for InnerGloves, ChemicalBoots, and ChemicalGloves. The original combined shelf mesh is excluded, so items 01, 03, and 07 show one pair rather than two pairs.
+- Ghost, preview, highlight, equipped, and wearable renderers are excluded from all eight preparation-board model copies.
+- All copied models inherit the `HCl_Whiteboard_WallMount` rotation. This converts the former +Z display basis to the `Wall_Left` -X viewing direction so glove backs/fingers, boot toes, response-bag front, and waste-container front use the wall-facing orientation.
+- PPE standalone XR Origin and `Resources/SharedXR/PPE.asset` now start at yaw `-90` so the initial view faces the Wall_Left whiteboard.
+- Packing the third response item no longer auto-completes the bag. After all three items are stored, the local bag becomes Grip-selectable and one additional Grip confirms collection and hides the PPE bag.
+- Response-bag completion no longer enables `ResponseBag_Wearable`; the legacy wearable API is retained only for serialized compatibility and always hides the body-following bag. PreEntry and LeakResponse continue to use their own local scene bags.
+- Changed files: `PPEProcessDiagramController.cs`, `ResponseBagPackingController.cs`, `ResponseBagPrepareInteractable.cs`, `ResponseEquipmentManager.cs`, `ResponseBagWearableVisual.cs`, `PPE.asset`, and `04_PPE.unity`.
+- Validation: current Assembly-CSharp Roslyn compile completed with 0 errors; `04_PPE.unity` has 0 duplicate YAML document IDs. Quest visual orientation and the final extra-Grip flow remain for the scene owner to verify.
+## 2026-08-28 PPE board model-facing and room collision correction
+
+- Whiteboard preparation models 02, 04, 05, 06, and 08 now receive the required 180-degree front-face correction.
+- Inner-glove model axes are normalized to match the outer-glove presentation; both glove pairs are re-centered to remove authored shelf staggering.
+- `PPE_DeskTop_TopCollider` now uses the actual renderer-bounds center and retries CharacterController collision exclusion after the App XR Origin becomes available.
+- `PPE_StorageRoot` uses one full visual-bounds-fitted solid BoxCollider as a trainee blocker while ignoring cabinet-owned PPE/shelf collider pairs.
+
+## 2026-08-28 PPE VR wall comfort and response-bag Grip correction
+
+- Disabled the PC renderer's screen-space ambient occlusion feature. Its one-sample screen-space shadow pattern was producing camera-relative dark speckling on the PPE room walls and corners, which appeared to swim as the headset moved.
+- The mobile renderer was already free of this feature; the PC/Link and Editor render path now matches that stable wall presentation.
+- After the detector, absorbent pad, and absorbent sock are packed, the bag's final interaction collider, prepare callback, and XRI interactable are enabled in registration-safe order.
+- A single Grip while a hand/Near-Far interactor is hovering the fully packed bag now bypasses the generic PPE sticky-selection delay and immediately confirms the bag. The existing XRI select callback remains as a safe duplicate path.
+- The packing controller also consumes the next shared XR Grip directly after all three items are packed. This is the authoritative fallback for the PPE NearFar hand rig and guarantees bag collection even when XRI does not promote the highlighted bag from hover to select.
+- Kinematic-body velocity writes in the packing snap path were guarded, removing the repeated `Setting linear/angular velocity of a kinematic body is not supported` warnings from this flow.
+- Changed files: `Assets/Settings/PC_Renderer.asset`, `ResponseBagPackingController.cs`, `ResponseBagPackableItem.cs`, `ResponseBagPrepareInteractable.cs`, `XRInteractionConfirmRouter.cs`, and this handoff.
+
+## 2026-08-28 PPE interaction review refactor
+
+- All logical pair roots (`InnerGloves`, `ChemicalGloves`, `ChemicalBoots`) now keep one explicit disabled dummy collider in `XRSimpleInteractable.colliders`. An empty list can no longer make XRI auto-collect the two physical member colliders and steal their Grab ownership.
+- Member `PPEHandGrabbable` objects retain their authored physical and near-assist colliders. Pair interaction distance, opposite-hand rules, and sequence order are unchanged.
+- Held Ghost readiness and release-to-equip now use the same `PPEPlacementValidation` calculation for target validity, distance, optional rotation, and sequence state. Existing items with rotation validation disabled remain distance-only.
+- The extra active `ChemicalSuit` instance under `SuitSlot` is disabled in the scene, leaving one interactive logical `ChemicalSuit` item.
+- XR startup settings were inspected but not changed. In the installed XR Management version, `XRGeneralSettings.InitManagerOnStart` owns loader initialization and subsystem start while manager `automaticLoading/automaticRunning` remain serialized false by package design.
+- Changed files: `PPEGlovePairCoordinator.cs`, `PPEOutlineHighlight.cs`, `PPEPlacementGuideManager.cs`, `PPEReleaseEquip.cs`, new `PPEPlacementValidation.cs`, `04_PPE.unity`, and this handoff.
+- Validation: Unity Editor Asset Pipeline completed script compilation/domain reload with no C# errors. Standalone `dotnet build` is not authoritative for this Unity version and stops inside the unmodified URP package source when using .NET SDK 10. Play Mode and Quest interaction remain device checks.

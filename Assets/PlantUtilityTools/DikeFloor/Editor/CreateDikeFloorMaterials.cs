@@ -6,7 +6,6 @@ public static class CreateDikeFloorMaterials
     private const string Root = "Assets/PlantUtilityTools/DikeFloor";
     private const string MaterialFolder = Root + "/Materials";
 
-    [MenuItem("Tools/Plant Utility Tools/Dike Floor/Create Materials")]
     public static void CreateMaterials()
     {
         if (!AssetDatabase.IsValidFolder(MaterialFolder))

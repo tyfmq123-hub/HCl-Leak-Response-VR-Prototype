@@ -40,7 +40,6 @@ public static class PPEInteractableOutlineSetup
         "GlovesSlot",
     };
 
-    [MenuItem("Tools/PPE/Setup Interactable Outlines", false, 30)]
     public static void SetupInteractableOutlines()
     {
         EnsureOutlineMaterialAssets();

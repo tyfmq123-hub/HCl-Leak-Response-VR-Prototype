@@ -22,7 +22,7 @@ public sealed class ResponseBagPackingController : MonoBehaviour
     static readonly string WrongItemMessage =
         "\uC774 \uC7A5\uBE44\uB294 \uD604\uC7AC \uC900\uBE44 \uB300\uC0C1\uC774 \uC544\uB2D9\uB2C8\uB2E4.";
     static readonly string AllPackedMessage =
-        "\uD604\uC7A5 \uB300\uC751 \uC7A5\uBE44 \uC900\uBE44 \uC644\uB8CC";
+        "\uC7A5\uBE44 \uC218\uB0A9 \uC644\uB8CC. \uAC00\uBC29\uC744 Grip\uD574 \uCC59\uAE30\uC2ED\uC2DC\uC624.";
 
     public static ResponseBagPackingController Instance { get; private set; }
 
@@ -36,12 +36,17 @@ public sealed class ResponseBagPackingController : MonoBehaviour
     [SerializeField] ResponseBagPackableItem padItem;
     [SerializeField] ResponseBagPackableItem sockItem;
 
-    readonly HashSet<int> packedIds = new HashSet<int>();
+    readonly HashSet<ResponseBagPackableItem> packedItems = new HashSet<ResponseBagPackableItem>();
     readonly HashSet<Collider> insideTrigger = new HashSet<Collider>();
-    readonly Dictionary<int, Coroutine> fallWatches = new Dictionary<int, Coroutine>();
+    readonly Dictionary<ResponseBagPackableItem, Coroutine> fallWatches =
+        new Dictionary<ResponseBagPackableItem, Coroutine>();
     bool captureStarted;
     bool subscribedWrongRelease;
     bool tableReady;
+    BoxCollider tableTopCollider;
+    bool tableTopIgnoresLocomotion;
+    SharedXRInputContract sharedInput;
+    bool finalGripSubscribed;
 
     public bool HClMeterPacked => IsPacked(gasItem);
     public bool AbsorbentPadPacked => IsPacked(padItem);
@@ -60,6 +65,8 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         var sequence = PPESequenceManager.Resolve();
         if (sequence != null)
             sequence.OnPhaseChanged += OnPhaseChanged;
+
+        TrySubscribeFinalGrip();
     }
 
     void Start()
@@ -68,22 +75,79 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         SubscribeWrongItemReleases();
     }
 
+    void Update()
+    {
+        // The App XR Origin can be created after this Stage starts. Retry until the
+        // CharacterController exists so the item-supporting tabletop never keeps
+        // the trainee farther away than the visible desk front.
+        if (!tableTopIgnoresLocomotion && tableTopCollider != null)
+            tableTopIgnoresLocomotion = TryIgnoreLocomotionOnCollider(tableTopCollider);
+
+        // App creates the shared XR input contract before or shortly after the
+        // additive PPE Stage. Retry so final bag confirmation never depends on
+        // scene initialization order.
+        if (!finalGripSubscribed)
+            TrySubscribeFinalGrip();
+    }
+
     void OnDisable()
     {
         var sequence = PPESequenceManager.Resolve();
         if (sequence != null)
             sequence.OnPhaseChanged -= OnPhaseChanged;
+
+        UnsubscribeFinalGrip();
     }
 
     void OnDestroy()
     {
+        UnsubscribeFinalGrip();
         if (Instance == this)
             Instance = null;
     }
 
+    void TrySubscribeFinalGrip()
+    {
+        if (finalGripSubscribed)
+            return;
+
+        sharedInput = SharedXRInputContract.Instance;
+        if (sharedInput == null)
+            return;
+
+        sharedInput.Performed += OnSharedInputPerformed;
+        finalGripSubscribed = true;
+    }
+
+    void UnsubscribeFinalGrip()
+    {
+        if (sharedInput != null && finalGripSubscribed)
+            sharedInput.Performed -= OnSharedInputPerformed;
+
+        sharedInput = null;
+        finalGripSubscribed = false;
+    }
+
+    void OnSharedInputPerformed(SharedXRHand _, SharedXRControl control)
+    {
+        if (control != SharedXRControl.Select || !AllPacked)
+            return;
+
+        if (equipmentManager == null)
+            equipmentManager = ResponseEquipmentManager.Instance;
+        if (equipmentManager == null || equipmentManager.IsResponseBagPrepared())
+            return;
+
+        // Once all three items are packed, the next physical Grip is exclusively
+        // the "take the response bag" action. Do not depend on ray/hover/select
+        // classification because the PPE room uses a NearFar hand interactor.
+        if (equipmentManager.TryCompleteResponseBagPreparation())
+            Debug.Log("[PPE Packing] Final Grip confirmed — response bag collected.", this);
+    }
+
     public void RestoreTableLayout()
     {
-        packedIds.Clear();
+        packedItems.Clear();
         captureStarted = false;
         tableReady = false;
         foreach (var running in fallWatches.Values)
@@ -119,7 +183,7 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         }
 
         StopWatch(item);
-        fallWatches[item.GetInstanceID()] = StartCoroutine(WatchFallIntoBag(item));
+        fallWatches[item] = StartCoroutine(WatchFallIntoBag(item));
     }
 
     public void NotifyUnknownReleased(Component host)
@@ -147,6 +211,7 @@ public sealed class ResponseBagPackingController : MonoBehaviour
             : null;
         if (reveal == null || bag == null)
             return;
+        SetBagConfirmationEnabled(bag, AllPacked);
         if (tableReady && gasItem != null && padItem != null && sockItem != null)
             return;
 
@@ -177,7 +242,7 @@ public sealed class ResponseBagPackingController : MonoBehaviour
     {
         if (item == null || item.IsPacked)
             return;
-        if (!packedIds.Add(item.GetInstanceID()))
+        if (!packedItems.Add(item))
             return;
 
         StopWatch(item);
@@ -194,9 +259,11 @@ public sealed class ResponseBagPackingController : MonoBehaviour
             return;
 
         ShowFeedback(AllPackedMessage);
-        var sequence = PPESequenceManager.Resolve();
-        if (sequence == null || sequence.CanEquip(PPEEquipmentManager.IdResponseBag))
-            equipmentManager?.TryCompleteResponseBagPreparation();
+        PPETTSManager.Instance?.PlayNow(PPETTSCue.GripPackedResponseBag);
+        var bag = equipmentManager != null && equipmentManager.ResponseBagRoot != null
+            ? equipmentManager.ResponseBagRoot.transform
+            : null;
+        SetBagConfirmationEnabled(bag, true);
     }
 
     void SnapToSlot(ResponseBagPackableItem item)
@@ -208,8 +275,11 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         var body = item.Body;
         if (body != null)
         {
-            body.linearVelocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
+            if (!body.isKinematic)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
             body.isKinematic = true;
             body.useGravity = false;
         }
@@ -300,10 +370,9 @@ public sealed class ResponseBagPackingController : MonoBehaviour
     {
         if (item == null)
             return;
-        var id = item.GetInstanceID();
-        if (!fallWatches.TryGetValue(id, out var running))
+        if (!fallWatches.TryGetValue(item, out var running))
             return;
-        fallWatches.Remove(id);
+        fallWatches.Remove(item);
         if (running != null)
             StopCoroutine(running);
     }
@@ -348,6 +417,39 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         var simple = bag.GetComponent<XRSimpleInteractable>();
         if (simple != null)
             simple.enabled = false;
+    }
+
+    static void SetBagConfirmationEnabled(Transform bag, bool enabled)
+    {
+        if (bag == null)
+            return;
+
+        var simple = bag.GetComponent<XRSimpleInteractable>();
+        if (simple != null)
+        {
+            // The packing layout disables the original full-bag collider while
+            // contents are being inserted. XRI still references that collider, so
+            // enabling only the interactable leaves Grip with nothing to select.
+            // Restore its registered collider for the explicit final bag Grip.
+            if (simple.enabled)
+                simple.enabled = false;
+
+            for (var i = 0; i < simple.colliders.Count; i++)
+            {
+                var interactionCollider = simple.colliders[i];
+                if (interactionCollider != null)
+                    interactionCollider.enabled = enabled;
+            }
+        }
+
+        var prepare = bag.GetComponent<ResponseBagPrepareInteractable>();
+        if (prepare != null)
+            prepare.enabled = enabled;
+
+        // Register with XRI only after the final Grip collider and callback owner
+        // are ready. This avoids an enabled interactable with a stale collider set.
+        if (simple != null)
+            simple.enabled = enabled;
     }
 
     void EnsurePackingStructure(Transform bag)
@@ -595,16 +697,24 @@ public sealed class ResponseBagPackingController : MonoBehaviour
 
     static void IgnoreLocomotionOnCollider(Collider col)
     {
+        TryIgnoreLocomotionOnCollider(col);
+    }
+
+    static bool TryIgnoreLocomotionOnCollider(Collider col)
+    {
         if (col == null || col.isTrigger)
-            return;
+            return false;
 
         var ignoreRaycast = LayerMask.NameToLayer("Ignore Raycast");
         if (ignoreRaycast >= 0)
             col.gameObject.layer = ignoreRaycast;
 
         var controller = ResolvePlayerCharacterController();
-        if (controller != null)
-            Physics.IgnoreCollision(col, controller, true);
+        if (controller == null)
+            return false;
+
+        Physics.IgnoreCollision(col, controller, true);
+        return true;
     }
 
     static CharacterController ResolvePlayerCharacterController()
@@ -663,12 +773,16 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         if (sizeZ < 0.2f || sizeZ > 1.2f)
             sizeZ = 0.7f;
 
+        var surfaceCenter = bounds.size.sqrMagnitude >= 0.01f
+            ? bounds.center
+            : desk.transform.position;
         go.transform.SetPositionAndRotation(
-            new Vector3(desk.transform.position.x, topY, desk.transform.position.z),
+            new Vector3(surfaceCenter.x, topY, surfaceCenter.z),
             Quaternion.identity);
         box.center = new Vector3(0f, -0.03f, 0f);
         box.size = new Vector3(sizeX, 0.06f, sizeZ);
-        IgnoreLocomotionOnCollider(box);
+        tableTopCollider = box;
+        tableTopIgnoresLocomotion = TryIgnoreLocomotionOnCollider(box);
     }
 
     float ResolveTableTopY()
@@ -846,7 +960,13 @@ public sealed class ResponseBagPackingController : MonoBehaviour
             return;
         EnsureTableLayout();
         if (AllPacked)
-            equipmentManager?.TryCompleteResponseBagPreparation();
+        {
+            var bag = equipmentManager != null && equipmentManager.ResponseBagRoot != null
+                ? equipmentManager.ResponseBagRoot.transform
+                : null;
+            SetBagConfirmationEnabled(bag, true);
+            ShowFeedback(AllPackedMessage);
+        }
     }
 
     void SubscribeWrongItemReleases()
@@ -854,7 +974,7 @@ public sealed class ResponseBagPackingController : MonoBehaviour
         if (subscribedWrongRelease)
             return;
         subscribedWrongRelease = true;
-        var grabs = Object.FindObjectsByType<PPEHandGrabbable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var grabs = Object.FindObjectsByType<PPEHandGrabbable>(FindObjectsInactive.Include);
         for (var i = 0; i < grabs.Length; i++)
         {
             var grab = grabs[i];

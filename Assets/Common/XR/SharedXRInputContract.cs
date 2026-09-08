@@ -14,13 +14,15 @@ namespace HClTraining.SharedXR
     /// </summary>
     public static class SharedTrainingPause
     {
-        static float pauseStartedAt;
-        static float pausedDuration;
+        static float inactiveStartedAt;
+        static float inactiveDuration;
+        static int externalInactiveMask;
 
         public static bool IsPaused { get; private set; }
-        public static float UnscaledTime => UnityEngine.Time.unscaledTime - pausedDuration -
-                                            (IsPaused ? UnityEngine.Time.unscaledTime - pauseStartedAt : 0f);
-        public static float UnscaledDeltaTime => IsPaused ? 0f : UnityEngine.Time.unscaledDeltaTime;
+        public static bool IsClockInactive => IsPaused || externalInactiveMask != 0;
+        public static float UnscaledTime => UnityEngine.Time.unscaledTime - inactiveDuration -
+                                            (IsClockInactive ? UnityEngine.Time.unscaledTime - inactiveStartedAt : 0f);
+        public static float UnscaledDeltaTime => IsClockInactive ? 0f : UnityEngine.Time.unscaledDeltaTime;
         public static event Action<bool> Changed;
 
         public static void SetPaused(bool paused)
@@ -28,21 +30,47 @@ namespace HClTraining.SharedXR
             if (IsPaused == paused)
                 return;
 
-            if (paused)
-                pauseStartedAt = UnityEngine.Time.unscaledTime;
-            else
-                pausedDuration += Mathf.Max(0f, UnityEngine.Time.unscaledTime - pauseStartedAt);
-
+            var wasInactive = IsClockInactive;
             IsPaused = paused;
+            ApplyClockTransition(wasInactive);
             Changed?.Invoke(paused);
+        }
+
+        /// <summary>
+        /// Excludes overlapping OS/XR inactive periods from the shared training clock
+        /// without opening or closing the in-app pause menu.
+        /// </summary>
+        public static void SetExternalInactive(int reasonBit, bool inactive)
+        {
+            if (reasonBit <= 0)
+                return;
+
+            var wasInactive = IsClockInactive;
+            if (inactive)
+                externalInactiveMask |= reasonBit;
+            else
+                externalInactiveMask &= ~reasonBit;
+            ApplyClockTransition(wasInactive);
+        }
+
+        static void ApplyClockTransition(bool wasInactive)
+        {
+            var isInactive = IsClockInactive;
+            if (wasInactive == isInactive)
+                return;
+            if (isInactive)
+                inactiveStartedAt = UnityEngine.Time.unscaledTime;
+            else
+                inactiveDuration += Mathf.Max(0f, UnityEngine.Time.unscaledTime - inactiveStartedAt);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetRuntimeState()
         {
             IsPaused = false;
-            pauseStartedAt = 0f;
-            pausedDuration = 0f;
+            inactiveStartedAt = 0f;
+            inactiveDuration = 0f;
+            externalInactiveMask = 0;
             Changed = null;
         }
     }
@@ -61,6 +89,7 @@ namespace HClTraining.SharedXR
         SecondaryButton,
         Thumbstick,
         ThumbstickClick,
+        Menu,
         Select,
         Activate,
         UIPress,
@@ -234,6 +263,12 @@ namespace HClTraining.SharedXR
             RegisterOwned(hand, SharedXRControl.ThumbstickClick,
                 $"<XRController>{{{usage}}}/{{Primary2DAxisClick}}",
                 $"<OculusTouchController>{{{usage}}}/thumbstickClicked");
+            if (hand == SharedXRHand.Left)
+            {
+                RegisterOwned(hand, SharedXRControl.Menu,
+                    "<XRController>{LeftHand}/{MenuButton}",
+                    "<OculusTouchController>{LeftHand}/menu");
+            }
         }
 
         void RegisterOwned(
@@ -308,12 +343,16 @@ namespace HClTraining.SharedXR
 
         void Dispatch(InputAction action, Action<SharedXRHand, SharedXRControl> callback)
         {
-            if (GameplayInputSuppressed || callback == null || action == null)
+            if (callback == null || action == null)
                 return;
             foreach (var pair in actions)
             {
                 if (pair.Value == action)
                 {
+                    // The in-app menu button must remain available while gameplay input
+                    // is paused so the same button can close the pause menu again.
+                    if (GameplayInputSuppressed && pair.Key.Item2 != SharedXRControl.Menu)
+                        return;
                     callback(pair.Key.Item1, pair.Key.Item2);
                     return;
                 }

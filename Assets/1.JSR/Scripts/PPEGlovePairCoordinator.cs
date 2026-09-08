@@ -750,12 +750,6 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
             Destroy(body);
     }
 
-    bool IsChemicalGlovesPair()
-    {
-        return logicalItem != null &&
-               string.Equals(logicalItem.ItemId, PPEEquipmentManager.IdChemicalGloves, System.StringComparison.Ordinal);
-    }
-
     void EnsureHoverOnlyInteractable()
     {
         var grab = GetComponent<PPEHandGrabbable>();
@@ -767,17 +761,11 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
             simple.interactionLayers = grab.interactionLayers;
 
         simple.selectMode = InteractableSelectMode.Multiple;
-        if (IsChemicalGlovesPair())
-        {
-            PinProtectiveGloveLogicalRootColliders(simple);
-            return;
-        }
-
-        simple.colliders.Clear();
+        PinLogicalRootColliders(simple);
         simple.enabled = true;
     }
 
-    void PinProtectiveGloveLogicalRootColliders(XRSimpleInteractable simple)
+    void PinLogicalRootColliders(XRSimpleInteractable simple)
     {
         if (simple == null)
             return;
@@ -794,11 +782,11 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
 
         dummy.enabled = false;
         dummy.isTrigger = true;
-        PinProtectiveMemberGrabColliders(leftMember);
-        PinProtectiveMemberGrabColliders(rightMember);
+        PinMemberGrabColliders(leftMember);
+        PinMemberGrabColliders(rightMember);
     }
 
-    static void PinProtectiveMemberGrabColliders(PPEGlovePairMember member)
+    static void PinMemberGrabColliders(PPEGlovePairMember member)
     {
         if (member == null)
             return;

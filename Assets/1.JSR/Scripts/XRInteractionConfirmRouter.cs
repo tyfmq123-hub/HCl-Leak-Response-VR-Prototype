@@ -216,6 +216,16 @@ public class XRInteractionConfirmRouter : MonoBehaviour
 
         ResolveRefs();
 
+        // Response bag is a physical one-step action after all three items are
+        // packed. Near/Far hand interactors are not XRRayInteractor instances, so
+        // route their hovered Grip before the generic sticky PPE selection flow.
+        if (responseBagPrepareInteractable != null
+            && responseBagPrepareInteractable.TryPrepareFromPackingGripHover())
+        {
+            lastRoutedAt = Time.unscaledTime;
+            return;
+        }
+
         // First Grip while hovering a *different* outline = switch sticky select (never equip that press).
         if (TrySelectHoveredOutline(inputHand))
         {

@@ -21,11 +21,12 @@ namespace JH.EntrySafety
         [SerializeField] private AudioClip _checkAccessRestrictionClip;
 
         private EntrySafetyStep? _playingStep;
-        private float _playingUntilUnscaledTime;
+        private int _playRequestedFrame = -2;
 
         public bool IsPlaying =>
-            (_audioSource != null && _audioSource.isPlaying) ||
-            SharedTrainingPause.UnscaledTime < _playingUntilUnscaledTime;
+            _audioSource != null && _audioSource.clip != null &&
+            (_audioSource.isPlaying || Time.frameCount <= _playRequestedFrame + 1 ||
+             SharedTrainingPause.IsPaused || AudioListener.pause);
 
         public float GetClipLength(EntrySafetyStep step)
         {
@@ -45,25 +46,34 @@ namespace JH.EntrySafety
 
         public float PlayStopAndPressureConfirmed()
         {
-            return PlayClip(_stopAndPressureConfirmedClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("18_VerifyPressureDecrease") ??
+                       _stopAndPressureConfirmedClip;
+            return PlayClip(clip, null);
         }
 
         public float PlaySafetyCheckComplete()
         {
-            return PlayClip(_safetyCheckCompleteClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("19_SafetyCheckComplete") ??
+                       _safetyCheckCompleteClip;
+            return PlayClip(clip, null);
         }
 
         public float PlayCheckAccessRestriction()
         {
-            return PlayClip(_checkAccessRestrictionClip, null);
+            var clip = EntrySafetyNarrationResources.LoadSpecial("20_MoveToLeakResponse") ??
+                       _checkAccessRestrictionClip;
+            return PlayClip(clip, null);
         }
 
         public void Stop()
         {
             if (_audioSource != null)
+            {
                 _audioSource.Stop();
+                _audioSource.clip = null;
+            }
             _playingStep = null;
-            _playingUntilUnscaledTime = 0f;
+            _playRequestedFrame = -2;
         }
 
         private float PlayClip(AudioClip clip, EntrySafetyStep? step)
@@ -73,14 +83,17 @@ namespace JH.EntrySafety
 
             _audioSource.Stop();
             _playingStep = null;
-            _playingUntilUnscaledTime = 0f;
+            _playRequestedFrame = -2;
             if (clip == null)
                 return 0f;
 
             _audioSource.clip = clip;
+            _audioSource.ignoreListenerPause = false;
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+                clip.LoadAudioData();
             _audioSource.Play();
             _playingStep = step;
-            _playingUntilUnscaledTime = SharedTrainingPause.UnscaledTime + clip.length;
+            _playRequestedFrame = Time.frameCount;
             return clip.length;
         }
 
@@ -91,6 +104,10 @@ namespace JH.EntrySafety
             // after the handoff has already started.
             if (step == EntrySafetyStep.MoveToNextArea)
                 return null;
+
+            var finalCourseClip = EntrySafetyNarrationResources.LoadStep(step);
+            if (finalCourseClip != null)
+                return finalCourseClip;
 
             // The authored Scene predates the explicit automatic pressure-wait step.
             // Reuse this serialized slot for the reduced-pressure gaze cue so the

@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Linq;
 using HClTraining.App;
 using HClTraining.SharedXR;
+using JH.EntrySafety;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -50,6 +51,11 @@ public sealed class AppFlowStateTests
         state.EnterStage(TrainingStage.LeakResponse);
         Assert.IsTrue(state.MarkCurrentStageComplete());
         Assert.AreEqual(TrainingStage.Complete, state.GetNextStage());
+        Assert.IsTrue(state.HasCompletedRequiredTraining);
+        Assert.IsNotNull(state.CompletionResult);
+        Assert.AreEqual(
+            state.PpeDurationSeconds + state.PreEntryDurationSeconds + state.LeakResponseDurationSeconds,
+            state.CompletionResult.TotalDurationSeconds);
     }
 
     [TestCase(TrainingMode.PPEOnly, TrainingStage.PPE)]
@@ -63,6 +69,12 @@ public sealed class AppFlowStateTests
         state.EnterStage(expected);
         state.MarkCurrentStageComplete();
         Assert.AreEqual(TrainingStage.Complete, state.GetNextStage());
+        Assert.IsTrue(state.HasEndedSelectedTraining);
+        Assert.IsTrue(state.HasCompletedRequiredTraining);
+        Assert.IsNotNull(state.CompletionResult);
+        Assert.AreEqual("SingleStage", state.CompletionResult.ExecutionMode);
+        Assert.AreEqual(expected.ToString(), state.CompletionResult.SelectedStage);
+        Assert.AreEqual(1, state.CompletionResult.StageResults.Count);
     }
 
     [Test]
@@ -107,20 +119,450 @@ public sealed class AppFlowStateTests
         state.Begin(TrainingMode.Full);
 
         telemetry.StartSession(TrainingMode.Full);
+        state.EnterStage(TrainingStage.PPE);
+        state.BeginCurrentStageTiming();
+        state.MarkCurrentStageComplete();
         state.EnterStage(TrainingStage.PreEntry);
+        state.BeginCurrentStageTiming();
         telemetry.StageEntered(TrainingStage.PreEntry);
         telemetry.StepEntered(TrainingStepId.PreEntry);
         telemetry.StepCompleted(TrainingStepId.PreEntry, attemptCount: 2, rejectedCount: 1);
+        state.MarkCurrentStageComplete();
+        state.EnterStage(TrainingStage.LeakResponse);
+        state.BeginCurrentStageTiming();
+        state.MarkCurrentStageComplete();
+        telemetry.CompletionScreenShown();
         telemetry.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
 
         Assert.IsFalse(string.IsNullOrWhiteSpace(sink.SessionId));
-        Assert.AreEqual(5, sink.Records.Count);
+        Assert.AreEqual(6, sink.Records.Count);
         Assert.AreEqual("SessionStarted", sink.Records[0].event_type);
         Assert.AreEqual("P102", sink.Records[0].facility_id);
         Assert.AreEqual("StepCompleted", sink.Records[3].event_type);
         Assert.AreEqual(2, sink.Records[3].attempt_count);
         Assert.AreEqual(1, sink.Records[3].rejected_count);
-        Assert.AreEqual("SessionCompleted", sink.Records[4].event_type);
+        Assert.AreEqual("CompletionScreenShown", sink.Records[4].event_type);
+        Assert.AreEqual("SessionCompleted", sink.Records[5].event_type);
+        Assert.AreEqual("P102", sink.Records[5].facility_id);
+        Assert.IsTrue(sink.Records[5].training_completed);
+        Assert.AreEqual(
+            sink.Records[5].ppe_duration_seconds +
+            sink.Records[5].preentry_duration_seconds +
+            sink.Records[5].leakresponse_duration_seconds,
+            sink.Records[5].total_duration_seconds);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sink.Records[5].completed_at_utc));
+        Assert.IsTrue(telemetry.TryGetCompletionSummary(out var summary));
+        Assert.IsTrue(summary.HasTotalDuration);
+        Assert.IsTrue(summary.TrainingCompleted);
+        Assert.AreEqual(
+            summary.PpeDurationSeconds + summary.PreEntryDurationSeconds + summary.LeakResponseDurationSeconds,
+            summary.TotalDurationSeconds);
+        Assert.IsTrue(summary.HasProcedureErrorCount);
+        Assert.AreEqual(1, summary.ProcedureErrorCount);
+        CollectionAssert.AreEqual(new[] { "현장 진입 전 확인" }, summary.ReviewItems);
+    }
+
+    [Test]
+    public void TelemetryContractV1_RecordsInteractionPayloadAndBuildsBatch()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PreEntryOnly);
+        telemetry.StartSession(TrainingMode.PreEntryOnly);
+        state.EnterStage(TrainingStage.PreEntry);
+        telemetry.StageEntered(TrainingStage.PreEntry);
+
+        telemetry.InteractionPrompted(
+            TrainingStage.PreEntry,
+            "PreEntry_StopPump",
+            1,
+            "Right",
+            "Trigger",
+            "VoiceAndUI");
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.SecondaryButton);
+        telemetry.InteractionCompleted("PreEntry_StopPump", "Right", "Trigger");
+
+        Assert.IsTrue(sink.Records.All(record => record.schema_version == "1.0"));
+        Assert.AreEqual(
+            sink.Records.Count,
+            sink.Records.Select(record => record.event_id).Distinct().Count());
+        var prompted = sink.Records.Single(record => record.event_type == "InteractionPrompted");
+        StringAssert.Contains("\"expected_order_index\":1", prompted.payload_json);
+        StringAssert.Contains("\"expected_control\":\"Trigger\"", prompted.payload_json);
+        var rejected = sink.Records.Single(record =>
+            record.event_type == "InteractionAttempted" && record.result == "Rejected");
+        StringAssert.Contains("\"rejection_reason\":\"WrongHand\"", rejected.payload_json);
+        var completed = sink.Records.Single(record => record.event_type == "InteractionCompleted");
+        StringAssert.Contains("\"actual_completion_order_index\":1", completed.payload_json);
+        StringAssert.Contains("\"sequence_result\":\"Repeated\"", completed.payload_json);
+
+        var eventJson = TrainingTelemetryJson.SerializeRecord(prompted);
+        StringAssert.Contains("\"payload\":{", eventJson);
+        var batchJson = TrainingTelemetryJson.SerializeBatch(
+            "12345678batch",
+            sink.SessionId,
+            "2026-09-03T00:00:00.000Z",
+            sink.Records);
+        StringAssert.StartsWith("{\"schema_version\":\"1.0\"", batchJson);
+        StringAssert.Contains("\"events\":[", batchJson);
+    }
+
+    [Test]
+    public void ApplicationFocusLoss_IsRecordedWithoutStoppingVrTrainingClock()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.LeakResponseOnly);
+        telemetry.StartSession(TrainingMode.LeakResponseOnly);
+
+        var monitor = root.AddComponent<TrainingTelemetryRuntimeMonitor>();
+        monitor.Initialize(telemetry, null);
+        var callback = typeof(TrainingTelemetryRuntimeMonitor).GetMethod(
+            "OnApplicationFocus", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(callback, Is.Not.Null);
+
+        callback.Invoke(monitor, new object[] { false });
+
+        Assert.That(SharedTrainingPause.IsClockInactive, Is.False,
+            "Desktop mirror/Editor focus loss must not subtract time while XR is active.");
+        Assert.That(sink.Records.Any(record =>
+            record.event_type == "AppStateChanged" &&
+            record.payload_json.Contains("ApplicationFocus")), Is.True);
+    }
+
+    [Test]
+    public void TelemetryRuntimeMonitor_CountsAnalogPerformedChangesOncePerPhysicalPress()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PreEntryOnly);
+        telemetry.StartSession(TrainingMode.PreEntryOnly);
+        state.EnterStage(TrainingStage.PreEntry);
+        telemetry.StageEntered(TrainingStage.PreEntry);
+        telemetry.InteractionPrompted(
+            TrainingStage.PreEntry,
+            "PreEntry_StopPump",
+            1,
+            "Right",
+            "Trigger",
+            "VoiceAndUI");
+
+        var monitor = root.AddComponent<TrainingTelemetryRuntimeMonitor>();
+        monitor.Initialize(telemetry, null);
+        var performed = typeof(TrainingTelemetryRuntimeMonitor).GetMethod(
+            "OnSharedInputPerformed", BindingFlags.Instance | BindingFlags.NonPublic);
+        var canceled = typeof(TrainingTelemetryRuntimeMonitor).GetMethod(
+            "OnSharedInputCanceled", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(performed, Is.Not.Null);
+        Assert.That(canceled, Is.Not.Null);
+
+        performed.Invoke(monitor, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+        performed.Invoke(monitor, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+
+        Assert.AreEqual(1, sink.Records.Count(record =>
+            record.event_type == "InteractionAttempted" && record.result == "Rejected"),
+            "Analog value changes during one held Grip must not inflate wrong-input totals.");
+
+        canceled.Invoke(monitor, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+        performed.Invoke(monitor, new object[] { SharedXRHand.Left, SharedXRControl.Grip });
+
+        Assert.AreEqual(1, sink.Records.Count(record =>
+            record.event_type == "InteractionAttempted" && record.result == "Rejected"),
+            "Repeated use of the same wrong key in one interaction must not inflate dashboard rows.");
+
+        telemetry.InteractionCompleted("PreEntry_StopPump", "Right", "Trigger");
+        var completed = sink.Records.Single(record => record.event_type == "InteractionCompleted");
+        StringAssert.Contains("\"wrong_input_press_count\":2", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_distinct_count\":1", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_repeat_count\":1", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_pattern\":\"RepeatedSameInput\"", completed.payload_json);
+    }
+
+    [Test]
+    public void InteractionWrongInputs_AreContextualBoundedAndUseQuestKeyLabels()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PreEntryOnly);
+        telemetry.StartSession(TrainingMode.PreEntryOnly);
+        state.EnterStage(TrainingStage.PreEntry);
+        telemetry.StageEntered(TrainingStage.PreEntry);
+        telemetry.InteractionPrompted(
+            TrainingStage.PreEntry,
+            "PreEntry_MoveToPT",
+            1,
+            "Right",
+            "PrimaryButton",
+            "VoiceAndUI");
+
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.Grip);
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.Grip);
+        telemetry.ObserveInput(SharedXRHand.Right, SharedXRControl.SecondaryButton);
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.PrimaryButton);
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.SecondaryButton);
+        telemetry.ObserveInput(SharedXRHand.Right, SharedXRControl.Grip);
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.Trigger);
+        telemetry.ObserveInput(SharedXRHand.Right, SharedXRControl.Trigger);
+        telemetry.ObserveInput(SharedXRHand.Left, SharedXRControl.ThumbstickClick);
+        telemetry.InteractionCompleted("PreEntry_MoveToPT", "Right", "PrimaryButton");
+
+        var rejected = sink.Records.Where(record =>
+            record.event_type == "InteractionAttempted" && record.result == "Rejected").ToArray();
+        Assert.AreEqual(7, rejected.Length,
+            "The duplicate Grip and excluded stick click must not create extra attempt rows.");
+        Assert.IsTrue(rejected.Any(record => record.payload_json.Contains("\"actual_key\":\"B\"")));
+        Assert.IsTrue(rejected.Any(record => record.payload_json.Contains("\"actual_key\":\"X\"")));
+        Assert.IsTrue(rejected.Any(record => record.payload_json.Contains("\"actual_key\":\"Y\"")));
+
+        var completed = sink.Records.Single(record => record.event_type == "InteractionCompleted");
+        StringAssert.Contains("\"input_analytics_version\":2", completed.payload_json);
+        StringAssert.Contains("\"expected_key\":\"A\"", completed.payload_json);
+        StringAssert.Contains("\"had_wrong_input\":true", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_press_count\":8", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_distinct_count\":7", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_repeat_count\":1", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_pattern\":\"RapidMultiButtonInput\"", completed.payload_json);
+        StringAssert.Contains("\"wrong_input_signal_quality\":\"Low\"", completed.payload_json);
+        StringAssert.Contains("\"first_wrong_key\":\"Grip\"", completed.payload_json);
+        StringAssert.Contains("\"key\":\"B\"", completed.payload_json);
+        StringAssert.Contains("\"key\":\"X\"", completed.payload_json);
+        StringAssert.Contains("\"key\":\"Y\"", completed.payload_json);
+    }
+
+    [Test]
+    public void InteractionCompletion_DoesNotReportLastWrongKeyAsSuccessfulInput()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PPEOnly);
+        telemetry.StartSession(TrainingMode.PPEOnly);
+        state.EnterStage(TrainingStage.PPE);
+        telemetry.StageEntered(TrainingStage.PPE);
+        telemetry.InteractionPrompted(
+            TrainingStage.PPE,
+            "PPE_Respirator",
+            1,
+            "Either",
+            "Grip",
+            "VoiceAndUI");
+
+        telemetry.ObserveInput(SharedXRHand.Right, SharedXRControl.SecondaryButton);
+        telemetry.InteractionCompleted("PPE_Respirator");
+
+        var completed = sink.Records.Single(record => record.event_type == "InteractionCompleted");
+        StringAssert.Contains("\"actual_hand\":\"Either\"", completed.payload_json);
+        StringAssert.Contains("\"actual_control\":\"Grip\"", completed.payload_json);
+        StringAssert.Contains("\"actual_key\":\"Grip\"", completed.payload_json);
+        StringAssert.Contains("\"first_wrong_key\":\"B\"", completed.payload_json);
+    }
+
+    [Test]
+    public void PreEntryDeliberateLeftGrip_DrivesPickupAndStoreCommands()
+    {
+        var input = root.AddComponent<EntrySafetyInputAdapter>();
+        var pickupCount = 0;
+        var storeCount = 0;
+        input.EquipDetectorPressed += () => pickupCount++;
+        input.StoreDetectorPressed += () => storeCount++;
+
+        Assert.That(input.SimulateLeftGripForIntegrationSmoke(0f, 0.13f), Is.False);
+        Assert.That(input.SimulateLeftGripForIntegrationSmoke(1f, 0f), Is.True);
+        Assert.That(pickupCount, Is.EqualTo(1));
+        Assert.That(storeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CompletionSummary_HidesMetricsThatWereNotRecorded()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.Full);
+
+        telemetry.StartSession(TrainingMode.Full);
+        telemetry.StepCompleted(TrainingStepId.PPE);
+        CompleteRequiredStages(state);
+        telemetry.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
+
+        Assert.IsTrue(telemetry.TryGetCompletionSummary(out var summary));
+        Assert.IsTrue(summary.HasTotalDuration);
+        Assert.IsFalse(summary.HasProcedureErrorCount);
+        Assert.IsEmpty(summary.ReviewItems);
+    }
+
+    [Test]
+    public void SingleStageTelemetry_CompletesWithoutUnselectedStages()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.LeakResponseOnly);
+
+        telemetry.StartSession(TrainingMode.LeakResponseOnly);
+        state.EnterStage(TrainingStage.LeakResponse);
+        state.BeginCurrentStageTiming();
+        state.MarkCurrentStageComplete();
+        telemetry.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
+
+        Assert.AreEqual(TrainingSessionStatus.Completed, telemetry.Status);
+        Assert.IsTrue(telemetry.TryGetCompletionSummary(out var summary));
+        Assert.IsTrue(summary.TrainingCompleted);
+        Assert.IsTrue(sink.Records.Any(record => record.event_type == "SessionCompleted"));
+    }
+
+    [Test]
+    public void SingleStage_EndAndCompletionAreSeparatedByRequiredItems()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        state.Begin(TrainingMode.PPEOnly);
+        state.EnterStage(TrainingStage.PPE);
+        state.RegisterCheckItem(TrainingStage.PPE, "ppe.gloves", "장갑 착용");
+        state.RegisterCheckItem(TrainingStage.PPE, "ppe.suit", "보호복 착용");
+        state.StartCheckItem(TrainingStage.PPE, "ppe.gloves", "장갑 착용");
+        state.CompleteCheckItem(TrainingStage.PPE, "ppe.gloves", "장갑 착용");
+
+        Assert.IsTrue(state.EndCurrentStage());
+        Assert.IsTrue(state.HasEndedSelectedTraining);
+        Assert.IsFalse(state.HasCompletedRequiredTraining);
+        Assert.IsNotNull(state.CompletionResult);
+        Assert.IsFalse(state.CompletionResult.TrainingCompleted);
+        Assert.AreEqual(string.Empty, state.CompletionResult.CompletedAtUtc);
+
+        var result = state.GetStageResult(TrainingStage.PPE);
+        Assert.IsTrue(result.StageEnded);
+        Assert.IsFalse(result.StageCompleted);
+        CollectionAssert.AreEqual(new[] { "보호복 착용" }, result.MissingRequiredItems);
+    }
+
+    [Test]
+    public void QuickFeedback_NoProblemIsExclusiveAndUsesSelectedStage()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        state.Begin(TrainingMode.PreEntryOnly);
+        state.EnterStage(TrainingStage.PreEntry);
+        state.EndCurrentStage();
+
+        var feedback = state.SaveQuickFeedback(
+            TrainingStage.None,
+            new[] { "interaction_difficult", "no_problem", "runtime_error" });
+
+        Assert.IsNotNull(feedback);
+        Assert.AreEqual("PreEntry", feedback.TargetStage);
+        CollectionAssert.AreEqual(new[] { "no_problem" }, feedback.QuickFeedbackIds);
+        Assert.AreEqual(state.SessionId, feedback.SessionId);
+    }
+
+    [Test]
+    public void StageEndedTelemetry_StoresIncompleteStageWithoutBlockingResultSession()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PPEOnly);
+        telemetry.StartSession(TrainingMode.PPEOnly);
+        state.EnterStage(TrainingStage.PPE);
+        state.RegisterCheckItem(TrainingStage.PPE, "ppe.required", "필수 PPE");
+        state.EndCurrentStage();
+
+        var stageResult = state.GetStageResult(TrainingStage.PPE);
+        telemetry.StageEnded(TrainingStage.PPE, stageResult.StageCompleted, stageResult);
+        telemetry.EndSession(TrainingSessionStatus.Completed, TrainingExitReason.None);
+
+        var ended = sink.Records.Single(record => record.event_type == "StageEnded");
+        Assert.IsTrue(ended.stage_ended);
+        Assert.IsFalse(ended.stage_completed);
+        Assert.AreEqual("SingleStage", ended.execution_mode);
+        Assert.AreEqual("PPE", ended.selected_stage);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(ended.stage_result_json));
+
+        var sessionResult = sink.Records.Single(record => record.event_type == "SessionCompleted");
+        Assert.IsFalse(sessionResult.training_completed);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sessionResult.ended_at_utc));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sessionResult.training_result_json));
+    }
+
+    [Test]
+    public void InterruptedPpeTelemetry_EmitsPartialPpeStageBeforeSessionTerminalEvent()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PPEOnly);
+        telemetry.StartSession(TrainingMode.PPEOnly);
+        state.EnterStage(TrainingStage.PPE);
+        state.BeginCurrentStageTiming();
+        telemetry.StageEntered(TrainingStage.PPE);
+
+        telemetry.EndSession(
+            TrainingSessionStatus.Interrupted,
+            TrainingExitReason.UserRequested,
+            "test_interrupt");
+
+        var stageEndedIndex = sink.Records.FindIndex(record => record.event_type == "StageEnded");
+        var terminalIndex = sink.Records.FindIndex(record => record.event_type == "SessionInterrupted");
+        Assert.GreaterOrEqual(stageEndedIndex, 0);
+        Assert.Greater(terminalIndex, stageEndedIndex);
+        Assert.AreEqual("PPE", sink.Records[stageEndedIndex].stage_id);
+        StringAssert.Contains("\"completed\":false", sink.Records[stageEndedIndex].payload_json);
+        StringAssert.Contains("\"stage_active_duration_ms\":", sink.Records[stageEndedIndex].payload_json);
+    }
+
+    [Test]
+    public void InteractionPrompted_StoresPauseAwareTransitionDuration()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        var sink = new RecordingTelemetrySink();
+        var telemetry = root.AddComponent<TrainingTelemetryService>();
+        telemetry.Initialize(state, sink);
+        state.Begin(TrainingMode.PPEOnly);
+        telemetry.StartSession(TrainingMode.PPEOnly);
+        state.EnterStage(TrainingStage.PPE);
+        telemetry.StageEntered(TrainingStage.PPE);
+
+        telemetry.InteractionPrompted(
+            TrainingStage.PPE, "PPE_Respirator", 1, "Either", "Grip", "VoiceAndUI");
+        telemetry.InteractionCompleted("PPE_Respirator", "Right", "Grip");
+        telemetry.InteractionPrompted(
+            TrainingStage.PPE, "PPE_FaceProtection", 2, "Either", "Grip", "VoiceAndUI");
+
+        var prompted = sink.Records.Last(record => record.event_type == "InteractionPrompted");
+        StringAssert.Contains("\"previous_interaction_id\":\"PPE_Respirator\"", prompted.payload_json);
+        StringAssert.Contains("\"transition_active_duration_ms\":", prompted.payload_json);
+    }
+
+    [Test]
+    public void NewTrainingSession_ResetsStageTimesCompletionAndResult()
+    {
+        var state = root.AddComponent<TrainingSessionState>();
+        state.Begin(TrainingMode.Full);
+        CompleteRequiredStages(state);
+
+        Assert.IsTrue(state.HasCompletedRequiredTraining);
+        Assert.IsNotNull(state.CompletionResult);
+
+        state.Begin(TrainingMode.Full);
+
+        Assert.IsFalse(state.HasCompletedRequiredTraining);
+        Assert.IsNull(state.CompletionResult);
+        Assert.IsEmpty(state.CompletedStages);
+        Assert.AreEqual(0d, state.PpeDurationSeconds);
+        Assert.AreEqual(0d, state.PreEntryDurationSeconds);
+        Assert.AreEqual(0d, state.LeakResponseDurationSeconds);
+        Assert.AreEqual(0d, state.TotalDurationSeconds);
     }
 
     [Test]
@@ -188,7 +630,7 @@ public sealed class AppFlowStateTests
         var authoredInstance = new GameObject("INT_AbsorbentSock_Straight_01");
         authoredInstance.transform.SetParent(root.transform, false);
         authoredInstance.transform.localPosition = new Vector3(1f, 2f, 3f);
-        var instanceId = authoredInstance.GetInstanceID();
+        var entityId = authoredInstance.GetEntityId();
 
         inventory.BeginStage(root.scene, TrainingStage.LeakResponse);
         Assert.IsFalse(authoredInstance.activeSelf);
@@ -196,7 +638,7 @@ public sealed class AppFlowStateTests
 
         Assert.IsTrue(inventory.DeployOrRecall(PersistentEquipmentInventory.AbsorbentSock));
         Assert.IsTrue(inventory.IsDeployed(PersistentEquipmentInventory.AbsorbentSock));
-        Assert.AreEqual(instanceId, authoredInstance.GetInstanceID());
+        Assert.AreEqual(entityId, authoredInstance.GetEntityId());
 
         Assert.IsTrue(inventory.DeployOrRecall(PersistentEquipmentInventory.AbsorbentSock));
         Assert.IsFalse(inventory.IsDeployed(PersistentEquipmentInventory.AbsorbentSock));
@@ -343,8 +785,10 @@ public sealed class AppFlowStateTests
         Assert.IsFalse(rightModel.activeSelf);
 
         wearable.ApplyPpeRoomState(true, true);
-        Assert.IsFalse(leftHand.activeSelf);
-        Assert.IsFalse(rightHand.activeSelf);
+        Assert.IsTrue(leftHand.activeSelf,
+            "The tracked hand roots must stay active while their renderers are replaced by gloves.");
+        Assert.IsTrue(rightHand.activeSelf,
+            "The tracked hand roots must stay active while their renderers are replaced by gloves.");
         Assert.IsTrue(leftGlove.activeSelf);
         Assert.IsTrue(rightGlove.activeSelf);
     }
@@ -360,6 +804,23 @@ public sealed class AppFlowStateTests
         Assert.IsNotNull(resolver);
         var resolved = resolver.Invoke(null, new object[] { bindingPath });
         Assert.AreEqual(expectedHand, resolved.ToString());
+    }
+
+    static void CompleteRequiredStages(TrainingSessionState state)
+    {
+        var stages = new[]
+        {
+            TrainingStage.PPE,
+            TrainingStage.PreEntry,
+            TrainingStage.LeakResponse,
+        };
+
+        for (var i = 0; i < stages.Length; i++)
+        {
+            state.EnterStage(stages[i]);
+            state.BeginCurrentStageTiming();
+            Assert.IsTrue(state.MarkCurrentStageComplete());
+        }
     }
 
     static Transform CreatePath(Transform parent, string path)

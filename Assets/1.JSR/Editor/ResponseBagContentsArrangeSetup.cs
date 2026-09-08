@@ -29,7 +29,6 @@ public static class ResponseBagContentsArrangeSetup
     const float PadTargetExtent = 0.20f;
     const float MaxColliderAxis = 0.45f;
 
-    [MenuItem("Tools/PPE/Arrange Response Bag Contents", false, 37)]
     public static void ArrangeContents()
     {
         var scene = SceneManager.GetActiveScene();

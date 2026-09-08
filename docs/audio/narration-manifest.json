@@ -1,0 +1,590 @@
+{
+  "voice": "ko-KR-SunHiNeural",
+  "rate": "-8%",
+  "volume": "-4%",
+  "pitch": "-1Hz",
+  "edge_silence_seconds": 0.06,
+  "cues": [
+    {
+      "stage": "LeakResponse",
+      "cue": "01_LeakSceneArrival",
+      "text": "누출 대응 구역에 진입했습니다. 미스트와 액체가 발생하는 플랜지에 직접 접근하지 말고, 먼저 설비 양쪽의 흡입측과 토출측 밸브를 차단하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/01_LeakSceneArrival.mp3",
+      "sha256": "bd4b534c115b52bb440ec42b8eea54dfe6c1193a456c65a22d6e1115352f81fb"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "02_SuctionValveActivated",
+      "text": "양손 그립으로 흡입측 밸브를 잡아 시계 방향으로 돌리고, 게이지를 끝까지 채우십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/02_SuctionValveActivated.mp3",
+      "sha256": "47ac276dfa8e81b28d9cd1144ba19c5fe81cdc825dca3510bef9b286432165f3"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "03_SuctionValveClosed",
+      "text": "흡입측 밸브가 닫혔습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/03_SuctionValveClosed.mp3",
+      "sha256": "c6331a0348fb3b2c3402a2c43ab1ea848e36c21bfdd174c8ce1d75311fa9436f"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "04_DischargeValveActivated",
+      "text": "양손 그립으로 토출측 밸브를 잡아 시계 방향으로 돌리고, 게이지를 끝까지 채우십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/04_DischargeValveActivated.mp3",
+      "sha256": "edebe11a3bbdd8be5f11f8f3c76687411bafab6ba8e0c593f4fabbf5469ffab3"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "05_BothValvesClosed",
+      "text": "흡입측과 토출측 밸브가 모두 닫혔습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/05_BothValvesClosed.mp3",
+      "sha256": "0b19547c84bcf72ae9332d3e11c67440b42d8ac3d82ca4ee5c058ea8d34a2c31"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "06_LeakReductionStarted",
+      "text": "누출량이 감소하고 있습니다. 표시된 플랜지를 바라보고 시선을 삼 초간 유지하십시오. 버튼은 누르지 않아도 됩니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/06_LeakReductionStarted.mp3",
+      "sha256": "a3d41a858bf80601e2358a29d12601fc036e72e9c5bcd1febdfcaf8a70d009af"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "07_LeakReductionCompleted",
+      "text": "누출 차단 상태를 확인했습니다. 이제 바닥으로 확산되는 액체를 흡착재로 차단합니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/07_LeakReductionCompleted.mp3",
+      "sha256": "aa3093bd51eeb70fca8b85d19eb99c9697809c32e567a3c18a41491596138406"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "08_AbsorbentSockPlacementActivated",
+      "text": "가방 위에서 그립 버튼을 한 번 눌렀다 놓아 흡착삭을 꺼내십시오. 다시 그립 버튼으로 잡아 누출 주변의 표시 위치로 옮긴 뒤, 그립 버튼을 놓아 설치하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/08_AbsorbentSockPlacementActivated.mp3",
+      "sha256": "83bc32e838a63730d739dbaba405a99f7eb0d150883d3953135968fc02d37860"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "09_AllAbsorbentSocksPlaced",
+      "text": "흡착삭 설치가 완료되었습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/09_AllAbsorbentSocksPlaced.mp3",
+      "sha256": "cf07c6868e5710565a0efe1db01695599ec2cffbf7f888edcb1bb92e14e8aa90"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "10_AbsorbentPadPlacementActivated",
+      "text": "가방 위에서 그립 버튼을 한 번 눌렀다 놓아 흡착패드를 꺼내십시오. 다시 그립 버튼으로 잡아 흡착삭 안쪽의 표시 위치로 옮긴 뒤, 그립 버튼을 놓아 설치하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/10_AbsorbentPadPlacementActivated.mp3",
+      "sha256": "86b0adbbb4523ea368d14a28bce54b7546036569c3c3f836435224f56cbd65f8"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "11_AllAbsorbentPadsPlaced",
+      "text": "흡착패드 설치가 완료되었습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/11_AllAbsorbentPadsPlaced.mp3",
+      "sha256": "c2b67575c1d756590ecdc6f3ec5d7222fe9b7f2b87ed1884e6f8a1573d0c0df9"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "12_AbsorptionCompleted",
+      "text": "흡착 대응이 완료되었습니다. 오염된 흡착재를 직접 손으로 만지지 마십시오. 이제 수거 절차를 진행합니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/12_AbsorptionCompleted.mp3",
+      "sha256": "f77dca9925f8d692c79003f708705d6cc508a54a204b18fa186cad96415e97eb"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "13_ContainerAndLidGhostActivated",
+      "text": "수거용기 뚜껑을 그립 버튼으로 잡으십시오. 옆의 고스트 표시 위치로 옮긴 뒤 그립 버튼을 놓아 보관하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/13_ContainerAndLidGhostActivated.mp3",
+      "sha256": "73068c6c3cd45095e71bb499cdc99dedfaaace5400a7f92136582ce532be51f4"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "14_ContainerLidStowed",
+      "text": "뚜껑 보관이 완료되었습니다. 이제 옆에 있는 집게를 그립으로 잡으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/14_ContainerLidStowed.mp3",
+      "sha256": "4d483c17f7f5efbae5bf9d50bbf099a3aa765e93b437206b867078044a13720e"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "15_RecoveryTongsPickedUp",
+      "text": "집게를 잡았습니다. 이제 그립 버튼을 놓아도 집게는 손에 유지됩니다. 흡착패드에 집게 끝을 대고 트리거를 누른 채 집으십시오. 수거용기 안에서 트리거를 놓아 넣으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/15_RecoveryTongsPickedUp.mp3",
+      "sha256": "a95ddb56661ddf90fe573c7a821897914ee1a7eb882428f49102d5342ce1c5c9"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "16_PadRecoveryIdle",
+      "text": "집게 끝을 흡착패드에 대고 트리거를 누른 채 집으십시오. 수거용기 안에서 트리거를 놓으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/16_PadRecoveryIdle.mp3",
+      "sha256": "45b38e1407d9487063e47a54c85fb4754fee35a4dd799514e81b57a2294ce136"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "17_AllPadsRecovered",
+      "text": "흡착패드를 모두 수거했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/17_AllPadsRecovered.mp3",
+      "sha256": "e58c6a864ebfedb536663c9009c11bc42b85e7f5d54ac98b7fe458209174dc4b"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "18_SockRecoveryStarted",
+      "text": "이제 흡착삭을 수거합니다. 집게 끝을 대고 트리거를 누른 채 집으십시오. 수거용기 안에서 트리거를 놓으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/18_SockRecoveryStarted.mp3",
+      "sha256": "5f7678efa9210c44afd004ca03c8a3584ff1ee4db2908cfd5c5211f162c1de7c"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "19_SockRecoveryIdle",
+      "text": "트리거를 눌러 남은 흡착삭을 집게로 수거하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/19_SockRecoveryIdle.mp3",
+      "sha256": "d2c0d4b7fc6e479f66ca509f762ea4f93ef6fc5bf68bba4b9989f1a7434c10a6"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "20_AllSocksRecovered",
+      "text": "오염 흡착재를 모두 수거했습니다. 옆에 집게 반납 위치가 표시됩니다. 집게를 그 위치에 맞춘 뒤, 집게를 든 손의 그립 버튼을 한 번 눌러 반납하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/20_AllSocksRecovered.mp3",
+      "sha256": "003f0da212212f04f35963eb22962c75d8a98a4c6813b9382a587874d633bed5"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "21_RecoveryTongsReturned",
+      "text": "집게를 반납했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/21_RecoveryTongsReturned.mp3",
+      "sha256": "1cd1164cddd7d5f15bcc46e14a47d8e4be7a414d61fd956012dda1f035f95317"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "22_ContainerClosureGhostActivated",
+      "text": "거치된 뚜껑을 그립 버튼으로 잡으십시오. 수거용기 위의 닫힘 표시 위치로 옮긴 뒤 그립 버튼을 놓아 밀폐하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/22_ContainerClosureGhostActivated.mp3",
+      "sha256": "33597dcffa4ac82974471a111481094f0cc46ce43af449322dd7e5b3b49fafc2"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "23_ContainerClosedTaskCompleted",
+      "text": "오염 폐기물 용기가 밀폐되었습니다. 염산 누출 대응 절차가 완료되었습니다.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/23_ContainerClosedTaskCompleted.mp3",
+      "sha256": "7e1a0e38b63343bc4e1931fea2da445cfb429bfd49f82395c791b7a99744d5a4"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "24_DirectContactAttempted",
+      "text": "오염된 흡착재를 손으로 직접 만지지 마십시오. 반드시 집게를 사용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/24_DirectContactAttempted.mp3",
+      "sha256": "8da76339d5ffca36aa79889cbbe51cffd7b010a8cace31bb6008070561fad355"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "25_SockRecoveryBeforePadsAttempted",
+      "text": "흡착패드를 먼저 수거한 뒤 흡착삭을 수거하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/25_SockRecoveryBeforePadsAttempted.mp3",
+      "sha256": "716d68eed133949d82236bd445ddcbd2b2b1a1ba8c9e001c85340a06091a62ed"
+    },
+    {
+      "stage": "LeakResponse",
+      "cue": "26_ContaminatedAbsorbentDroppedOutside",
+      "text": "오염된 흡착재가 수거용기 밖에 놓였습니다. 집게로 다시 집어 용기 안에 넣으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/LeakResponse/26_ContaminatedAbsorbentDroppedOutside.mp3",
+      "sha256": "36a48f750370c75964a422fd5aa155966e0f5eaff0abdf9c465503f897bba582"
+    },
+    {
+      "stage": "PPE",
+      "cue": "01_EmergencyIntro",
+      "text": "염산 이송 설비에서 누출이 감지되었습니다. 현장에 바로 접근하지 말고, 보호구와 대응 장비를 준비한 뒤 진입 전 안전 상태를 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/01_EmergencyIntro.mp3",
+      "sha256": "5948c7f18b9cd032c683f9d9956a9c61e4bcc7a7b53ee2321750c5c8aff97bd7"
+    },
+    {
+      "stage": "PPE",
+      "cue": "02_WearEssentialPPE",
+      "text": "앞쪽 화이트보드를 보십시오. 표시된 누출 설비의 위치와 연결된 배관을 잠시 살펴보십시오. 위치 확인을 마치면 보호구를 준비합니다. 아직 현장으로 이동하지 마십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/02_WearEssentialPPE.mp3",
+      "sha256": "e306b052d5433240354a4779d42617822d145fe065476aa60c5be236ee77a6b0"
+    },
+    {
+      "stage": "PPE",
+      "cue": "03_WearInOrder",
+      "text": "착용 장비는 오른쪽 장비 보관대에 있습니다. 보관대를 보며 안내되는 순서대로 착용한 뒤, 대응가방과 수거용기를 준비하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/03_WearInOrder.mp3",
+      "sha256": "942f74540f310dcea832a8d3340098c8895d5e0a54910f238860dd72877535a9"
+    },
+    {
+      "stage": "PPE",
+      "cue": "04_PointWithRay",
+      "text": "장비 가까이 손을 가져간 뒤 그립 버튼을 눌러 잡으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/04_PointWithRay.mp3",
+      "sha256": "1fee0f48a1f6efd74e851c220f8bfe08fb19083864ef336be1ff75f1cf313ab3"
+    },
+    {
+      "stage": "PPE",
+      "cue": "05_OutlineShowsSelectable",
+      "text": "외곽선이 표시된 장비를 손으로 잡을 수 있습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/05_OutlineShowsSelectable.mp3",
+      "sha256": "0a235a6aa8ecbc389195415b1d310bda491c9d3dee97d54dd8a5be8b0be357e2"
+    },
+    {
+      "stage": "PPE",
+      "cue": "06_GripSelectThenEquip",
+      "text": "그립 버튼을 누른 채 장비를 착용 위치로 옮긴 뒤, 그립 버튼에서 손을 떼어 착용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/06_GripSelectThenEquip.mp3",
+      "sha256": "6ac347fc2f1750856ba1f07db6e3fb042fbf274c18545f09696a005a08c29e2c"
+    },
+    {
+      "stage": "PPE",
+      "cue": "07_BButtonCancel",
+      "text": "잘못 놓친 장비는 원래 위치로 돌아갑니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/07_BButtonCancel.mp3",
+      "sha256": "26a073480bb6faf67d2692fb339a5ff2ebf64c3cff78aed767d4a4dda5f499dd"
+    },
+    {
+      "stage": "PPE",
+      "cue": "08_WearInnerGloves",
+      "text": "속장갑을 그립 버튼으로 잡으십시오. 반대쪽 손의 착용 위치로 옮긴 뒤 그립 버튼을 놓으십시오. 양손 모두 착용합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/08_WearInnerGloves.mp3",
+      "sha256": "5ca96f459851799509d7d73f6a520210ec57c30302c9acc7b73d08c3fd6439a2"
+    },
+    {
+      "stage": "PPE",
+      "cue": "09_InnerGlovesEquipped",
+      "text": "속장갑 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/09_InnerGlovesEquipped.mp3",
+      "sha256": "936c2e652f0e2911b314ee1e4e640fc840f4f019ba0596052ff06dc677ae892d"
+    },
+    {
+      "stage": "PPE",
+      "cue": "10_WearChemicalSuit",
+      "text": "그립 버튼을 누른 채 화학보호복을 잡아 몸 앞의 착용 위치로 가져오십시오. 그립 버튼을 놓으면 착용됩니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/10_WearChemicalSuit.mp3",
+      "sha256": "6bd0c0f8cd10bb288031a96d0577d4228c881f2fdac4e07d3d6567fc51be2ce5"
+    },
+    {
+      "stage": "PPE",
+      "cue": "11_ChemicalSuitEquipped",
+      "text": "내산성 화학보호복 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/11_ChemicalSuitEquipped.mp3",
+      "sha256": "f9b726f41ede9ab300cf7c787672bcf3d82320d349f874fe8cae1e18565725cd"
+    },
+    {
+      "stage": "PPE",
+      "cue": "12_WearChemicalBoots",
+      "text": "안전장화를 그립 버튼으로 잡아 표시된 발의 착용 위치로 옮긴 뒤, 그립 버튼을 놓으십시오. 양쪽 모두 착용합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/12_WearChemicalBoots.mp3",
+      "sha256": "e0d11ea087e39931fa0da536a38e36310b4e8bf172c8871c773f587744cb2fdd"
+    },
+    {
+      "stage": "PPE",
+      "cue": "13_ChemicalBootsEquipped",
+      "text": "내화학 안전장화 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/13_ChemicalBootsEquipped.mp3",
+      "sha256": "35a9fd36d02a735c5c0575ea028f8fc3ebb4dd64660da5482638704a4ca60fc0"
+    },
+    {
+      "stage": "PPE",
+      "cue": "14_WearRespirator",
+      "text": "호흡 보호구를 그립 버튼으로 잡아 얼굴의 착용 위치로 가져오십시오. 그립 버튼을 놓아 착용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/14_WearRespirator.mp3",
+      "sha256": "afd75fa39a4b65f7752cc01a78037d79f32e481a75f395d06b7113402019463a"
+    },
+    {
+      "stage": "PPE",
+      "cue": "15_RespiratorEquipped",
+      "text": "전면형 호흡 보호구 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/15_RespiratorEquipped.mp3",
+      "sha256": "2edeae620c8e739b9e54d402bb4827304e0fd19c61522747d7e51d832effae70"
+    },
+    {
+      "stage": "PPE",
+      "cue": "16_WearFaceProtection",
+      "text": "안면보호구를 그립 버튼으로 잡아 얼굴의 착용 위치로 가져온 뒤, 그립 버튼을 놓으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/16_WearFaceProtection.mp3",
+      "sha256": "81dc896346ca48af89dbfb0a50b64c53a48eea740b08fc8074971aa7c7be5794"
+    },
+    {
+      "stage": "PPE",
+      "cue": "17_FaceProtectionEquipped",
+      "text": "안면보호구 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/17_FaceProtectionEquipped.mp3",
+      "sha256": "50ef1a2fb5130b30ec4fcaff43a3dc91895a5653a6e9fb2149f833e79748a1fd"
+    },
+    {
+      "stage": "PPE",
+      "cue": "18_WearOuterGloves",
+      "text": "외부 보호장갑을 그립 버튼으로 잡으십시오. 반대쪽 손의 착용 위치로 옮긴 뒤 그립 버튼을 놓으십시오. 양손 모두 착용합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/18_WearOuterGloves.mp3",
+      "sha256": "c105695fddca3a8716feb9c0cbb63f6c9dd5f881030326635a72979506dd73b0"
+    },
+    {
+      "stage": "PPE",
+      "cue": "19_OuterGlovesEquipped",
+      "text": "외부 보호장갑 착용을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/19_OuterGlovesEquipped.mp3",
+      "sha256": "5b76891b2a529fabd6559c7a3b6310277838ce6d919e34ef9306e55480879f94"
+    },
+    {
+      "stage": "PPE",
+      "cue": "20_EssentialPPEComplete",
+      "text": "필수 개인보호구 착용이 완료되었습니다. 이제 현장에서 사용할 대응 장비를 준비하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/20_EssentialPPEComplete.mp3",
+      "sha256": "75a71277632708add217dfd77601e239c4046a7ed7297d89e2081632fd4df8aa"
+    },
+    {
+      "stage": "PPE",
+      "cue": "21_PrepareResponseBag",
+      "text": "이제 대응가방에 장비를 넣습니다. 오른쪽 준비대의 측정기, 흡착패드, 흡착삭을 각각 그립 버튼으로 잡으십시오. 가방 입구로 가져간 뒤 그립 버튼을 놓아 수납하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/21_PrepareResponseBag.mp3",
+      "sha256": "617f38d2c1a242ca473b974b4fb9b36c91a96e18795dc3acd8539b335bcd57e8"
+    },
+    {
+      "stage": "PPE",
+      "cue": "22_ResponseBagReady",
+      "text": "대응가방 준비를 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/22_ResponseBagReady.mp3",
+      "sha256": "815d9ebcf5071c65fd56ba1832272155ecbd4f4a2dd56299f85b9d05ebba6bd3"
+    },
+    {
+      "stage": "PPE",
+      "cue": "23_PrepareWasteContainer",
+      "text": "오른쪽의 노란색 폐기물 수거용기를 바라보십시오. 선택 표시가 나타나면 그립 버튼을 눌러 준비하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/23_PrepareWasteContainer.mp3",
+      "sha256": "32608c21014a6cdf5c25cc52614958f6c8bd070a5de2373ef8d19f5c8bdecb14"
+    },
+    {
+      "stage": "PPE",
+      "cue": "24_WasteContainerReady",
+      "text": "오염 폐기물 수거용기 준비를 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/24_WasteContainerReady.mp3",
+      "sha256": "f52cb95f421ef723501853fe3afbee105f599c69418712b2ab4fd527dd49f76c"
+    },
+    {
+      "stage": "PPE",
+      "cue": "25_CheckingPrepStatus",
+      "text": "현장 진입 전 준비 상태를 확인합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/25_CheckingPrepStatus.mp3",
+      "sha256": "205238ecc65d145b6fc730d927f89c8cce5464585b63694fc0a1bc624ac30a51"
+    },
+    {
+      "stage": "PPE",
+      "cue": "26_AllFieldPrepComplete",
+      "text": "개인보호구와 대응 장비 준비가 모두 완료되었습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/26_AllFieldPrepComplete.mp3",
+      "sha256": "c1743e46faed9909e676baf1ba1f8330f5ee6b6c647813f4d84bc31ac15a3f80"
+    },
+    {
+      "stage": "PPE",
+      "cue": "27_GoToFieldEntrance",
+      "text": "오른손 에이 버튼을 눌러 현장 진입 전 안전 확인 단계로 이동하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/27_GoToFieldEntrance.mp3",
+      "sha256": "eb6a7af8a15cfb8defd063c14c50ff09754d8a863ab409b70fa538b0a4322d75"
+    },
+    {
+      "stage": "PPE",
+      "cue": "28_MovingToFieldEntrance",
+      "text": "현장 입구로 이동합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/28_MovingToFieldEntrance.mp3",
+      "sha256": "f1b8f91b568df6c1079eb121ae515f8b0cffddbcb9625a19a94b9334f11e8aed"
+    },
+    {
+      "stage": "PPE",
+      "cue": "29_WrongPPEOrder",
+      "text": "착용 순서가 올바르지 않습니다. 현재 안내 중인 보호구를 먼저 착용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/29_WrongPPEOrder.mp3",
+      "sha256": "89cdef4a3b83936b69d445e9ba223cb65bbcc376ca8310dadad7f4b6a873ac72"
+    },
+    {
+      "stage": "PPE",
+      "cue": "30_WearGlovesFirst",
+      "text": "먼저 속장갑을 착용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/30_WearGlovesFirst.mp3",
+      "sha256": "4c1ae1a56bc7b353301c7ae38facdd7a773a57cb53417173abf322b1de92c2dc"
+    },
+    {
+      "stage": "PPE",
+      "cue": "31_OuterGlovesAfterRespirator",
+      "text": "외부 보호장갑은 호흡 보호구와 안면보호구를 착용한 뒤 착용하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/31_OuterGlovesAfterRespirator.mp3",
+      "sha256": "80e21f2a1901c71f54b4684b6bf840d6ca4b3235d5fceeec326acf8d8ceb9db5"
+    },
+    {
+      "stage": "PPE",
+      "cue": "32_AlreadyEquipped",
+      "text": "이미 착용하거나 준비한 장비입니다.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/32_AlreadyEquipped.mp3",
+      "sha256": "f032f935c3e9c395acd1a9fd9b65eb435716f1a300caf48ff742b7524a36c864"
+    },
+    {
+      "stage": "PPE",
+      "cue": "33_CompleteEssentialPPEFirst",
+      "text": "대응 장비를 준비하기 전에 필수 개인보호구 착용을 완료하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/33_CompleteEssentialPPEFirst.mp3",
+      "sha256": "11829065f13019fae023ff3a9f97c6ae2832e43ab8205634fa793a0a4b849751"
+    },
+    {
+      "stage": "PPE",
+      "cue": "34_MissingPPE",
+      "text": "필수 개인보호구가 누락되었습니다. 화이트보드의 준비 순서를 다시 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/34_MissingPPE.mp3",
+      "sha256": "d85344bb12b7011a443eec88a3598bfb9da3494e0218f26ecce4a6be7dd756f5"
+    },
+    {
+      "stage": "PPE",
+      "cue": "35_PrepareResponseBagFirst",
+      "text": "대응가방 안에 필요한 장비를 모두 수납한 뒤 가방을 챙기십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/35_PrepareResponseBagFirst.mp3",
+      "sha256": "7c75d23c30fd7fe5bc1772fd08ec0d65991f6f4eb0f6c8b564a2b370281078a6"
+    },
+    {
+      "stage": "PPE",
+      "cue": "36_CheckCurrentRequiredPPE",
+      "text": "현재 안내 중인 개인보호구를 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/36_CheckCurrentRequiredPPE.mp3",
+      "sha256": "05af5c2c735efdb9add2da1a6f398f9478fb6fad7e5a600a5bacd45ac43a05f8"
+    },
+    {
+      "stage": "PPE",
+      "cue": "37_GripPackedResponseBag",
+      "text": "세 가지 장비를 모두 수납했습니다. 그립 버튼을 한 번 눌러 대응가방을 챙기십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PPE/37_GripPackedResponseBag.mp3",
+      "sha256": "2b3c93c81a3114e92a893cfdbe35c76e76c24e1edda14d44186e607ad99ecdae"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "01_SceneIntro",
+      "text": "현장에 접근하기 전에 염화수소 농도와 풍향을 확인하고, 누출 의심 설비의 운전 상태와 잔류 압력을 점검해야 합니다.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/01_SceneIntro.mp3",
+      "sha256": "5d0892241aefdb6a2f06082e5abcc030aa3a513012896aaa19cfe160ae729ec0"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "02_EquipDetector",
+      "text": "왼손을 가방 위로 가져가 그립 버튼을 한 번 눌렀다 놓으십시오. 측정기가 올라오면 고스트 손 위치에서 왼손 그립 버튼을 다시 눌러 잡으십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/02_EquipDetector.mp3",
+      "sha256": "a515404da3b63671fe3ed1f58c57ed856fa9bcdeab54ba0943e4fa8aa41af5de"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "03_MeasureInitialHcl",
+      "text": "측정기 화면을 보며 왼쪽 트리거를 삼 초간 유지하여 현재 염화수소 농도를 측정하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/03_MeasureInitialHcl.mp3",
+      "sha256": "58cb834faefbba554884703a14cd35cde0020ac36ba60b14158dc7e126af861e"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "04_ConfirmInitialHcl",
+      "text": "염화수소 농도가 높게 측정되었습니다. 지금은 현장에 접근하지 마십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/04_ConfirmInitialHcl.mp3",
+      "sha256": "fb87f46bfa138d16a2d349797933a75a26f4fefe868f199810c6bf571c1d93ca"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "05_CheckInitialWind",
+      "text": "표시된 풍향계를 바라보십시오. 시선을 삼 초간 유지하여 유해 증기가 이동하는 방향을 확인합니다. 버튼은 누르지 않아도 됩니다.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/05_CheckInitialWind.mp3",
+      "sha256": "e7681c6546d84cd7b9cf71098c855a14daf4c52a46695ea799151749eaa422b5"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "06_WaitWindChange",
+      "text": "현재 풍향에서는 유해 증기가 접근 위치로 유입될 수 있습니다. 안전한 풍향으로 바뀔 때까지 대기하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/06_WaitWindChange.mp3",
+      "sha256": "e55a7199123bbe48c7f64eaa87f8c12177cf7209f86357e989641ced18a62a29"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "07_CheckChangedWind",
+      "text": "풍향이 바뀌었습니다. 풍향계를 다시 바라보고 시선을 삼 초간 유지하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/07_CheckChangedWind.mp3",
+      "sha256": "8c23ddc86988a0ba5b60813ac48afcc9dcfb8e8ad03fcfc28337d67b4d7baa8c"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "08_MeasureReducedHcl",
+      "text": "풍향이 바뀌었더라도 진입 전 농도를 다시 확인해야 합니다. 왼쪽 트리거를 삼 초간 유지하여 염화수소 농도를 재측정하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/08_MeasureReducedHcl.mp3",
+      "sha256": "3c917efc47a0f5a0ebfd961b3959cc64cd3fd14e8c599bb70b7367ff0fa4305a"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "09_ConfirmReducedHcl",
+      "text": "염화수소 농도가 낮아진 것을 확인했습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/09_ConfirmReducedHcl.mp3",
+      "sha256": "74ebc1a1b5bb73a81d90a00dc07217eb2bbf106455792ee4c4d2fc10de239fe7"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "10_StoreDetector",
+      "text": "왼손 그립을 눌러 측정기를 가방에 수납하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/10_StoreDetector.mp3",
+      "sha256": "e8f702c089474b9bc8522bc8b6d0498014db4a385e6a8dddee88a4077e211fe5"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "11_MoveToPanel",
+      "text": "측정기를 수납했습니다. 이제 오른손 에이 버튼을 눌러 설비 상태 확인 패널 앞으로 이동하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/11_MoveToPanel.mp3",
+      "sha256": "1d00606c1d8ea94e2aa25d98c244d187546bee0fd7ae714fe07c853a006d21de"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "12_CheckPressure",
+      "text": "누출 의심 설비의 압력과 온도, 운전 상태를 순서대로 확인합니다. 먼저 압력 표시를 이 초간 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/12_CheckPressure.mp3",
+      "sha256": "bf91e6a8d581341dd2ee25bbc08bb323fdba73bd0e7c3ecb165ebc75c3281d7c"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "13_CheckTemperature",
+      "text": "온도 표시를 이 초간 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/13_CheckTemperature.mp3",
+      "sha256": "8e0f2f18cbf3cca327628d6a410cbee1fff05fbefea7c947b712d66164a8f378"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "14_CheckRunState",
+      "text": "설비가 현재 운전 중인지 확인합니다. 런 표시를 이 초간 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/14_CheckRunState.mp3",
+      "sha256": "2515971ff928eff98e3ffd416f45386e0762104141a24da21c44dd68071f1e7f"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "15_StopPump",
+      "text": "설비가 운전 중입니다. 해당 열의 스톱 버튼에 오른손을 넣고 오른쪽 트리거를 눌러 펌프를 정지하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/15_StopPump.mp3",
+      "sha256": "262f3162747a273806235545cc49c050a377fa705a374a1ffa4bef742a697d03"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "16_VerifyStopIndicator",
+      "text": "펌프 정지 상태가 정상적으로 표시되는지 스톱 표시를 이 초간 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/16_VerifyStopIndicator.mp3",
+      "sha256": "c730b38f23c4d7a6cd29d2e94d6befe9d2e4e8d58d2d68129000b776fac86743"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "17_WaitPressureDecrease",
+      "text": "펌프를 정지한 뒤에도 배관 압력은 즉시 사라지지 않습니다. 압력이 감소할 때까지 기다리십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/17_WaitPressureDecrease.mp3",
+      "sha256": "933e95f4032bc18e50b4a0dbf896ee7e54b6c4f061e9dbb5294ca8f58032d8a1"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "18_VerifyPressureDecrease",
+      "text": "배관 압력이 감소했습니다. 감소한 압력 표시를 이 초간 확인하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/18_VerifyPressureDecrease.mp3",
+      "sha256": "552d11333a515a200ab6ccd4800d03ff53a6a70e70adbad69830fec00cb50369"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "19_SafetyCheckComplete",
+      "text": "염화수소 농도와 풍향, 설비 정지와 압력 감소까지 확인했습니다. 현장 진입 전 안전 확인이 완료되었습니다.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/19_SafetyCheckComplete.mp3",
+      "sha256": "00ab566dd71e0c8651c2c46ea49197fed7c33a6129c04a0be96f919bdacc2dfb"
+    },
+    {
+      "stage": "PreEntry",
+      "cue": "20_MoveToLeakResponse",
+      "text": "방호벽은 유지됩니다. 지정된 이동 지점에서 오른손 에이 버튼을 눌러 누출 대응 구역으로 이동하십시오.",
+      "audio": "Assets/Resources/TrainingNarration/PreEntry/20_MoveToLeakResponse.mp3",
+      "sha256": "15f2bd433fe5482beb8a58664e00c15473ba36750231852a1125c0a0c146f58e"
+    }
+  ]
+}

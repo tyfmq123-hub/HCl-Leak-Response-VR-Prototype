@@ -21,7 +21,6 @@ namespace VRProject.XRLocomotion.Editor
     /// </summary>
     internal static class XRComfortTurnConfigurator
     {
-        const string MenuPath = "Tools/XR Locomotion/Configure Selected XR Origin Comfort Turn";
         const string UndoName = "Configure XR Origin Comfort Turn";
         const string PreferredVignettePrefabPath =
             "Assets/Samples/XR Interaction Toolkit/3.4.1/Starter Assets/TunnelingVignette/TunnelingVignette.prefab";
@@ -67,7 +66,6 @@ namespace VRProject.XRLocomotion.Editor
             public string actionPath;
         }
 
-        [MenuItem(MenuPath, priority = 2100)]
         static void ConfigureSelectedXROrigin()
         {
             if (!TryBuildPlanFromSelection(out var plan, out var error))
@@ -107,7 +105,6 @@ namespace VRProject.XRLocomotion.Editor
             EditorUtility.DisplayDialog("XR Comfort Turn", message, "OK");
         }
 
-        [MenuItem(MenuPath, validate = true)]
         static bool ValidateConfigureSelectedXROrigin()
         {
             return !EditorApplication.isPlayingOrWillChangePlaymode;

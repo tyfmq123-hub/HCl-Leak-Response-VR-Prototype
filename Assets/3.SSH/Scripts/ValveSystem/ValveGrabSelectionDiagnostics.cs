@@ -239,7 +239,10 @@ namespace VRProject.Valves
 
         void CaptureGripAttempts()
         {
-            if (!logGripAttempts)
+            // Dormant additive LeakResponse valves must not report every global Grip
+            // while another Stage owns input. Their interactables are disabled by the
+            // Stage activation contract.
+            if (!logGripAttempts || grabInteractable == null || !grabInteractable.isActiveAndEnabled)
                 return;
 
             CaptureGripAttempt(leftNearFarInteractor, "Left");

@@ -10,6 +10,10 @@ namespace JH.EntrySafety
     {
         private readonly EntrySafetyStateMachine _sm;
         private readonly EntrySafetyGazeHoldTimer _timer;
+        private readonly EntrySafetyGazeHoldTimer _windsockTimer;
+        private EntrySafetyGazeHoldTimer ActiveTimer =>
+            RequiredTarget == EntrySafetyGazeTargetId.InitialWindsock ||
+            RequiredTarget == EntrySafetyGazeTargetId.ChangedWindsock ? _windsockTimer : _timer;
         private EntrySafetyStep _lastKnownStep;
         private bool _hasCompletedCurrentStep;
 
@@ -21,10 +25,10 @@ namespace JH.EntrySafety
         public bool IsGazeStep => EntrySafetyGazeTargetMap.IsGazeStep(_sm.CurrentStep);
 
         /// <summary>시선 완료 진행률(0~1)입니다. 비시선 단계이면 0입니다.</summary>
-        public float Progress01 => IsGazeStep ? _timer.Progress01 : 0f;
+        public float Progress01 => IsGazeStep ? ActiveTimer.Progress01 : 0f;
 
         /// <summary>현재 프레임에서 유효 대상을 응시 중이면 true입니다.</summary>
-        public bool IsTracking => IsGazeStep && _timer.IsTracking;
+        public bool IsTracking => IsGazeStep && ActiveTimer.IsTracking;
 
         /// <param name="stateMachine">연결할 상태 머신입니다.</param>
         /// <param name="requiredHoldSeconds">완료에 필요한 연속 유지 시간(초)입니다.</param>
@@ -32,10 +36,13 @@ namespace JH.EntrySafety
         public EntrySafetyGazeCoordinator(
             EntrySafetyStateMachine stateMachine,
             float requiredHoldSeconds = 3f,
-            float exitGraceSeconds = 0.2f)
+            float exitGraceSeconds = 0.2f,
+            float? windsockExitGraceSeconds = null)
         {
             _sm = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             _timer = new EntrySafetyGazeHoldTimer(requiredHoldSeconds, exitGraceSeconds);
+            _windsockTimer = new EntrySafetyGazeHoldTimer(requiredHoldSeconds,
+                windsockExitGraceSeconds ?? exitGraceSeconds);
             _lastKnownStep = _sm.CurrentStep;
         }
 
@@ -46,7 +53,8 @@ namespace JH.EntrySafety
         /// <param name="observedTarget">외부 어댑터가 전달하는 현재 관측 대상 ID입니다.</param>
         /// <param name="isVisible">대상이 유효하게 보이면 true입니다.</param>
         /// <param name="deltaTime">이번 프레임 경과 시간(초)입니다.</param>
-        public void Update(EntrySafetyGazeTargetId observedTarget, bool isVisible, float deltaTime)
+        public void Update(EntrySafetyGazeTargetId observedTarget, bool isVisible, float deltaTime,
+            bool allowCompletion = true)
         {
             // 단계 변경 감지 — 정상 전이와 Reset 모두 처리합니다.
             if (_sm.CurrentStep != _lastKnownStep)
@@ -54,6 +62,7 @@ namespace JH.EntrySafety
                 _lastKnownStep = _sm.CurrentStep;
                 _hasCompletedCurrentStep = false;
                 _timer.Reset();
+                _windsockTimer.Reset();
             }
 
             if (_sm.IsSectionCompleted)
@@ -66,9 +75,9 @@ namespace JH.EntrySafety
                 && observedTarget != EntrySafetyGazeTargetId.None
                 && observedTarget == RequiredTarget;
 
-            _timer.Update(isValidTarget, deltaTime);
+            ActiveTimer.Update(isValidTarget, deltaTime);
 
-            if (_timer.IsCompleted)
+            if (ActiveTimer.IsCompleted && allowCompletion)
             {
                 _hasCompletedCurrentStep = true;
                 // TryCompleteStep 성공 시 _sm.CurrentStep이 즉시 변경됩니다.
@@ -81,6 +90,7 @@ namespace JH.EntrySafety
         public void ResetProgress()
         {
             _timer.Reset();
+            _windsockTimer.Reset();
             _hasCompletedCurrentStep = false;
         }
     }

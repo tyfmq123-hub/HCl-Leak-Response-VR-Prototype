@@ -30,7 +30,6 @@ public class WearableResponseBagVisualController : MonoBehaviour
 
     [Header("State")]
     [SerializeField] bool startClosed = true;
-    [SerializeField] bool useCoverAnimation = true;
     [SerializeField] [Min(0.05f)] float transitionDuration = 0.25f;
 
     [Header("Front cover local poses")]
@@ -45,12 +44,10 @@ public class WearableResponseBagVisualController : MonoBehaviour
     [SerializeField] Vector3 closedContentsLocalPosition = Vector3.zero;
     [SerializeField] Vector3 openContentsLocalEuler = new Vector3(-28f, 0f, 0f);
     [SerializeField] Vector3 closedContentsLocalEuler = Vector3.zero;
-    [SerializeField] [Min(0.1f)] float openContentsUniformScale = 1.15f;
 
     ResponseEquipmentManager subscribedManager;
     Coroutine coverRoutine;
     bool isOpen;
-    bool bagHoverWired;
     bool isRayHoveringBag;
 
     public bool IsBagOpen => isOpen;
@@ -121,7 +118,6 @@ public class WearableResponseBagVisualController : MonoBehaviour
         openCoverLocalPosition = openCoverPos;
         openCoverLocalEuler = openCoverEuler;
         startClosed = true;
-        useCoverAnimation = true;
     }
 
     /// <summary>
@@ -404,7 +400,6 @@ public class WearableResponseBagVisualController : MonoBehaviour
         bagOpenInteractable.hoverEntered.RemoveListener(OnBagHoverEntered);
         bagOpenInteractable.hoverExited.RemoveListener(OnBagHoverExited);
         bagOpenInteractable.selectEntered.RemoveListener(OnBagSelectEntered);
-        bagHoverWired = false;
         isRayHoveringBag = false;
 
         if (!subscribe)
@@ -414,7 +409,6 @@ public class WearableResponseBagVisualController : MonoBehaviour
         bagOpenInteractable.hoverExited.AddListener(OnBagHoverExited);
         // Cancel accidental select/grip retention — open/close is Left Y while hovering.
         bagOpenInteractable.selectEntered.AddListener(OnBagSelectEntered);
-        bagHoverWired = true;
     }
 
     void OnBagHoverEntered(HoverEnterEventArgs args)

@@ -90,7 +90,7 @@ public class PPEOutlineHighlight : MonoBehaviour, IXRSelectFilter
         interactable.selectExited.AddListener(OnSelectExited);
         WireChildHandGrabs(true);
         StripChildGrabCollidersFromPairRoot();
-        PinProtectiveGloveLogicalRootColliders();
+        PinPairLogicalRootColliders();
         RegisterPairRootRayOnlySelectFilter(true);
 
         // Restore sticky selected / hover outline after disable→enable.
@@ -383,20 +383,15 @@ public class PPEOutlineHighlight : MonoBehaviour, IXRSelectFilter
         }
     }
 
-    void PinProtectiveGloveLogicalRootColliders()
+    void PinPairLogicalRootColliders()
     {
         if (interactable is not XRSimpleInteractable simple)
             return;
 
-        var item = GetComponent<PPEEquipable>();
-        if (item == null ||
-            !string.Equals(
-                item.ItemId,
-                PPEEquipmentManager.IdChemicalGloves,
-                System.StringComparison.Ordinal))
+        if (GetComponent<PPEGlovePairCoordinator>() == null)
             return;
 
-        var dummy = EnsureProtectiveLogicalRootDummyCollider();
+        var dummy = EnsurePairLogicalRootDummyCollider();
         if (!simple.colliders.Contains(dummy))
             simple.colliders.Add(dummy);
 
@@ -410,7 +405,7 @@ public class PPEOutlineHighlight : MonoBehaviour, IXRSelectFilter
         dummy.isTrigger = true;
     }
 
-    Collider EnsureProtectiveLogicalRootDummyCollider()
+    Collider EnsurePairLogicalRootDummyCollider()
     {
         var existing = transform.Find(PPEGlovePairCoordinator.LogicalRootColliderLockName);
         if (existing == null)
@@ -443,7 +438,7 @@ public class PPEOutlineHighlight : MonoBehaviour, IXRSelectFilter
         var already = false;
         for (var i = 0; i < filters.count; i++)
         {
-            if (filters.GetAt(i) == this)
+            if (ReferenceEquals(filters.GetAt(i), this))
             {
                 already = true;
                 break;

@@ -19,7 +19,6 @@ public static class PPECabinetFitSetup
     static readonly Vector3 FurnitureScale = new Vector3(1.733f, 2.104f, 1.508f);
     static readonly Vector3 NativeCabinetSize = new Vector3(0.9811f, 0.9742f, 0.3647f);
 
-    [MenuItem("Tools/HCl Training/PPE/Ensure Cabinet Shelf Physics", false, 33)]
     public static void EnsureCabinetShelfPhysics()
     {
         var scene = SceneManager.GetActiveScene();
@@ -39,7 +38,6 @@ public static class PPECabinetFitSetup
         Debug.Log("[PPE Cabinet Physics] Ensured shelf/wall/catch BoxColliders under PPE_StorageRoot/Physics.");
     }
 
-    [MenuItem("Tools/HCl Training/PPE/Fit Cabinet Around Calibrated PPE", false, 32)]
     public static void FitCabinet()
     {
         var scene = SceneManager.GetActiveScene();
