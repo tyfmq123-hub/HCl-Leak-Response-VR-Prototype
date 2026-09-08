@@ -1,5 +1,7 @@
 # Link / App 공용 XR 높이 누적 수정 — 2026-09-07
 
+2026-09-08 후속: 이 수정은 `06480dd`에 커밋하고 최신 팀 코드와 통합했다. 현재 제출 검증/배포 경로는 [제출 검증 보고서](SUBMISSION_VALIDATION_2026-09-08.md)를 참고한다. 아래 미커밋 상태는 9월 7일 당시 기록이다.
+
 - 역할: Integration. 작업 브랜치: `integration/xr-height-stability-20260907`.
 - 기준: develop `5770f855` (배포 main `19dba002`와 같은 트리). 이번 수정은 아직 commit/push하지 않았다.
 - 사용자 조건: 두 사람 모두 실제로 서서 Quest Link 케이블 + Unity Play. 실제 헤드셋을 착용한 검수는 수행하지 않았다.

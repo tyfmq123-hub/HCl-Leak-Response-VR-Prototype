@@ -1,5 +1,12 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
+
+- 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. Leak Scene/Prefab/TTS와 뚜껑·고스트 작성 pose는 그대로 보존했다.
+- 통합본 Edit Mode 175/175, 높이 90, Leak 단독 26/Full 인계 28, 뚜껑 대기/인계 8, 실제 XRI 뚜껑·집게·카운트 35 검사 통과. 파일/전체 검사/배포 경로/제한은 [제출 검증 보고서](../../integration/SUBMISSION_VALIDATION_2026-09-08.md) 참고.
+- 수동 작업: Play 종료 → 최신 main 반영 → `01_App` 다시 열기. setup/Scene 재생성 불필요. 원본 E checkout의 미커밋 변경/브랜치/인덱스는 건드리지 않았다. 실제 Quest Link 확인은 남아 있다.
+- 추가 Integration 요청: 실제 Link 최종 시연. 아래 commit/push 미실행 문구는 9월 7일 당시 기록이다.
+
 ## 2026-09-07 Integration — 가방 패드 상승 충돌 / additive 진입 물방울 중단
 
 - 실제 App/PhysX에서 흡착패드 상승으로 플레이어가 1.14067m 올라가는 현상 재현. `P102SharedBagItemHandler`가 제시하는 기존 Sock/Pad에 `P102AbsorbentPlayerCollisionGuard`를 붙여 XR capsule 충돌만 제외했다. 수정 후 두 공급 물체 모두 상승량 0m. Grab layer/바닥 충돌/trigger/설치 흐름 유지.
