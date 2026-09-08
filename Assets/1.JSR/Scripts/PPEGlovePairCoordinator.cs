@@ -16,6 +16,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
     public const string LogicalRootColliderLockName = "LogicalRootColliderLock";
 
     public static PPEGlovePairCoordinator ChemicalGlovesInstance { get; private set; }
+    public static PPEGlovePairCoordinator InnerGlovesInstance { get; private set; }
     static readonly System.Collections.Generic.List<PPEGlovePairCoordinator> activeCoordinators =
         new System.Collections.Generic.List<PPEGlovePairCoordinator>();
 
@@ -88,6 +89,11 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
             string.Equals(ChemicalGlovesInstance.LogicalItem.ItemId, itemId, System.StringComparison.Ordinal))
             return ChemicalGlovesInstance;
 
+        if (InnerGlovesInstance != null &&
+            InnerGlovesInstance.LogicalItem != null &&
+            string.Equals(InnerGlovesInstance.LogicalItem.ItemId, itemId, System.StringComparison.Ordinal))
+            return InnerGlovesInstance;
+
         for (var i = 0; i < activeCoordinators.Count; i++)
         {
             var coordinator = activeCoordinators[i];
@@ -137,6 +143,9 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         if (logicalItem != null &&
             string.Equals(logicalItem.ItemId, PPEEquipmentManager.IdChemicalGloves, System.StringComparison.Ordinal))
             ChemicalGlovesInstance = this;
+        if (logicalItem != null &&
+            string.Equals(logicalItem.ItemId, PPEEquipmentManager.IdInnerGloves, System.StringComparison.Ordinal))
+            InnerGlovesInstance = this;
 
         EnsureTrackedTargets();
         BindAuthoredMembersFromChildren();
@@ -168,7 +177,7 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
         // PPEStateController intentionally defers per-side visuals to this
         // coordinator. Establish the IDLE bare/bare state before the first grab
         // instead of waiting for the wearable host's first side-equip activation.
-        if (this == ChemicalGlovesInstance)
+        if (this == ChemicalGlovesInstance || this == InnerGlovesInstance)
             ApplyWearableVisual();
     }
 
@@ -386,6 +395,8 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
     {
         if (ChemicalGlovesInstance == this)
             ChemicalGlovesInstance = null;
+        if (InnerGlovesInstance == this)
+            InnerGlovesInstance = null;
 
         activeCoordinators.Remove(this);
         if (activeCoordinators.Count == 0)
@@ -1034,6 +1045,13 @@ public sealed class PPEGlovePairCoordinator : MonoBehaviour
 
     void ApplyWearableVisual()
     {
+        if (logicalItem != null &&
+            string.Equals(logicalItem.ItemId, PPEEquipmentManager.IdInnerGloves, System.StringComparison.Ordinal))
+        {
+            PPEInnerGloveHandTint.Apply(leftEquipped, rightEquipped);
+            return;
+        }
+
         if (logicalItem == null ||
             !string.Equals(logicalItem.ItemId, PPEEquipmentManager.IdChemicalGloves, System.StringComparison.Ordinal))
             return;

@@ -1,5 +1,52 @@
 # PPE Integration Handoff
 
+## Work metadata
+
+- Role: PPE
+- Branch: `feature/ppe`
+- Commit: InnerGloves XR hand tint on `feature/ppe`, cherry-picked to `develop`
+- Push target: `origin/develop`
+- Updated: 2026-09-08
+- Current focus: InnerGloves equip feedback by tinting XR default-hand meshes.
+
+## InnerGloves XR hand tint (2026-09-08)
+
+속장갑을 한 손씩 착용하면 해당 손의 XR 기본 핸드 메시가 반투명 회색에서 `RightInnerGlovePhysical`과 같은 회청색으로 바뀐다. 선반의 속장갑 메시는 기존처럼 착용 후 숨기고, 트래킹·레이·공용 XR·외부 화학장갑 메쉬는 건드리지 않는다.
+
+- 런타임에 `RightInnerGlovePhysical` Visual 머티리얼/알베도를 읽어 색을 맞춘다. 샘플이 실패하면 `PPE_glrove_basecolor` 평균색 `(0.378, 0.495, 0.492)`를 쓴다.
+- 왼손/오른손을 따로 칠한다. 양쪽 착용 완료 후에만 바뀌지 않는다.
+- 색은 `MaterialPropertyBlock`만 써서 공용 `HandsDefaultMaterial`을 수정하지 않는다.
+- 대상은 `ChemicalGlovesWearableVisual`의 기본 손과 활성 XR Origin의 `PPE_DefaultHand_Left/Right`다. App additive와 `04_PPE` 단독 모두 같은 경로를 쓴다.
+- PPE 룸 리셋(`ResetPair`)이면 원래 손 색으로 돌아간다. 이후 외부 화학장갑을 끼면 기존처럼 장갑 메쉬로 교체된다.
+- `origin/develop` (`5770f85`)를 `feature/ppe`에 합쳤다. `04_PPE.unity` 충돌은 develop 씬을 사용했다. develop의 `Wall_Left`가 이미 막혀 있어, feature/ppe 전용 분할 벽 오브젝트는 가져오지 않았다.
+
+### Files changed
+
+- `Assets/1.JSR/Scripts/PPEInnerGloveHandTint.cs` (new)
+- `Assets/1.JSR/Scripts/PPEGlovePairCoordinator.cs`
+- `Assets/1.JSR/Scripts/ChemicalGlovesWearableVisual.cs`
+- `Assets/1.JSR/Editor/PPEInnerGloveHandTintTests.cs` (new)
+- this handoff
+
+### Inspector / Scene manual work
+
+없음. Play Mode에서 속장갑을 한 손씩 착용하면 손 색이 바뀌는지 확인하면 된다. Unity가 아직 `main`을 열고 있으면 `feature/ppe`로 씬을 다시 열어야 한다.
+
+### Validation
+
+- Edit Mode `PPEInnerGloveHandTintTests.ApplyToHand_TintsThenRestoresDefaultHandColor`를 추가했다. Unity Test Runner 실행은 이 환경에서 하지 못했다.
+- 실제 Quest/Play Mode 착용 피드백은 미검증.
+- Console 오류와 Missing Script는 코드 경로상 새 의존성 없음. 런타임 확인은 미검증.
+
+### Known issues
+
+- XR 손은 속장갑 텍스처를 입히지 않고 평균 회청색만 쓴다. 손가락 주름은 기본 손 메시를 유지한다.
+- 외부 화학장갑 단계 이후에는 이 틴트가 보이지 않는다. 그때는 기존 화학장갑 메쉬가 손을 대체한다.
+
+### Integration 요청
+
+없음. 공용 XR, App Scene, Input Action 변경 없음.
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.
@@ -116,15 +163,22 @@
 - PLAY MODE VERIFIED: NOT TESTED
 - QUEST VERIFIED: NOT TESTED
 
-## Work metadata
+## Solid left wall (2026-08-27)
 
-- Role: PPE
-- Branch: `feature/ppe`
-- Commit: pending (recreated `feature/ppe`)
-- Push target: `origin/feature/ppe`
-- Base develop commit: `d445493 feat: decouple stage equipment inventory and bags`
-- Updated: 2026-08-27
-- Current focus: ResponseBag packing — desk raised 0.15 m with table items; packed items hidden.
+`Wall_Left_Back` was a 2.4 m door-side segment at `z=1.8`, leaving a 1.2 m gap with `Wall_Left_Front`. It now matches `Wall_Right`: position `(-3.5, 1.5, 0)`, scale `(0.15, 3, 6)`. Lower band `WallBand_Left_Back` matches `WallBand_Right` (`z=5.9` at `x=-3.4`). Door leftovers `Wall_Left_Front`, `Wall_Left_Top`, `WallBand_Left_Front`, and `PPE_RoomExitBlocker` are inactive.
+
+Did not change desk, bag, cabinets, or common XR.
+
+### Files
+
+- `Assets/Scenes/04_PPE.unity`
+- this handoff
+
+### Validation
+
+- SCENE VERIFIED: left wall transform matches right wall; door pieces inactive
+- PLAY MODE VERIFIED: NOT TESTED
+- QUEST VERIFIED: NOT TESTED
 
 ## Desk height + hide packed items (2026-08-27)
 
