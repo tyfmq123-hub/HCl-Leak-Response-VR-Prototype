@@ -1,5 +1,12 @@
 # PPE Integration Handoff
 
+## 2026-09-07 Integration — Link 공용 XR 시작 높이/책상 접근 시 높이 누적
+
+- 공용 App의 Floor 요청과 capsule 기반 중력으로 수정. 실제 PPE 측정기가 손 앞에 있을 때 머리 아래 sphere cast가 바닥으로 오인하던 문제를 재현했다. 측정기/책상 IgnoreCollision과 Grab 설정은 보존했다.
+- PPE Scene·Prefab·배치·대본·입력·완료 계약 변경 없음. 공용 변경 파일, 물리 재현, 테스트 결과는 [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md)에 기록.
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. setup/재생성 불필요. 실제 Link 착용 확인은 남아 있으며 Stage 직접 Play용 리그는 이번 대상이 아니다.
+- Integration 요청: 없음. 실제 Link의 바닥 보정/시점과 책상 접근·숙이기·물건 줍기 재확인 필요. 이번 패치 commit/push 미실행.
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.

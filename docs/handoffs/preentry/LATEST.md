@@ -1,5 +1,12 @@
 # PreEntry → Integration 인수인계
 
+## 2026-09-07 Integration — Link 공용 XR 높이 누적 수정
+
+- 공용 App에서 Floor를 명시하고, 중력 담당 누락/자기 몸·측정기를 바닥으로 오인하던 head cast를 capsule 기반 중력으로 교체했다. 전환 시 바닥을 내리기 전에 이동/중력을 잠근다.
+- PreEntry Scene·Prefab·풍향계/측정기 pose·TTS·입력·완료 이벤트 변경 없음. 파일/검증/제한은 [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md) 참고.
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. setup 실행 금지/불필요. 실기기 Link 바닥 높이와 실제 턱/숙이기는 별도 확인 필요. Stage 직접 Play 리그는 수정하지 않았다.
+- 추가 Integration 요청 없음. 이번 패치 commit/push 미실행.
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.

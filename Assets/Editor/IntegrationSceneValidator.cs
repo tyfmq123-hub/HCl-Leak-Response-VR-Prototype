@@ -548,6 +548,14 @@ public static class IntegrationSceneValidator
 
     static void ValidateSharedLocomotion(Transform origin, List<string> failures)
     {
+        if (origin.GetComponent<XROrigin>().RequestedTrackingOriginMode != XROrigin.TrackingOriginMode.Floor)
+            failures.Add("Common XR must explicitly request Floor tracking for Link and Quest.");
+        var gravity = origin.GetComponentsInChildren<SharedCharacterGravityProvider>(true);
+        if (gravity.Length != 1 || gravity[0].mediator != origin.GetComponent<LocomotionMediator>())
+            failures.Add("Common XR must own one capsule gravity bound to its canonical root mediator.");
+        var capsule = origin.GetComponent<CharacterController>();
+        if (capsule == null || capsule.gameObject.layer != LayerMask.NameToLayer("Ignore Raycast"))
+            failures.Add("Common XR capsule must not be a ray/ground target.");
         var bodyTransformers = origin.GetComponents<XRBodyTransformer>();
         var mediators = origin.GetComponents<LocomotionMediator>();
         var moveProviders = origin.GetComponents<ContinuousMoveProvider>();
@@ -569,6 +577,10 @@ public static class IntegrationSceneValidator
             moveProviders[0].leftHandMoveInput,
             "LeftHand",
             failures);
+#pragma warning disable CS0618
+        if (moveProviders[0].useGravity || moveProviders[0].gravityProvider != null)
+            failures.Add("Continuous move must not add fallback/head-cast gravity alongside capsule gravity.");
+#pragma warning restore CS0618
         ValidateLocomotionReader(
             "right Snap Turn",
             snapTurnProviders[0].rightHandTurnInput,
