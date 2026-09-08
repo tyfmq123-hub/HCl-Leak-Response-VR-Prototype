@@ -281,6 +281,9 @@ namespace VRProject.LeakResponse.Narration
 
             StopPresentation(true);
             source.gameObject.SetActive(true);
+            // A kinematic supply rising through the capsule must not depenetrate
+            // the player upward. Also keep this exclusion while held/dropped.
+            P102AbsorbentPlayerCollisionGuard.Ensure(source.gameObject);
             source.enabled = true;
             presentedSource = source;
             presentationAnchor = anchor;

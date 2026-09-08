@@ -215,7 +215,10 @@ namespace HClTraining.App
         static bool IsInputBehaviour(Type type)
         {
             var name = type.Name;
-            return name.IndexOf("Interactor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            // Freeze movement/gravity before unloading their floor. The destination
+            // XR profile (Unlock(false)) owns which providers resume afterward.
+            return typeof(LocomotionProvider).IsAssignableFrom(type) ||
+                   name.IndexOf("Interactor", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    name.IndexOf("InputActionManager", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    name.IndexOf("InputModule", StringComparison.OrdinalIgnoreCase) >= 0;
         }

@@ -1,5 +1,19 @@
 # PreEntry → Integration 인수인계
 
+## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
+
+- 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. 팀원의 풍향계 게이지 코드와 PreEntry Scene/TTS/pose는 변경 없이 보존했다.
+- 통합본 Edit Mode 175/175, 높이 90, App 진행 33, 실제 PreEntry→Leak 물방울/장비 28 및 뚜껑 대기/인계 검사 통과. 파일/전체 검사/배포 경로/제한은 [제출 검증 보고서](../../integration/SUBMISSION_VALIDATION_2026-09-08.md) 참고.
+- 수동 작업: Play 종료 → 최신 main 반영 → `01_App` 다시 열기. setup/Scene 재생성 불필요. 원본 E checkout의 미커밋 변경/브랜치/인덱스는 건드리지 않았다. 실제 Quest Link 확인은 남아 있다.
+- 추가 Integration 요청: 실제 Link 최종 시연. 아래 commit/push 미실행 문구는 9월 7일 당시 기록이다.
+
+## 2026-09-07 Integration — Link 공용 XR 높이 누적 수정
+
+- 공용 App에서 Floor를 명시하고, 중력 담당 누락/자기 몸·측정기를 바닥으로 오인하던 head cast를 capsule 기반 중력으로 교체했다. 전환 시 바닥을 내리기 전에 이동/중력을 잠근다.
+- PreEntry Scene·Prefab·풍향계/측정기 pose·TTS·입력·완료 이벤트 변경 없음. 파일/검증/제한은 [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md) 참고.
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. setup 실행 금지/불필요. 실기기 Link 바닥 높이와 실제 턱/숙이기는 별도 확인 필요. Stage 직접 Play 리그는 수정하지 않았다.
+- 추가 Integration 요청 없음. 이번 패치 commit/push 미실행.
+
 ## 2026-09-08 PreEntry — 풍향 변환 후 확인 게이지 추적
 
 - 역할: PreEntry
