@@ -51,6 +51,11 @@ namespace HClTraining.App
         public void Initialize(GameObject xrOrigin)
         {
             commonXrOrigin = xrOrigin;
+            // Link must use the same physical-floor origin as standalone Stage rigs.
+            // Do not synthesize a fixed standing height or overwrite the tracked HMD pose.
+            var origin = commonXrOrigin != null ? commonXrOrigin.GetComponent<XROrigin>() : null;
+            if (origin != null)
+                origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
             if (profiles == null || profiles.Length == 0)
                 profiles = Resources.LoadAll<StageXRProfile>("App/StageXRProfiles");
             requirementAssets = Resources.LoadAll<StageXRRequirements>("SharedXR");
@@ -839,14 +844,15 @@ namespace HClTraining.App
             var moveProviders = xrRoot.GetComponents<ContinuousMoveProvider>();
             var controllerDrivers = GetBehavioursNamed(xrRoot, "CharacterControllerDriver", false);
             var snapTurnProviders = xrRoot.GetComponents<SnapTurnProvider>();
+            var gravityProviders = xrRoot.GetComponentsInChildren<SharedCharacterGravityProvider>(true);
             if (bodyTransformers.Length != 1 || mediators.Length != 1 || moveProviders.Length != 1 ||
-                controllerDrivers.Length != 1 || snapTurnProviders.Length != 1)
+                controllerDrivers.Length != 1 || snapTurnProviders.Length != 1 || gravityProviders.Length != 1)
             {
                 error =
                     "Shared XR locomotion topology is invalid. Expected exactly one canonical " +
                     $"root BodyTransformer/Mediator/Move/CharacterDriver/SnapTurn, found " +
                     $"{bodyTransformers.Length}/{mediators.Length}/{moveProviders.Length}/" +
-                    $"{controllerDrivers.Length}/{snapTurnProviders.Length}.";
+                    $"{controllerDrivers.Length}/{snapTurnProviders.Length}; Gravity={gravityProviders.Length}.";
                 return false;
             }
 
@@ -863,7 +869,25 @@ namespace HClTraining.App
             // Stage rig's component paths or create Stage-specific providers here.
             bodyTransformers[0].enabled = true;
             mediators[0].enabled = true;
+            // One capsule-based gravity owner, including when the stick is idle.
+            // Do not use XRI's head sphere cast: it treats ignored tools as terrain.
+            var gravity = gravityProviders[0];
+            gravity.mediator = mediators[0];
+            // The canonical capsule is not terrain. SphereCastAll reports initial
+            // overlaps with the player's own Default-layer capsule as grounded.
+            // Change ONLY its root layer; child interaction target layers stay intact.
+            var capsule = xrRoot.GetComponent<CharacterController>();
+            if (capsule != null)
+                capsule.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+            gravity.ResetFallForce();
+            gravity.enabled = requirements.Movement;
             moveProviders[0].enabled = requirements.Movement;
+            // OnEnable can discover a disabled legacy Stage gravity provider.
+            // Clear that cache and its deprecated fallback to prevent double gravity.
+            moveProviders[0].gravityProvider = null;
+#pragma warning disable CS0618
+            moveProviders[0].useGravity = false;
+#pragma warning restore CS0618
             controllerDrivers[0].enabled = true;
             snapTurnProviders[0].enabled = requirements.Turning;
             return true;

@@ -259,6 +259,22 @@ namespace VRProject.LeakResponse
             UnsubscribeFromGroups();
         }
 
+        void LateUpdate()
+        {
+            // During the dormant PreEntry -> Leak activation, valve initialization
+            // and particle startup happen separately. A positive emission rate alone
+            // does not resume a stopped ParticleSystem, and an unchanged valve emits
+            // no second state event. Reconcile playback after those startup callbacks.
+            // Do not restart during Pause, a dormant stage, or completed cleanup.
+            if (completionCleanupApplied || Time.timeScale <= 0f ||
+                currentLeakIntensity <= leakStopThreshold || fallingDrops == null ||
+                !fallingDrops.gameObject.activeInHierarchy)
+                return;
+
+            if (!fallingDrops.isPlaying || !fallingDrops.emission.enabled)
+                UpdateFallingDropsEmission();
+        }
+
         void OnValidate()
         {
             minPuddleScaleRatio = Mathf.Clamp(minPuddleScaleRatio, 0.01f, 1f);

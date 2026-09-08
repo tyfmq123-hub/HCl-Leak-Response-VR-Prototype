@@ -810,6 +810,11 @@ public static class AppPlayModeSmokeRunner
             stage == TrainingStage.LeakResponse;
         var expectedMove = allowLocomotion ? 1 : 0;
         var expectedTurn = allowLocomotion ? 1 : 0;
+        var gravity = xrRoot.GetComponentsInChildren<SharedCharacterGravityProvider>(true);
+        Require(CountActive(gravity) == expectedMove,
+            $"{label}: capsule gravity must follow the stage movement policy.");
+        Require(xrRoot.GetComponent<XROrigin>().RequestedTrackingOriginMode == XROrigin.TrackingOriginMode.Floor,
+            $"{label}: Common XR must explicitly request physical-floor tracking.");
         Require(CountActive(moveProviders) == expectedMove,
             $"{label}: active shared ContinuousMoveProvider count={CountActive(moveProviders)}, expected={expectedMove}.");
         Require(CountActive(controllerDrivers) == 1,

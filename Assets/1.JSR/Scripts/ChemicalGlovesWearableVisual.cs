@@ -51,6 +51,8 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
     public bool IsVisible =>
         (leftGlove != null && leftGlove.activeSelf) ||
         (rightGlove != null && rightGlove.activeSelf);
+    public GameObject LeftBareHand => leftBareHand;
+    public GameObject RightBareHand => rightBareHand;
     public bool LeftBareVisible => HasEnabledRenderer(leftBareHand);
     public bool RightBareVisible => HasEnabledRenderer(rightBareHand);
     public bool LeftGloveVisible => leftGlove != null && leftGlove.activeInHierarchy;
@@ -150,6 +152,7 @@ public class ChemicalGlovesWearableVisual : MonoBehaviour
             AlignGloveVisuals();
         SetQuestMeshesActive(false);
         SetRayInteractorsEnabled(false);
+        PPEInnerGloveHandTint.ApplyFromInnerGlovePair();
     }
 
     public void ShowPpeDirectHands() => ApplyPpeRoomState(false, false);
