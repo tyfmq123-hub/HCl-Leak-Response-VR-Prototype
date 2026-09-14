@@ -38,6 +38,7 @@ namespace VRProject.LeakResponse.Narration
         bool returnEnabled;
         bool returned;
         bool pickupGuidanceStarted;
+        bool padGuidanceCompleted;
         bool sockGuidanceCompleted;
         Coroutine grabConfirmationRoutine;
         float lastProgressTime;
@@ -70,6 +71,7 @@ namespace VRProject.LeakResponse.Narration
             returnEnabled = false;
             returned = false;
             pickupGuidanceStarted = false;
+            padGuidanceCompleted = false;
             sockGuidanceCompleted = false;
             equipmentUseReported = false;
 
@@ -160,9 +162,9 @@ namespace VRProject.LeakResponse.Narration
             if (waste != null)
             {
                 waste.ItemDeposited += OnItemDeposited;
-                waste.LidStowed += EnableRecoveryInteraction;
+                waste.LidStowed += OnLidStowed;
                 if (waste.IsLidStowed)
-                    EnableRecoveryInteraction();
+                    OnLidStowed();
             }
             return true;
         }
@@ -170,13 +172,19 @@ namespace VRProject.LeakResponse.Narration
         void Update()
         {
             UpdateReturnInput();
-            if (!recoveryActionEnabled || !pickupGuidanceStarted || heldItem != null ||
-                recovery == null || narration == null || narration.IsPlaying)
+            if (heldItem != null || recovery == null || narration == null || narration.IsPlaying)
                 return;
 
             bool padsRemain = recovery.HasRemaining(P102AbsorbentKind.Pad);
             bool socksRemain = recovery.HasRemaining(P102AbsorbentKind.Sock);
-            if ((!padsRemain && (!socksRemain || !sockGuidanceCompleted)) ||
+            if (!IsRecoveryInputAllowed(
+                    recoveryActionEnabled,
+                    pickupGuidanceStarted,
+                    padGuidanceCompleted,
+                    sockGuidanceCompleted,
+                    false,
+                    padsRemain,
+                    socksRemain) ||
                 Time.unscaledTime - lastProgressTime < IdleReminderSeconds)
                 return;
 
@@ -328,7 +336,15 @@ namespace VRProject.LeakResponse.Narration
             {
                 pickupGuidanceStarted = true;
                 lastProgressTime = Time.unscaledTime;
-                narration?.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
+                if (narration == null)
+                {
+                    padGuidanceCompleted = true;
+                    sockGuidanceCompleted = true;
+                }
+                else
+                {
+                    narration.EnqueueOnce(P102LeakNarrationCue.RecoveryTongsPickedUp);
+                }
             }
             grabConfirmationRoutine = null;
         }
@@ -351,7 +367,19 @@ namespace VRProject.LeakResponse.Narration
 
         void OnActivated(ActivateEventArgs args)
         {
-            if (!recoveryActionEnabled || heldItem != null || recovery == null || tipTransform == null)
+            if (heldItem != null || recovery == null || tipTransform == null)
+                return;
+
+            bool padsRemain = recovery.HasRemaining(P102AbsorbentKind.Pad);
+            bool socksRemain = recovery.HasRemaining(P102AbsorbentKind.Sock);
+            if (!IsRecoveryInputAllowed(
+                    recoveryActionEnabled,
+                    pickupGuidanceStarted,
+                    padGuidanceCompleted,
+                    sockGuidanceCompleted,
+                    narration != null && narration.IsPlaying,
+                    padsRemain,
+                    socksRemain))
                 return;
 
             P102RecoveryItemState nearest = FindNearestEligible(out bool sockBlockedByPads);
@@ -363,6 +391,22 @@ namespace VRProject.LeakResponse.Narration
             }
 
             PickUp(nearest);
+        }
+
+        static bool IsRecoveryInputAllowed(
+            bool actionEnabled,
+            bool pickupPromptStarted,
+            bool padPromptCompleted,
+            bool sockPromptCompleted,
+            bool narrationPlaying,
+            bool padsRemain,
+            bool socksRemain)
+        {
+            if (!actionEnabled || !pickupPromptStarted || narrationPlaying)
+                return false;
+            if (padsRemain)
+                return padPromptCompleted;
+            return socksRemain && sockPromptCompleted;
         }
 
         void OnDeactivated(DeactivateEventArgs args)
@@ -569,6 +613,11 @@ namespace VRProject.LeakResponse.Narration
             {
                 EnableRecoveryInteraction();
             }
+            else if (cue == P102LeakNarrationCue.RecoveryTongsPickedUp)
+            {
+                padGuidanceCompleted = true;
+                lastProgressTime = Time.unscaledTime;
+            }
             else if (cue == P102LeakNarrationCue.AllSocksRecovered)
             {
                 returnEnabled = true;
@@ -641,8 +690,17 @@ namespace VRProject.LeakResponse.Narration
             if (waste != null)
             {
                 waste.ItemDeposited -= OnItemDeposited;
-                waste.LidStowed -= EnableRecoveryInteraction;
+                waste.LidStowed -= OnLidStowed;
             }
+        }
+
+        void OnLidStowed()
+        {
+            // The production flow unlocks the tongs only from the completion event
+            // of the lid-stowed narration. Keep a no-narration fallback for isolated
+            // tests and recovery scenes so missing audio cannot deadlock training.
+            if (narration == null)
+                EnableRecoveryInteraction();
         }
 
         void StopGrabConfirmation()

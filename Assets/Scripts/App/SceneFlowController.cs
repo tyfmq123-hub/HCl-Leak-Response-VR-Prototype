@@ -486,6 +486,8 @@ namespace HClTraining.App
         {
             if (stage == TrainingStage.None && PathsMatch(primaryScenePath, StartScenePath))
                 return new StageLoadPlan(primaryScenePath, new[] { TitleScenePath });
+            if (stage == TrainingStage.Complete && PathsMatch(primaryScenePath, CompleteScenePath))
+                return new StageLoadPlan(primaryScenePath, new[] { TitleScenePath });
             if (stage == TrainingStage.PreEntry)
                 return new StageLoadPlan(primaryScenePath, new[] { LeakResponseScenePath });
             if (stage == TrainingStage.LeakResponse)

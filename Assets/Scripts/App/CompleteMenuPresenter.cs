@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using HClTraining.SharedXR;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -15,7 +16,6 @@ namespace HClTraining.App
 
         static readonly Color Navy = new Color32(15, 42, 70, 255);
         static readonly Color LightBackground = new Color32(239, 243, 245, 255);
-        static readonly Color White = new Color32(252, 253, 253, 255);
         static readonly Color MutedText = new Color32(70, 86, 101, 255);
         static readonly Color Teal = new Color32(0, 151, 145, 255);
         static readonly Color Orange = new Color32(224, 126, 42, 255);
@@ -99,28 +99,34 @@ namespace HClTraining.App
                 "CompleteTrainingCanvas",
                 canvasSize,
                 false);
-            TrainingUIFactory.PlaceFixedInView(canvas.transform, app.MainCamera, 2.05f);
+            if (!WorldBoardUiPlacement.TryPlace(
+                    canvas.transform,
+                    app.MainCamera,
+                    "Board",
+                    canvasSize,
+                    surfaceOffset: 0.12f,
+                    inset: 0.99f))
+            {
+                Debug.LogError(
+                    "[Complete Menu] Title 배경의 Board를 찾지 못했습니다.", this);
+                TrainingUIFactory.PlaceFixedInView(canvas.transform, app.MainCamera, 2.05f);
+            }
 
-            TrainingUIFactory.CreatePanel(
-                canvas.transform,
-                "CompletionFrame",
-                canvasSize,
-                Vector2.zero,
-                Navy);
             var panel = TrainingUIFactory.CreatePanel(
                 canvas.transform,
                 "CompletionPanel",
-                new Vector2(1450f, 1100f),
+                canvasSize,
                 Vector2.zero,
-                LightBackground);
+                Color.clear);
+            panel.raycastTarget = false;
             completionPanel = panel.gameObject;
 
             TrainingUIFactory.CreateText(
                 panel.transform,
                 GetResultTitle(),
-                new Vector2(1280f, 90f),
-                new Vector2(0f, 470f),
-                62f,
+                new Vector2(1280f, 100f),
+                new Vector2(0f, 475f),
+                88f,
                 TextAlignmentOptions.Center,
                 Navy);
             TrainingUIFactory.CreateText(
@@ -128,9 +134,9 @@ namespace HClTraining.App
                 app.Session.CompletionResult.TrainingCompleted
                     ? "필수 교육 절차를 모두 수행했습니다."
                     : "다시 확인할 항목이 있습니다.",
-                new Vector2(1200f, 64f),
-                new Vector2(0f, 400f),
-                34f,
+                new Vector2(1200f, 70f),
+                new Vector2(0f, 392f),
+                58f,
                 TextAlignmentOptions.Center,
                 app.Session.CompletionResult.TrainingCompleted ? Teal : Orange);
 
@@ -142,20 +148,20 @@ namespace HClTraining.App
             TrainingUIFactory.CreateButton(
                 panel.transform,
                 "처음부터 다시하기",
-                new Vector2(570f, 118f),
-                new Vector2(-265f, -482f),
+                new Vector2(500f, 86f),
+                new Vector2(-260f, -492f),
                 ShowRestartConfirmation,
                 false,
-                32f,
+                40f,
                 Teal);
             TrainingUIFactory.CreateButton(
                 panel.transform,
                 "교육 종료",
-                new Vector2(570f, 118f),
-                new Vector2(265f, -482f),
+                new Vector2(500f, 86f),
+                new Vector2(260f, -492f),
                 ExitTraining,
                 false,
-                32f,
+                40f,
                 Navy);
 
             BuildRestartConfirmation(canvas.transform);
@@ -184,7 +190,8 @@ namespace HClTraining.App
                 "CompletionChecklist",
                 new Vector2(670f, 500f),
                 new Vector2(-350f, 82f),
-                White);
+                Color.clear);
+            checklist.raycastTarget = false;
             var singleStage = app.Session.SelectedMode != TrainingMode.Full;
             var selectedStage = singleStage
                 ? TrainingSessionState.FirstStageFor(app.Session.SelectedMode)
@@ -195,9 +202,9 @@ namespace HClTraining.App
                 singleStage && selectedResult != null
                     ? selectedResult.StageName + " 세부 검사"
                     : "Stage별 교육 결과",
-                new Vector2(580f, 60f),
+                new Vector2(580f, 82f),
                 new Vector2(0f, 200f),
-                34f,
+                64f,
                 TextAlignmentOptions.Left,
                 Navy);
             TrainingUIFactory.CreatePanel(
@@ -216,10 +223,16 @@ namespace HClTraining.App
             else if (selectedResult != null)
             {
                 var count = Mathf.Max(1, selectedResult.CheckItems.Count);
-                var spacing = Mathf.Min(42f, 330f / count);
+                var spacing = Mathf.Min(68f, 410f / count);
+                var fontSize = Mathf.Clamp(spacing * 0.9f, 40f, 54f);
                 var startY = 138f - spacing * 0.5f;
                 for (var i = 0; i < selectedResult.CheckItems.Count; i++)
-                    CreateCheckItemRow(checklist.transform, selectedResult.CheckItems[i], startY - i * spacing, spacing);
+                    CreateCheckItemRow(
+                        checklist.transform,
+                        selectedResult.CheckItems[i],
+                        startY - i * spacing,
+                        spacing,
+                        fontSize);
             }
             return checklist.gameObject;
         }
@@ -231,13 +244,14 @@ namespace HClTraining.App
                 "TrainingResult",
                 new Vector2(670f, 500f),
                 new Vector2(350f, 82f),
-                White);
+                Color.clear);
+            result.raycastTarget = false;
             TrainingUIFactory.CreateText(
                 result.transform,
                 "교육 결과",
-                new Vector2(580f, 60f),
+                new Vector2(580f, 82f),
                 new Vector2(0f, 200f),
-                37f,
+                64f,
                 TextAlignmentOptions.Left,
                 Navy);
             TrainingUIFactory.CreatePanel(
@@ -300,7 +314,7 @@ namespace HClTraining.App
                 fullCourse ? "처음부터 다시 시작할까요?" : "선택한 Stage를 다시 시작할까요?",
                 new Vector2(850f, 82f),
                 new Vector2(0f, 150f),
-                49f,
+                68f,
                 TextAlignmentOptions.Center,
                 Navy);
             TrainingUIFactory.CreateText(
@@ -310,7 +324,7 @@ namespace HClTraining.App
                     : "현재 결과를 종료하고 선택한 Stage의\n새 교육 세션을 시작합니다.",
                 new Vector2(820f, 125f),
                 new Vector2(0f, 40f),
-                31f,
+                44f,
                 TextAlignmentOptions.Center,
                 MutedText);
             TrainingUIFactory.CreateButton(
@@ -320,7 +334,7 @@ namespace HClTraining.App
                 new Vector2(-205f, -145f),
                 HideRestartConfirmation,
                 false,
-                34f,
+                48f,
                 Navy);
             TrainingUIFactory.CreateButton(
                 dialog.transform,
@@ -329,7 +343,7 @@ namespace HClTraining.App
                 new Vector2(205f, -145f),
                 ConfirmRestart,
                 false,
-                34f,
+                48f,
                 Teal);
 
             confirmationRoot.SetActive(false);
@@ -342,7 +356,7 @@ namespace HClTraining.App
                 label,
                 new Vector2(390f, 52f),
                 new Vector2(-90f, y),
-                31f,
+                46f,
                 TextAlignmentOptions.Left,
                 Navy);
             TrainingUIFactory.CreateText(
@@ -350,7 +364,7 @@ namespace HClTraining.App
                 complete ? "✓  완료" : "확인 필요",
                 new Vector2(190f, 52f),
                 new Vector2(205f, y),
-                30f,
+                44f,
                 TextAlignmentOptions.Right,
                 complete ? Teal : Orange);
         }
@@ -366,14 +380,14 @@ namespace HClTraining.App
                 new Vector2(-90f, y),
                 () => ShowStageDetails(stage),
                 false,
-                25f,
+                44f,
                 Navy);
             TrainingUIFactory.CreateText(
                 parent,
                 complete ? "✓ 완료" : "확인 필요",
                 new Vector2(180f, 60f),
                 new Vector2(205f, y),
-                26f,
+                44f,
                 TextAlignmentOptions.Right,
                 complete ? Teal : Orange);
         }
@@ -382,24 +396,30 @@ namespace HClTraining.App
             Transform parent,
             StageCheckItemResult item,
             float y,
-            float rowHeight)
+            float rowHeight,
+            float fontSize)
         {
-            TrainingUIFactory.CreateText(
+            var label = TrainingUIFactory.CreateText(
                 parent,
                 item.DisplayName,
-                new Vector2(350f, rowHeight),
-                new Vector2(-105f, y),
-                21f,
+                new Vector2(380f, rowHeight),
+                new Vector2(-90f, y),
+                fontSize,
                 TextAlignmentOptions.Left,
                 Navy);
-            TrainingUIFactory.CreateText(
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = Mathf.Max(40f, fontSize - 8f);
+            label.fontSizeMax = fontSize;
+            var status = TrainingUIFactory.CreateText(
                 parent,
                 item.WasPerformed ? "✓ 완료" : "확인 필요",
-                new Vector2(170f, rowHeight),
+                new Vector2(185f, rowHeight),
                 new Vector2(205f, y),
-                21f,
+                fontSize,
                 TextAlignmentOptions.Right,
                 item.WasPerformed ? Teal : Orange);
+            status.textWrappingMode = TextWrappingModes.NoWrap;
         }
 
         static void CreateResultRow(Transform parent, string label, string value, float y, Color valueColor)
@@ -407,17 +427,17 @@ namespace HClTraining.App
             TrainingUIFactory.CreateText(
                 parent,
                 label,
-                new Vector2(320f, 54f),
-                new Vector2(-125f, y),
-                30f,
+                new Vector2(370f, 68f),
+                new Vector2(-100f, y),
+                54f,
                 TextAlignmentOptions.Left,
                 Navy);
             TrainingUIFactory.CreateText(
                 parent,
                 value,
-                new Vector2(250f, 54f),
+                new Vector2(220f, 68f),
                 new Vector2(165f, y),
-                31f,
+                58f,
                 TextAlignmentOptions.Right,
                 valueColor);
         }
@@ -446,37 +466,37 @@ namespace HClTraining.App
             var voiceButton = TrainingUIFactory.CreateButton(
                 parent,
                 "음성 녹음 시작",
-                new Vector2(360f, 76f),
-                new Vector2(-410f, -310f),
+                new Vector2(320f, 64f),
+                new Vector2(-355f, -315f),
                 null,
                 false,
-                27f,
+                34f,
                 Disabled);
             voiceButton.interactable = false;
             TrainingUIFactory.CreateButton(
                 parent,
                 "빠른 피드백",
-                new Vector2(360f, 76f),
-                new Vector2(0f, -310f),
+                new Vector2(320f, 64f),
+                new Vector2(0f, -315f),
                 ShowQuickFeedback,
                 false,
-                27f,
+                34f,
                 Teal);
             TrainingUIFactory.CreateButton(
                 parent,
                 "건너뛰기",
-                new Vector2(360f, 76f),
-                new Vector2(410f, -310f),
+                new Vector2(320f, 64f),
+                new Vector2(355f, -315f),
                 SkipFeedback,
                 false,
-                27f,
+                34f,
                 Navy);
             feedbackStatus = TrainingUIFactory.CreateText(
                 parent,
                 "음성 피드백은 승인된 서버 연결 후 사용할 수 있습니다.",
-                new Vector2(1300f, 38f),
-                new Vector2(0f, -365f),
-                21f,
+                new Vector2(1200f, 44f),
+                new Vector2(0f, -360f),
+                30f,
                 TextAlignmentOptions.Center,
                 MutedText);
         }
@@ -502,7 +522,7 @@ namespace HClTraining.App
                 new Vector2(0f, -505f),
                 () => detailOverlay.SetActive(false),
                 false,
-                30f,
+                46f,
                 Navy);
             detailOverlay.SetActive(false);
         }
@@ -520,17 +540,17 @@ namespace HClTraining.App
             TrainingUIFactory.CreateText(
                 detailContent,
                 result.StageName + " 세부 검사 결과",
-                new Vector2(1180f, 70f),
+                new Vector2(1180f, 82f),
                 new Vector2(0f, 380f),
-                44f,
+                64f,
                 TextAlignmentOptions.Center,
                 Navy);
             TrainingUIFactory.CreateText(
                 detailContent,
                 $"소요 {FormatDuration(result.StageDurationSeconds)}  ·  오류 {result.ErrorCount}",
-                new Vector2(1100f, 48f),
+                new Vector2(1100f, 56f),
                 new Vector2(0f, 325f),
-                27f,
+                42f,
                 TextAlignmentOptions.Center,
                 MutedText);
             TrainingUIFactory.CreatePanel(detailContent, "DetailDivider", new Vector2(1160f, 3f),
@@ -544,13 +564,13 @@ namespace HClTraining.App
                 var item = result.CheckItems[i];
                 var y = startY - i * spacing;
                 TrainingUIFactory.CreateText(detailContent, item.DisplayName, new Vector2(520f, spacing),
-                    new Vector2(-300f, y), 25f, TextAlignmentOptions.Left, Navy);
+                    new Vector2(-300f, y), 40f, TextAlignmentOptions.Left, Navy);
                 TrainingUIFactory.CreateText(detailContent, item.WasPerformed ? "✓ 완료" : "확인 필요",
-                    new Vector2(210f, spacing), new Vector2(125f, y), 24f,
+                    new Vector2(210f, spacing), new Vector2(125f, y), 38f,
                     TextAlignmentOptions.Center, item.WasPerformed ? Teal : Orange);
                 TrainingUIFactory.CreateText(detailContent,
                     $"오류 {item.ErrorCount} · {FormatDuration(item.DurationSeconds)}",
-                    new Vector2(360f, spacing), new Vector2(390f, y), 22f,
+                    new Vector2(360f, spacing), new Vector2(390f, y), 35f,
                     TextAlignmentOptions.Right, MutedText);
             }
             detailOverlay.SetActive(true);
@@ -558,21 +578,25 @@ namespace HClTraining.App
 
         void BuildQuickFeedbackOverlay(Transform canvas)
         {
-            feedbackOverlay = TrainingUIFactory.CreatePanel(
+            var overlay = TrainingUIFactory.CreatePanel(
                 canvas,
                 "QuickFeedbackOverlay",
                 new Vector2(1500f, 1150f),
                 Vector2.zero,
-                new Color(5f / 255f, 18f / 255f, 31f / 255f, 1f)).gameObject;
+                Color.clear);
+            overlay.raycastTarget = false;
+            feedbackOverlay = overlay.gameObject;
             var feedbackOverlayRect = feedbackOverlay.GetComponent<RectTransform>();
             if (feedbackOverlayRect != null)
                 feedbackOverlayRect.localPosition = new Vector3(0f, 0f, -12f);
-            feedbackContent = TrainingUIFactory.CreatePanel(
+            var content = TrainingUIFactory.CreatePanel(
                 feedbackOverlay.transform,
                 "QuickFeedbackContent",
                 new Vector2(1320f, 920f),
                 Vector2.zero,
-                White).transform;
+                Color.clear);
+            content.raycastTarget = false;
+            feedbackContent = content.transform;
             feedbackOverlay.SetActive(false);
         }
 
@@ -594,12 +618,12 @@ namespace HClTraining.App
             for (var i = feedbackContent.childCount - 1; i >= 0; i--)
                 Destroy(feedbackContent.GetChild(i).gameObject);
 
-            TrainingUIFactory.CreateText(feedbackContent, "빠른 피드백", new Vector2(1160f, 70f),
-                new Vector2(0f, 390f), 46f, TextAlignmentOptions.Center, Navy);
+            TrainingUIFactory.CreateText(feedbackContent, "빠른 피드백", new Vector2(1160f, 92f),
+                new Vector2(0f, 400f), 72f, TextAlignmentOptions.Center, Navy);
             if (app.Session.SelectedMode == TrainingMode.Full)
             {
                 TrainingUIFactory.CreateText(feedbackContent, "피드백 대상을 선택하세요.",
-                    new Vector2(1100f, 45f), new Vector2(0f, 337f), 25f,
+                    new Vector2(1100f, 62f), new Vector2(0f, 325f), 42f,
                     TextAlignmentOptions.Center, MutedText);
                 CreateFeedbackTargetButton(TrainingStage.PPE, "PPE", -435f);
                 CreateFeedbackTargetButton(TrainingStage.PreEntry, "현장 진입", -145f);
@@ -619,7 +643,7 @@ namespace HClTraining.App
                     new Vector2(column == 0 ? -295f : 295f, 175f - row * 88f),
                     () => ToggleQuickFeedback(option.Id),
                     false,
-                    24f,
+                    42f,
                     Navy);
                 button.interactable = true;
                 button.transition = Selectable.Transition.None;
@@ -631,9 +655,9 @@ namespace HClTraining.App
             RefreshQuickFeedbackButtons();
 
             TrainingUIFactory.CreateButton(feedbackContent, "취소", new Vector2(340f, 82f),
-                new Vector2(-195f, -365f), CloseQuickFeedback, false, 29f, Navy);
+                new Vector2(-195f, -365f), CloseQuickFeedback, false, 46f, Navy);
             TrainingUIFactory.CreateButton(feedbackContent, "피드백 저장", new Vector2(340f, 82f),
-                new Vector2(195f, -365f), SubmitQuickFeedback, false, 29f, Teal);
+                new Vector2(195f, -365f), SubmitQuickFeedback, false, 46f, Teal);
             if (completionPanel != null)
                 completionPanel.SetActive(false);
             feedbackOverlay.SetActive(true);
@@ -649,7 +673,7 @@ namespace HClTraining.App
                 new Vector2(x, 280f),
                 () => SelectFeedbackTarget(stage),
                 false,
-                23f,
+                38f,
                 Navy);
             button.transition = Selectable.Transition.None;
             feedbackTargetButtons[stage] = button;

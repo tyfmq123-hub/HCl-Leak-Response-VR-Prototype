@@ -1,5 +1,24 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-14 Integration — 완료·피드백 화이트보드 가독성
+
+- 완료 화면의 기존 `CompletionFrame`과 불투명 배경판을 제거해 Title Scene의 실제 `Board`를 배경으로 직접 사용한다. 결과 목록·교육 결과·빠른 피드백의 레이아웃 루트도 투명 처리했으며 버튼과 구분선은 유지한다.
+- 완료 Canvas가 화이트보드 면적의 99%를 사용하도록 확대했다. Board 탐색, 표면 오프셋, Board를 찾지 못했을 때의 고정 시야 fallback은 유지한다.
+- 제목·설명·Stage 결과·시간·오류·빠른 피드백·상세 결과·확인창 글자를 화이트보드에서 읽기 쉬운 크기로 조정했다. 단일 Stage 체크 항목은 오른쪽 `오류 횟수`·`확인 필요 항목`과 동일한 보통 굵기·최대 54pt로 표시하고, 긴 항목만 줄바꿈 없이 해당 행 안에서 자동 축소한다. 하단 피드백 버튼·상태 문구·재시작·종료 버튼은 보드 경계를 넘지 않는 크기로 축소했다.
+- 완료 판정, 피드백 전송 시점과 콜백, Scene·Prefab·훈련 진행·TTS는 변경하지 않았다.
+- 회귀 검사는 기존 외곽 틀 제거, 99% Board 사용, 투명 레이아웃 루트 유지를 확인한다. Unity 6000.4.8f1 Roslyn 응답 파일로 Runtime·Editor 전체 소스를 컴파일했고 새 C# 오류는 0개다. Unity Editor 미리보기는 Game View를 최대화하고 2배 해상도로 캡처한다. Quest 실기기 시각 확인은 실행하지 않았다. 역할 Integration, 브랜치 `integration-windsock-pivot`, commit/push 미실행.
+
+## 2026-09-14 Integration — 실제 프로젝트 이전 / 수거 TTS 순차 잠금
+
+- 대상은 Unity에서 사용하는 `E:\WorkSpace\HCl-Leak-Response-VR-Prototype-main`이다. 이전 복사본 작업을 이 프로젝트에 다시 적용했다.
+- `ENV_DikeFloor`의 작성 Transform·BoxCollider는 그대로 두고 전용 URP Lit 무광 회색 재질 `M_LeakPumpFloor_Matte`만 연결했다. Metallic/Smoothness/Specular Highlights/Environment Reflections는 모두 0이다.
+- Complete 전환에서 `02_Title`을 배경 의존 Scene으로 먼저 로드하고 Title 메뉴·중복 XR만 끈다. 완료 결과와 빠른 피드백 Canvas는 Title의 `Board` 표면에 배치하며 Board를 찾지 못할 때만 기존 고정 시야 배치를 사용한다.
+- 폐기물 뚜껑 보관 이벤트만으로 집게가 즉시 활성화되지 않는다. `ContainerLidStowed` 음성 완료 후 집게, `RecoveryTongsPickedUp` 음성 완료 후 패드, `AllPadsRecovered`에 이어진 `SockRecoveryStarted` 음성 완료 후 흡착삭 입력이 열린다.
+- 수거 Trigger는 어떤 TTS라도 재생 중이면 무시한다. 기존 패드/흡착삭 종류별 자동 묶음 완료, 수거 개수, 집게 반납, 뚜껑/집게/고스트 작성 Pose, TTS 음원과 문구는 변경하지 않았다.
+- 회귀 검사에 수거 잠금 상태 7개와 뚜껑 물리 이벤트/음성 완료 이벤트 분리를 추가했다. Unity 6000.4.8f1 Roslyn 응답 파일로 실제 Runtime+Editor 전체 소스를 컴파일했고 새 오류는 0개다. 순수 게이트 7개 상태도 실제 컴파일된 DLL에 Reflection으로 모두 PASS했다.
+- Unity Editor가 이 프로젝트를 열고 있어 Test Runner와 Quest Link 실동작은 이번 작업에서 실행하지 않았다. Play를 중지하고 Unity 창으로 돌아가 자동 새로고침·컴파일이 끝난 뒤 `01_App`에서 전체 흐름을 확인한다. 별도 setup 메뉴나 Scene 재생성은 필요 없다.
+- 역할 Integration, 브랜치 `integration-windsock-pivot`, commit/push 미실행.
+
 ## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
 
 - 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. Leak Scene/Prefab/TTS와 뚜껑·고스트 작성 pose는 그대로 보존했다.

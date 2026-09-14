@@ -313,7 +313,7 @@ namespace VRProject.LeakResponse.EditorTests
         }
 
         [Test]
-        public void RecoveryTongs_UsesRotatedModelLocalHandle_AndCanBeEnabledImmediately()
+        public void RecoveryTongs_UsesRotatedModelLocalHandle_AndSupportsNoNarrationFallback()
         {
             GameObject tongs = new GameObject("INT_RecoveryTongs_01");
             GameObject tongsMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -355,6 +355,60 @@ namespace VRProject.LeakResponse.EditorTests
             finally
             {
                 UnityEngine.Object.DestroyImmediate(runtimeObject);
+                UnityEngine.Object.DestroyImmediate(ghost);
+                UnityEngine.Object.DestroyImmediate(tongs);
+            }
+        }
+
+        [Test]
+        public void RecoveryTongs_WaitsForCompletedNarrationBeforeEachRecoveryKind()
+        {
+            Assert.That(RecoveryInputAllowed(false, false, false, false, false, true, true),
+                Is.False, "Recovery must stay locked until lid narration completes.");
+            Assert.That(RecoveryInputAllowed(true, true, false, false, false, true, true),
+                Is.False, "Pads must stay locked until the tongs instruction completes.");
+            Assert.That(RecoveryInputAllowed(true, true, true, false, true, true, true),
+                Is.False, "Recovery input must be ignored while narration is playing.");
+            Assert.That(RecoveryInputAllowed(true, true, true, false, false, true, true),
+                Is.True, "Pads must unlock after the tongs instruction completes.");
+            Assert.That(RecoveryInputAllowed(true, true, true, false, false, false, true),
+                Is.False, "Socks must stay locked until their instruction completes.");
+            Assert.That(RecoveryInputAllowed(true, true, true, true, false, false, true),
+                Is.True, "Socks must unlock after their instruction completes.");
+        }
+
+        [Test]
+        public void RecoveryTongs_LidEventAloneDoesNotUnlockWhenNarrationExists()
+        {
+            GameObject tongs = new GameObject("INT_RecoveryTongs_01");
+            GameObject tongsMesh = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tongsMesh.transform.SetParent(tongs.transform, false);
+            GameObject ghost = new GameObject("INT_RecoveryTongs_01_ObjectGhost");
+            GameObject narrationObject = new GameObject("P102 Narration Runtime Test");
+            P102LeakNarrationController narration =
+                narrationObject.AddComponent<P102LeakNarrationController>();
+            GameObject runtimeObject = new GameObject("P102 Recovery Tongs Narration Gate Test");
+            P102RecoveryTongsRuntime runtime =
+                runtimeObject.AddComponent<P102RecoveryTongsRuntime>();
+
+            try
+            {
+                Assert.That(runtime.Configure(
+                    tongs, ghost.transform, null, null, narration), Is.True);
+                Assert.That(runtime.IsGrabEnabled, Is.False);
+
+                Invoke(runtime, "OnLidStowed");
+                Assert.That(runtime.IsGrabEnabled, Is.False,
+                    "The lid event must not unlock the tongs during narration.");
+
+                Invoke(runtime, "OnCueCompleted", P102LeakNarrationCue.ContainerLidStowed);
+                Assert.That(runtime.IsGrabEnabled, Is.True,
+                    "Completed lid narration must unlock the tongs.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(runtimeObject);
+                UnityEngine.Object.DestroyImmediate(narrationObject);
                 UnityEngine.Object.DestroyImmediate(ghost);
                 UnityEngine.Object.DestroyImmediate(tongs);
             }
@@ -553,6 +607,30 @@ namespace VRProject.LeakResponse.EditorTests
                 methodName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(method, Is.Not.Null, $"Missing test hook method {methodName}");
             method.Invoke(target, arguments);
+        }
+
+        static bool RecoveryInputAllowed(
+            bool actionEnabled,
+            bool pickupPromptStarted,
+            bool padPromptCompleted,
+            bool sockPromptCompleted,
+            bool narrationPlaying,
+            bool padsRemain,
+            bool socksRemain)
+        {
+            MethodInfo method = typeof(P102RecoveryTongsRuntime).GetMethod(
+                "IsRecoveryInputAllowed", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Missing recovery narration gate test hook.");
+            return (bool)method.Invoke(null, new object[]
+            {
+                actionEnabled,
+                pickupPromptStarted,
+                padPromptCompleted,
+                sockPromptCompleted,
+                narrationPlaying,
+                padsRemain,
+                socksRemain,
+            });
         }
 
         static void AssertVector(Vector3 expected, Vector3 actual)

@@ -35,6 +35,11 @@ public static class AppPlayModeSmokeRunner
     const string StartedKey = "HCl.AppSmoke.Started";
     const string ReportPath = "Logs/AppPlayModeSmoke.log";
     const string RequestPath = "Temp/AppPlayModeSmoke.request";
+    const string CompletionPreviewActiveKey = "HCl.CompletionPreview.Active";
+    const string CompletionPreviewPhaseKey = "HCl.CompletionPreview.Phase";
+    // A one-shot request opens the real completion screen for visual QA without replaying training.
+    const string CompletionPreviewRequestPath = "Temp/CompletionUiPreview.request";
+    const string CompletionPreviewScreenshotPath = "Temp/CompletionUiPreview.png";
     const double TimeoutSeconds = 240d;
 
     static readonly List<string> report = new List<string>();
@@ -44,12 +49,22 @@ public static class AppPlayModeSmokeRunner
     static bool validatedPreEntryDetectorPose;
     static int preEntryDetectorValidationPhase;
     static double preEntryDetectorPhaseStarted;
+    static int completionPreviewReadyFrame;
+    static bool completionPreviewGameViewFocused;
+    static bool completionPreviewCaptureRequested;
 
     // A request created after compilation is consumed on the next domain reload.
     static AppPlayModeSmokeRunner()
     {
-        if (SessionState.GetBool(ActiveKey, false))
+        if (SessionState.GetBool(CompletionPreviewActiveKey, false))
             Hook();
+        else if (SessionState.GetBool(ActiveKey, false))
+            Hook();
+        else if (File.Exists(CompletionPreviewRequestPath))
+        {
+            File.Delete(CompletionPreviewRequestPath);
+            EditorApplication.delayCall += RunCompletionPreview;
+        }
         else if (File.Exists(RequestPath))
         {
             File.Delete(RequestPath);
@@ -75,6 +90,21 @@ public static class AppPlayModeSmokeRunner
         EditorApplication.EnterPlaymode();
     }
 
+    static void RunCompletionPreview()
+    {
+        Directory.CreateDirectory("Temp");
+        if (File.Exists(CompletionPreviewScreenshotPath))
+            File.Delete(CompletionPreviewScreenshotPath);
+        SessionState.SetBool(CompletionPreviewActiveKey, true);
+        SessionState.SetInt(CompletionPreviewPhaseKey, 0);
+        completionPreviewReadyFrame = 0;
+        completionPreviewGameViewFocused = false;
+        completionPreviewCaptureRequested = false;
+        Hook();
+        EditorSceneManager.OpenScene(SceneFlowController.AppScenePath, OpenSceneMode.Single);
+        EditorApplication.EnterPlaymode();
+    }
+
     static void Hook()
     {
         if (hooked)
@@ -95,6 +125,12 @@ public static class AppPlayModeSmokeRunner
 
     static void Tick()
     {
+        if (SessionState.GetBool(CompletionPreviewActiveKey, false))
+        {
+            TickCompletionPreview();
+            return;
+        }
+
         if (!SessionState.GetBool(ActiveKey, false) || !EditorApplication.isPlaying)
             return;
 
@@ -361,6 +397,7 @@ public static class AppPlayModeSmokeRunner
         }
         var expectedContentScenes = expectedStage == TrainingStage.PreEntry ||
                                     expectedStage == TrainingStage.LeakResponse ||
+                                    expectedStage == TrainingStage.Complete ||
                                     string.Equals(
                                         NormalizePath(app.SceneFlow.CurrentContentScene.path),
                                         NormalizePath(SceneFlowController.StartScenePath),
@@ -1064,6 +1101,110 @@ public static class AppPlayModeSmokeRunner
         }
     }
 
+    static void TickCompletionPreview()
+    {
+        if (!EditorApplication.isPlaying)
+            return;
+
+        try
+        {
+            var app = AppBootstrap.Instance;
+            if (app == null || app.SceneFlow == null || app.SceneFlow.IsTransitioning)
+                return;
+
+            var phase = SessionState.GetInt(CompletionPreviewPhaseKey, 0);
+            if (phase == 0)
+            {
+                var session = app.Session;
+                session.Begin(TrainingMode.LeakResponseOnly);
+                session.EnterStage(TrainingStage.LeakResponse);
+                session.BeginCurrentStageTiming();
+
+                var previewItems = new[]
+                {
+                    ("LR_SuctionValve", "흡입측 밸브 잠금"),
+                    ("LR_DischargeValve", "토출측 밸브 잠금"),
+                    ("LR_AbsorbentSock", "흡착삭 설치"),
+                    ("LR_AbsorbentPad", "흡착패드 설치"),
+                    ("LR_Recovery", "오염 흡착재 수거"),
+                    ("LR_WasteDisposal", "폐기물 용기 밀봉"),
+                };
+                for (var i = 0; i < previewItems.Length; i++)
+                {
+                    session.CompleteCheckItem(
+                        TrainingStage.LeakResponse,
+                        previewItems[i].Item1,
+                        previewItems[i].Item2);
+                }
+
+                if (!session.EndCurrentStage() || !app.SceneFlow.ShowComplete())
+                    throw new InvalidOperationException("Could not open the completion UI preview.");
+                SessionState.SetInt(CompletionPreviewPhaseKey, 1);
+                return;
+            }
+
+            if (app.Session.CurrentStage != TrainingStage.Complete ||
+                UnityEngine.Object.FindAnyObjectByType<CompleteMenuPresenter>() == null ||
+                GameObject.Find("CompleteTrainingCanvas") == null)
+            {
+                return;
+            }
+
+            if (completionPreviewReadyFrame == 0)
+            {
+                completionPreviewReadyFrame = Time.frameCount;
+                return;
+            }
+            if (Time.frameCount - completionPreviewReadyFrame < 5)
+                return;
+
+            if (!completionPreviewGameViewFocused)
+            {
+                FocusGameView();
+                completionPreviewGameViewFocused = true;
+                completionPreviewReadyFrame = Time.frameCount;
+                return;
+            }
+            if (!completionPreviewCaptureRequested)
+            {
+                ScreenCapture.CaptureScreenshot(CompletionPreviewScreenshotPath, 2);
+                completionPreviewCaptureRequested = true;
+                return;
+            }
+            if (!File.Exists(CompletionPreviewScreenshotPath))
+                return;
+
+            SessionState.SetBool(CompletionPreviewActiveKey, false);
+            completionPreviewReadyFrame = 0;
+            completionPreviewGameViewFocused = false;
+            completionPreviewCaptureRequested = false;
+            Unhook();
+            Debug.Log(
+                "[Completion Preview] 완료 화면을 Game View에 열었습니다. " +
+                Path.GetFullPath(CompletionPreviewScreenshotPath));
+        }
+        catch (Exception exception)
+        {
+            SessionState.SetBool(CompletionPreviewActiveKey, false);
+            completionPreviewReadyFrame = 0;
+            completionPreviewGameViewFocused = false;
+            completionPreviewCaptureRequested = false;
+            Unhook();
+            Debug.LogException(exception);
+        }
+    }
+
+    static void FocusGameView()
+    {
+        var gameViewType = Type.GetType("UnityEditor.GameView,UnityEditor");
+        if (gameViewType == null)
+            return;
+        var gameView = EditorWindow.GetWindow(gameViewType);
+        gameView.Show();
+        gameView.Focus();
+        gameView.maximized = true;
+    }
+
     static string GetRelativePath(Transform root, Transform target)
     {
         if (target == root)
@@ -1524,7 +1665,18 @@ public static class AppPlayModeSmokeRunner
 
     static void OnPlayModeChanged(PlayModeStateChange change)
     {
-        if (!SessionState.GetBool(ActiveKey, false) || change != PlayModeStateChange.EnteredEditMode)
+        if (change != PlayModeStateChange.EnteredEditMode)
+            return;
+        if (SessionState.GetBool(CompletionPreviewActiveKey, false))
+        {
+            SessionState.SetBool(CompletionPreviewActiveKey, false);
+            completionPreviewReadyFrame = 0;
+            completionPreviewGameViewFocused = false;
+            completionPreviewCaptureRequested = false;
+            if (!SessionState.GetBool(ActiveKey, false))
+                Unhook();
+        }
+        if (!SessionState.GetBool(ActiveKey, false))
             return;
         FinishEditorExit(SessionState.GetInt(PhaseKey, -1) == 1000);
     }
