@@ -1,5 +1,19 @@
 # PPE Integration Handoff
 
+## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
+
+- 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. PPE 런타임/씬은 팀원 코드 그대로이며 속장갑 테스트의 RGBA 비교에만 채널별 `0.00001` 오차를 허용했다.
+- 통합본 Edit Mode 175/175, 높이 90, App 진행 33 및 물방울/장비/뚜껑 회귀 통과. C# 컴파일 오류 0. 파일/검사 산출물/배포 경로/제한은 [제출 검증 보고서](../../integration/SUBMISSION_VALIDATION_2026-09-08.md) 참고.
+- 수동 작업: Play 종료 → 최신 main 반영 → `01_App` 다시 열기. Scene 재생성 불필요. 원본 E checkout의 미커밋 변경/브랜치/인덱스는 건드리지 않았다. 실제 Quest Link 확인은 남아 있다.
+- 추가 Integration 요청: 실제 Link 최종 시연. 아래 commit/push 미실행 문구는 9월 7일 당시 기록이다.
+
+## 2026-09-07 Integration — Link 공용 XR 시작 높이/책상 접근 시 높이 누적
+
+- 공용 App의 Floor 요청과 capsule 기반 중력으로 수정. 실제 PPE 측정기가 손 앞에 있을 때 머리 아래 sphere cast가 바닥으로 오인하던 문제를 재현했다. 측정기/책상 IgnoreCollision과 Grab 설정은 보존했다.
+- PPE Scene·Prefab·배치·대본·입력·완료 계약 변경 없음. 공용 변경 파일, 물리 재현, 테스트 결과는 [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md)에 기록.
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. setup/재생성 불필요. 실제 Link 착용 확인은 남아 있으며 Stage 직접 Play용 리그는 이번 대상이 아니다.
+- Integration 요청: 없음. 실제 Link의 바닥 보정/시점과 책상 접근·숙이기·물건 줍기 재확인 필요. 이번 패치 commit/push 미실행.
+
 ## Work metadata
 
 - Role: PPE
@@ -211,8 +225,6 @@ Did not change desk, bag, cabinets, or common XR.
 - SCENE VERIFIED: left wall transform matches right wall; door pieces inactive
 - PLAY MODE VERIFIED: NOT TESTED
 - QUEST VERIFIED: NOT TESTED
-
-## Desk height + hide packed items (2026-08-27)
 
 ## Desk height + hide packed items (2026-08-27)
 

@@ -10733,7 +10733,7 @@ GameObject:
   - component: {fileID: 1278729148}
   - component: {fileID: 1278729147}
   - component: {fileID: 1278729146}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: Common XR Origin
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10864,7 +10864,7 @@ MonoBehaviour:
     m_InputActionReference: {fileID: 0}
     m_ObjectReferenceObject: {fileID: 0}
     m_ManualValue: {x: 0, y: 0}
-  m_UseGravity: 1
+  m_UseGravity: 0
 --- !u!114 &1278729150
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10947,7 +10947,7 @@ MonoBehaviour:
   m_Camera: {fileID: 453007396}
   m_OriginBaseGameObject: {fileID: 1278729145}
   m_CameraFloorOffsetObject: {fileID: 19960303}
-  m_RequestedTrackingOriginMode: 0
+  m_RequestedTrackingOriginMode: 2
   m_CameraYOffset: 0
 --- !u!4 &1278729155
 Transform:
@@ -12810,30 +12810,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1564232244}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b46d3c2f9f9a9849840e47b9ddef1b2, type: 3}
+  m_Script: {fileID: 11500000, guid: 6e47b5e5843f461a8c639da29c156601, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Mediator: {fileID: 420121210}
+  m_Mediator: {fileID: 1278729150}
   m_TransformationPriority: 10
-  m_UseGravity: 1
-  m_UseLocalSpaceGravity: 1
-  m_TerminalVelocity: 90
-  m_GravityAccelerationModifier: 1
-  m_UpdateCharacterControllerCenterEachFrame: 1
-  m_SphereCastRadius: 0.09
-  m_SphereCastDistanceBuffer: -0.05
-  m_SphereCastLayerMask:
-    serializedVersion: 2
-    m_Bits: 51
-  m_SphereCastTriggerInteraction: 1
-  m_OnGravityLockChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_OnGroundedChanged:
-    m_PersistentCalls:
-      m_Calls: []
+  terminalVelocity: 20
+  groundedDownSpeed: 1
 --- !u!1 &1565933698
 GameObject:
   m_ObjectHideFlags: 0

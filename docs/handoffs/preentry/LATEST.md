@@ -1,5 +1,54 @@
 # PreEntry → Integration 인수인계
 
+## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
+
+- 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. 팀원의 풍향계 게이지 코드와 PreEntry Scene/TTS/pose는 변경 없이 보존했다.
+- 통합본 Edit Mode 175/175, 높이 90, App 진행 33, 실제 PreEntry→Leak 물방울/장비 28 및 뚜껑 대기/인계 검사 통과. 파일/전체 검사/배포 경로/제한은 [제출 검증 보고서](../../integration/SUBMISSION_VALIDATION_2026-09-08.md) 참고.
+- 수동 작업: Play 종료 → 최신 main 반영 → `01_App` 다시 열기. setup/Scene 재생성 불필요. 원본 E checkout의 미커밋 변경/브랜치/인덱스는 건드리지 않았다. 실제 Quest Link 확인은 남아 있다.
+- 추가 Integration 요청: 실제 Link 최종 시연. 아래 commit/push 미실행 문구는 9월 7일 당시 기록이다.
+
+## 2026-09-07 Integration — Link 공용 XR 높이 누적 수정
+
+- 공용 App에서 Floor를 명시하고, 중력 담당 누락/자기 몸·측정기를 바닥으로 오인하던 head cast를 capsule 기반 중력으로 교체했다. 전환 시 바닥을 내리기 전에 이동/중력을 잠근다.
+- PreEntry Scene·Prefab·풍향계/측정기 pose·TTS·입력·완료 이벤트 변경 없음. 파일/검증/제한은 [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md) 참고.
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. setup 실행 금지/불필요. 실기기 Link 바닥 높이와 실제 턱/숙이기는 별도 확인 필요. Stage 직접 Play 리그는 수정하지 않았다.
+- 추가 Integration 요청 없음. 이번 패치 commit/push 미실행.
+
+## 2026-09-08 PreEntry — 풍향 변환 후 확인 게이지 추적
+
+- 역할: PreEntry
+- 브랜치: `feature/preentry` (`origin/develop` `5770f85`에 fast-forward한 뒤 게이지 수정을 다시 적용)
+- commit: 이 작업에서 `feature/preentry`에 커밋·푸시 (main 직접 반영 없음)
+- 작성자/작성일: PreEntry Codex / 2026-09-08
+
+### 변경 목적과 동작
+
+- `WaitWindChange`에서 `WindPivot`이 회전하면 풍향계 메시는 새 위치로 가지만, `EntrySafetyWindsockGazeProgress`는 Runtime Root 아래 초기 world 좌표에 고정되어 있었다.
+- 게이지는 화살표(`EntrySafetyStepVisuals`)와 같이 `Windsock_UnityReady` 렌더러 bounds 중심을 따라간다. 초기 배치에서 bounds 중심까지의 world 오프셋을 한 번 저장하고, 변환 중에도 숨긴 채로 그 오프셋을 유지한다.
+- 풍향계를 가리키는 노란 화살표는 기존 `EntrySafetyStepVisuals` 동작이다. 이번 작업에서 화살표 코드/씬 배치는 수정하지 않았다.
+- 풍향계 피벗/위치, gaze 타깃 Collider, 상태 머신, TTS는 변경하지 않았다. Scene/Prefab 수동 작업 없음.
+
+### 변경 파일
+
+- `Assets/2.YJH/Scripts/Scenario/Gaze/EntrySafetyGazeProgressVisual.cs`
+- `Assets/2.YJH/Scripts/Scenario/EntrySafetyScenarioController.cs`
+- `docs/handoffs/preentry/LATEST.md`
+
+### 검증
+
+- 수행한 테스트: 코드 정적 확인. Unity PlayMode/Quest 실기기 미검증
+- Console compile error: 미검증 / Missing Script: 미검증
+- 허용 범위 밖 변경: 없음
+
+### 알려진 문제와 위험
+
+- PlayMode에서 `CheckChangedWind` 게이지가 회전한 풍향계 메시(화살표가 가리키는 위치) 옆에 붙는지 확인이 필요하다.
+- 게이지는 bounds 중심의 world 이동만 따라간다. 화살표처럼 메시 바로 위로 붙이는 보정은 넣지 않았다.
+
+### Integration 요청
+
+- 없음
+
 ## 2026-09-07 Integration — Game View/씬 전환 후속 정정
 
 - 빈 Game View를 만드는 위험이 있는 `XRGameViewFullFrame` 별도 덮어쓰기와 shader를 삭제하고 Unity 기본 XR mirror로 복구. 전체 눈 시야 확장 기능은 철회했다.

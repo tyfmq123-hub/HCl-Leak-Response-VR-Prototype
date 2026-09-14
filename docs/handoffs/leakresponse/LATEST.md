@@ -1,5 +1,27 @@
 # LeakResponse → Integration 인수인계
 
+## 2026-09-08 Integration — 제출본 최신 팀 변경 보존/재검증
+
+- 높이·흡착재·물방울 수정 `06480dd`에 최신 main `c9e240a` / develop `db1a980`를 병합했다. Leak Scene/Prefab/TTS와 뚜껑·고스트 작성 pose는 그대로 보존했다.
+- 통합본 Edit Mode 175/175, 높이 90, Leak 단독 26/Full 인계 28, 뚜껑 대기/인계 8, 실제 XRI 뚜껑·집게·카운트 35 검사 통과. 파일/전체 검사/배포 경로/제한은 [제출 검증 보고서](../../integration/SUBMISSION_VALIDATION_2026-09-08.md) 참고.
+- 수동 작업: Play 종료 → 최신 main 반영 → `01_App` 다시 열기. setup/Scene 재생성 불필요. 원본 E checkout의 미커밋 변경/브랜치/인덱스는 건드리지 않았다. 실제 Quest Link 확인은 남아 있다.
+- 추가 Integration 요청: 실제 Link 최종 시연. 아래 commit/push 미실행 문구는 9월 7일 당시 기록이다.
+
+## 2026-09-07 Integration — 가방 패드 상승 충돌 / additive 진입 물방울 중단
+
+- 실제 App/PhysX에서 흡착패드 상승으로 플레이어가 1.14067m 올라가는 현상 재현. `P102SharedBagItemHandler`가 제시하는 기존 Sock/Pad에 `P102AbsorbentPlayerCollisionGuard`를 붙여 XR capsule 충돌만 제외했다. 수정 후 두 공급 물체 모두 상승량 0m. Grab layer/바닥 충돌/trigger/설치 흐름 유지.
+- PreEntry→Leak 실제 handoff에서 `FallingDrops` emission=7인데 playing=false/particleCount=0인 상태 재현. `HClAbsorptionVisualController`가 활성·양수 누출과 재생 상태를 LateUpdate에서 동기화한다. Pause/누출 0/최종 정리 뒤에는 다시 켜지지 않는다. 물방울 크기·재질·위치 변경 없음.
+- 수정 파일, 검사 실행 방법, 세부 근거: [물방울·흡착재 충돌 보고서](../../integration/LEAK_SUPPLIES_DROPS_2026-09-07.md). Edit Mode 174/174 PASS, 실제 App 단독/전체 handoff, XRI 집기/놓기/설치 검사 및 D3D11 렌더 확인.
+- Scene/Prefab/뚜껑·고스트 작성 Pose/TTS/완료·전송 계약 변경 없음. Inspector 수동 수정이나 setup 재실행 불필요. Play를 종료하고 컴파일 후 `01_App`에서 재실행한다. 실제 Quest Link 착용 테스트는 별도 확인 필요.
+- 역할 Integration, 브랜치 `integration/xr-height-stability-20260907`, commit/push 미실행. 추가 Integration 요청 없음.
+
+## 2026-09-07 Integration — Link 공용 XR 턱 통과 후 높이 누적 수정
+
+- 수정 전 실제 XRI/PhysX에서 12cm 턱을 넘으면 12cm 높이가 남는 것을 재현. 공용 capsule 중력으로 교체해 두 키 높이/반복 왕복에서 높이 차이 0.00000m로 복귀했다. 전환/메뉴/pause 중에는 중력을 중지한다.
+- LeakResponse Scene·Prefab·쓰레기통/뚜껑/집게 authored pose·TTS·입력·완료 흐름 변경 없음. 공용 파일과 상세 검증/미검증 항목: [높이 수정 보고서](../../integration/SHARED_XR_HEIGHT_2026-09-07.md).
+- 수동 작업: Play 종료 후 `01_App` 다시 열기. 기존 뚜껑 배치 재설정/setup 실행 불필요. 실제 Link 착용 상태의 턱 왕복·낙하물 줍기는 재확인 필요. Stage 직접 Play 리그는 수정하지 않았다.
+- 추가 Integration 요청 없음. 이번 패치 commit/push 미실행.
+
 ## 2026-09-07 Integration — PreEntry 대기 중 뚜껑 79cm 낙하 수정
 
 - 실제 원인: `06_LeakResponse` 뚜껑 Rigidbody가 gravity=true/kinematic=false인 상태로 PreEntry의 additive 환경에 먼저 로드됨. Leak 활성화까지 중력으로 떨어지고, 그 뒤 `P102WasteContainerRuntime.Configure`가 바닥 위치를 닫힘 pose로 저장했다.

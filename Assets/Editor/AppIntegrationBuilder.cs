@@ -14,6 +14,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR.Interaction.Toolkit.Inputs.Readers;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Gravity;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
 
@@ -183,6 +185,27 @@ public static class AppIntegrationBuilder
             : null;
         if (move == null || turn == null || vignette == null)
             throw new InvalidOperationException("Common XR locomotion/vignette components are incomplete.");
+
+        var origin = commonOrigin.GetComponent<XROrigin>();
+        origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+        commonOrigin.gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+        var legacyGravity = commonOrigin.GetComponentsInChildren<GravityProvider>(true);
+        // This is the builder-owned clone only, not any authored Stage rig.
+        foreach (var oldGravity in legacyGravity)
+        {
+            var replacement = oldGravity.GetComponent<SharedCharacterGravityProvider>() ??
+                oldGravity.gameObject.AddComponent<SharedCharacterGravityProvider>();
+            replacement.enabled = false;
+            replacement.mediator = commonOrigin.GetComponent<LocomotionMediator>();
+            replacement.transformationPriority = oldGravity.transformationPriority;
+            UnityEngine.Object.DestroyImmediate(oldGravity);
+        }
+        if (commonOrigin.GetComponentsInChildren<SharedCharacterGravityProvider>(true).Length != 1)
+            throw new InvalidOperationException("Common XR must have exactly one capsule gravity provider.");
+        move.gravityProvider = null;
+#pragma warning disable CS0618
+        move.useGravity = false;
+#pragma warning restore CS0618
 
         // Quest screenshots can include pixels outside the asymmetric eye frustum.
         // Never expose the Starter Assets blue camera fallback in those pixels.
