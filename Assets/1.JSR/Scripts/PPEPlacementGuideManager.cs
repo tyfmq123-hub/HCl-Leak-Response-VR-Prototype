@@ -1083,7 +1083,8 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             return null;
 
         GameObject root;
-        var dedicatedGuide = gloveMember != null ? gloveMember.GuidePrefab : null;
+        var visualMember = gloveMember != null ? gloveMember.GhostVisualMember : null;
+        var dedicatedGuide = visualMember != null ? visualMember.GuidePrefab : null;
         if (dedicatedGuide == null && equipable != null)
             dedicatedGuide = equipable.GuidePrefab;
 
@@ -1096,7 +1097,7 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
         }
         else if (usePpeVisualWhenGuidePrefabMissing)
         {
-            var source = gloveMember != null ? gloveMember.VisualRoot.gameObject : equipable.gameObject;
+            var source = visualMember != null ? visualMember.VisualRoot.gameObject : equipable.gameObject;
             root = BuildRendererOnlyGhost(source, anchor, slot, gloveMember);
         }
         else
@@ -1680,8 +1681,10 @@ public sealed class PPEPlacementGuideManager : MonoBehaviour
             }
             else
             {
-                localPosition = calib.localPosition;
-                localRotation = gloveMember.GhostVisualLocalRotation;
+                // Keep the held boot's target foot; swap only the model and its authored pose.
+                var visualMember = gloveMember.GhostVisualMember;
+                localPosition = visualMember.EnsureGhostPoseCalibration().localPosition;
+                localRotation = visualMember.GhostVisualLocalRotation;
             }
         }
         else if (equipable != null)
