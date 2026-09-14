@@ -68,8 +68,10 @@ public static class PPEBootGhostFacingPreview
         Handles.ArrowHandleCap(0, center + Vector3.back * 0.18f, Quaternion.identity, 0.32f, EventType.Repaint);
         Handles.Label(center + Vector3.forward * 0.18f, "Body Forward (+Z)");
 
-        DrawBoot(view.camera, left, leftPosition, LeftToeLocal, "Left Boot");
-        DrawBoot(view.camera, right, rightPosition, RightToeLocal, "Right Boot");
+        DrawBoot(view.camera, left.GhostVisualMember, leftPosition,
+            left.GhostVisualMember.GloveSide == PPEGrabHand.Left ? LeftToeLocal : RightToeLocal, "Left Boot Target");
+        DrawBoot(view.camera, right.GhostVisualMember, rightPosition,
+            right.GhostVisualMember.GloveSide == PPEGrabHand.Left ? LeftToeLocal : RightToeLocal, "Right Boot Target");
     }
 
     static void DrawBoot(

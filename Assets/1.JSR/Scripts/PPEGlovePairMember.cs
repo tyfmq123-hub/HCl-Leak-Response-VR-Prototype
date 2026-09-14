@@ -39,6 +39,9 @@ public sealed class PPEGlovePairMember : MonoBehaviour
 
     [Header("Ghost Pose Calibration")]
     [SerializeField]
+    [Tooltip("Use the other boot's visual and calibration for the guide only. Does not change the equipped foot or held item.")]
+    bool swapBootGhostVisual;
+    [SerializeField]
     [Tooltip("Child Transform you rotate in the Inspector until the Ghost sits on the target. Runtime Ghost uses this local pose relative to the live target (palm or body yaw).")]
     Transform ghostPoseCalibration;
     [SerializeField]
@@ -93,6 +96,16 @@ public sealed class PPEGlovePairMember : MonoBehaviour
     public Vector3 GhostCalibrationLocalPosition =>
         ghostPoseCalibration != null ? ghostPoseCalibration.localPosition : guidePositionOffset;
     public Vector3 GhostVisualOriginOffset => ghostVisualOriginOffset;
+    public PPEGlovePairMember GhostVisualMember
+    {
+        get
+        {
+            if (targetKind != PPEPairTargetKind.BodyLowerLeg || !swapBootGhostVisual || coordinator == null)
+                return this;
+            var other = gloveSide == PPEGrabHand.Left ? coordinator.RightMember : coordinator.LeftMember;
+            return other != null && other.TargetKind == PPEPairTargetKind.BodyLowerLeg ? other : this;
+        }
+    }
     public bool DevelopmentRuntimeCalibrationMode
     {
         get
