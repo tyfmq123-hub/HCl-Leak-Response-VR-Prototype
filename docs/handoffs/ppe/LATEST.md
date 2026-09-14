@@ -44,6 +44,8 @@
 - `dotnet build Assembly-CSharp-Editor.csproj --no-restore --verbosity quiet`: 런타임 의존 프로젝트 포함 빌드 성공, 경고 0 / 오류 0.
 - `git diff --check`: 통과.
 - Scene diff: 두 신발의 고스트 설정과 전방 오프셋만 변경. 장갑 반전 코드/설정 제거 확인.
+- 최신 develop 통합 후 기존 csproj의 공용 신규 파일 2개 누락을 임시 MSBuild targets로 보완해 런타임/에디터 빌드 재통과(경고 0, 오류 0). 저장소의 프로젝트 설정은 수정하지 않았다.
+- Unity 6000.4.8f1 Edit Mode 테스트 시도는 로컬 에디터 라이선스 미인증으로 실행 전 종료. 테스트 통과로 간주하지 않는다.
 - Unity Play Mode, 실제 Quest 착용/수납/완료, Console 및 Missing Script 검사는 미실행. 신발 좌우 모양의 시각적 적합성은 실제 VR에서 확인 필요.
 
 ### 기존 변경 / 알려진 문제
