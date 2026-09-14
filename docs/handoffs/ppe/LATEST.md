@@ -4,10 +4,42 @@
 
 - Role: PPE
 - Branch: `feature/ppe`
-- Commit: InnerGloves XR hand tint on `feature/ppe`, cherry-picked to `develop`
-- Push target: `origin/develop`
-- Updated: 2026-09-08
-- Current focus: InnerGloves equip feedback by tinting XR default-hand meshes.
+- Commit: `fix(ppe): correct boot ghost side and forward offset` (이 기록과 함께 커밋)
+- Push target: 사용자 요청에 따라 `origin/feature/ppe` → `develop` → `main` PR 순서로 반영
+- Updated: 2026-09-14
+- Current focus: 신발 고스트 앞쪽 오프셋 제거 및 신발 고스트 좌우 모델 교체.
+
+## PPE 신발 고스트 위치 / 좌우 모델 보정 (2026-09-14)
+
+### 변경 파일 및 동작
+
+- `Assets/1.JSR/Scripts/PPEPlayerBodyReference.cs`: 신발 하체 목표의 전방 기본 오프셋을 0으로 변경. 좌우 간격 0.14m와 정강이 높이 0.38m는 유지한다.
+- `Assets/Scenes/04_PPE.unity`: 전방 오프셋 0.08m를 0으로 변경하고 신발 두 멤버에만 `swapBootGhostVisual`을 활성화.
+- `Assets/1.JSR/Scripts/PPEGlovePairMember.cs`: 신발에만 반대 멤버의 고스트 시각 소스를 선택하는 설정 추가. 상대 멤버가 없으면 자기 모델 사용.
+- `Assets/1.JSR/Scripts/PPEPlacementGuideManager.cs`: 신발 고스트 모델과 해당 모델의 위치/회전 보정 포즈를 함께 교체. 잡은 신발의 좌우 착용 대상과 실제 장비는 유지.
+- `Assets/1.JSR/Editor/PPEBootGhostFacingPreview.cs`: 신발 미리보기에 동일한 모델/포즈 선택 적용.
+- `docs/handoffs/ppe/LATEST.md`: 본 기록.
+- 속장갑/화학장갑 고스트 반전은 모두 제거했다. `PPEGhostPosePreview.cs`는 작업 전 내용으로 복구했고 장갑 Scene 설정은 변경 없음.
+
+### Inspector / Scene 수동 작업
+
+별도 설정 작업 없음. 컴파일 후 `04_PPE`를 다시 열고 양쪽 신발을 각각 잡아 같은 쪽 발 위치에 올바른 모양의 고스트가 표시되는지 확인한다. 신발을 들고 이동/회전/내려다보기 및 놓기 착용을 확인한다. 속장갑/화학장갑 고스트는 기존 모양인지 확인한다.
+
+### 검증 결과 / 미검증 항목
+
+- `dotnet build Assembly-CSharp-Editor.csproj --no-restore --verbosity quiet`: 런타임 의존 프로젝트 포함 빌드 성공, 경고 0 / 오류 0.
+- `git diff --check`: 통과.
+- Scene diff: 두 신발의 고스트 설정과 전방 오프셋만 변경. 장갑 반전 코드/설정 제거 확인.
+- Unity Play Mode, 실제 Quest 착용/수납/완료, Console 및 Missing Script 검사는 미실행. 신발 좌우 모양의 시각적 적합성은 실제 VR에서 확인 필요.
+
+### 기존 변경 / 알려진 문제
+
+- 사용자 승인에 따라 기존 `ProjectSettings/QualitySettings.asset`, `Assets/_Recovery.meta`, `Assets/_Recovery/`는 그대로 보존했다.
+- 신발 목표는 HMD 기반 하체 추정이며 실제 발 추적은 아니다. 높이는 기존 정강이 높이 0.38m를 유지하고 전방 8cm만 제거했다.
+
+### Integration 요청
+
+없음. 공용 XR / App / Input / Inventory 변경 없음.
 
 ## InnerGloves XR hand tint (2026-09-08)
 

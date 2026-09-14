@@ -95,7 +95,7 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
     [SerializeField, Min(0f)]
     [Tooltip("Reachable shin / below-knee height. Do not place the valid target on the floor.")]
     float lowerLegHeight = 0.38f;
-    [SerializeField] float lowerBodyForwardOffset = 0.08f;
+    [SerializeField] float lowerBodyForwardOffset = 0f;
 
     [Header("Debug")]
     [SerializeField]
@@ -571,8 +571,8 @@ public sealed class PPEPlayerBodyReference : MonoBehaviour
                 new AnchorPose(PPEEquipSlot.LeftHand, equipmentAnchors.LeftHand, 0.60f, 0f, new Vector2(-0.32f, 0.10f), Vector3.zero),
                 new AnchorPose(PPEEquipSlot.RightHand, equipmentAnchors.RightHand, 0.60f, 0f, new Vector2(0.32f, 0.10f), Vector3.zero),
                 new AnchorPose(PPEEquipSlot.Body, equipmentAnchors.Body, 0.55f, 0f, new Vector2(0f, 0.02f), Vector3.zero),
-                new AnchorPose(PPEEquipSlot.LeftFoot, equipmentAnchors.LeftFoot, 0f, 0.38f, new Vector2(-0.14f, 0.08f), Vector3.zero),
-                new AnchorPose(PPEEquipSlot.RightFoot, equipmentAnchors.RightFoot, 0f, 0.38f, new Vector2(0.14f, 0.08f), Vector3.zero),
+                new AnchorPose(PPEEquipSlot.LeftFoot, equipmentAnchors.LeftFoot, 0f, 0.38f, new Vector2(-0.14f, 0f), Vector3.zero),
+                new AnchorPose(PPEEquipSlot.RightFoot, equipmentAnchors.RightFoot, 0f, 0.38f, new Vector2(0.14f, 0f), Vector3.zero),
                 new AnchorPose(PPEEquipSlot.Radio, equipmentAnchors.Radio, 0.62f, 0f, new Vector2(-0.18f, 0.05f), Vector3.zero),
                 new AnchorPose(PPEEquipSlot.GasDetector, equipmentAnchors.GasDetector, 0.58f, 0f, new Vector2(0.18f, 0.07f), Vector3.zero),
             };

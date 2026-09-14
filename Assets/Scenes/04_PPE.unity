@@ -9132,6 +9132,7 @@ MonoBehaviour:
   equipReference: {fileID: 0}
   requireOppositeHand: 0
   targetKind: 1
+  swapBootGhostVisual: 1
   ghostPoseCalibration: {fileID: 1928794177}
   bootModelAxisCorrectionEuler: {x: 0, y: 180, z: 0}
   guidePositionOffset: {x: 0, y: 0, z: 0}
@@ -9600,6 +9601,7 @@ MonoBehaviour:
   equipReference: {fileID: 0}
   requireOppositeHand: 0
   targetKind: 1
+  swapBootGhostVisual: 1
   ghostPoseCalibration: {fileID: 576806553}
   bootModelAxisCorrectionEuler: {x: 0, y: 180, z: 0}
   guidePositionOffset: {x: 0, y: 0, z: 0}
@@ -22359,7 +22361,7 @@ MonoBehaviour:
   torsoForwardOffset: 0.05
   footSpacing: 0.14
   lowerLegHeight: 0.38
-  lowerBodyForwardOffset: 0.08
+  lowerBodyForwardOffset: 0
   drawDynamicTargetGizmos: 0
   anchorPoses:
   - slot: 1
